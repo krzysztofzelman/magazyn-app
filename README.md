@@ -1,76 +1,95 @@
-# Magazyn 🏭
+# 📦 Magazyn — REST API zarządzania magazynem
 
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=java&logoColor=white)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven-C71A36?style=for-the-badge&logo=apache-maven&logoColor=white)](https://maven.apache.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![H2 Database](https://img.shields.io/badge/H2%20Database-004D40?style=for-the-badge&logo=h2&logoColor=white)](https://www.h2database.com/)
 [![Lombok](https://img.shields.io/badge/Lombok-18BFFF?style=for-the-badge&logo=lombok&logoColor=white)](https://projectlombok.org/)
+
+Backend REST API do zarządzania stanem magazynowym produktów z pełnym CRUD-em.  
+Wdrożony na **VPS** pod adresem **[REMOVED:8080](http://REMOVED:8080)**.  
+Frontend dostępny na **[magazyn-frontend.vercel.app](https://magazyn-frontend.vercel.app)**.
+
+---
+
+## 📋 Spis treści
+
+- [Opis projektu](#-opis-projektu)
+- [Tech Stack](#-tech-stack)
+- [Model danych](#-model-danych)
+- [API Endpointy](#-api-endpointy)
+- [Uruchomienie lokalne](#-uruchomienie-lokalne)
+- [Uruchomienie przez Docker](#-uruchomienie-przez-docker)
+- [Deploy produkcyjny](#-deploy-produkcyjny)
+- [Struktura projektu](#-struktura-projektu)
+- [Licencja](#-licencja)
 
 ---
 
 ## 📋 Opis projektu
 
-**Magazyn** to aplikacja backendowa REST API do zarządzania stanem magazynowym produktów. Umożliwia wykonywanie pełnych operacji CRUD (tworzenie, odczyt, aktualizacja, usuwanie) na produktach w magazynie.
+**Magazyn** to aplikacja backendowa napisana w **Spring Boot 3.5** z **Java 17**, udostępniająca REST API do zarządzania produktami magazynowymi. Projekt został zaprojektowany w architekturze **MVC** z wyraźnym podziałem na warstwy:
 
-Aplikacja została zbudowana w architekturze **MVC** (Model-View-Controller) z podziałem na warstwy:
-- **Controller** – REST endpointy
-- **Service** – logika biznesowa
-- **Repository** – dostęp do bazy danych (warstwa persistence)
-- **Entity** – model danych
+| Warstwa      | Odpowiedzialność                                       |
+| ------------ | ------------------------------------------------------ |
+| **Controller** | Obsługa żądań HTTP i mapowanie na endpointy REST       |
+| **Service**    | Logika biznesowa (walidacja, unikalność SKU)            |
+| **Repository** | Warstwa dostępu do danych (Spring Data JPA)            |
+| **Entity**     | Model danych mapowany na tabelę w bazie PostgreSQL     |
 
 ---
 
 ## 🧱 Tech Stack
 
-| Technologia                 | Wersja    | Opis                                         |
-| --------------------------- | --------- | -------------------------------------------- |
-| **Java**                    | 17        | Język programowania                          |
-| **Spring Boot**             | 3.5.14    | Framework aplikacyjny                        |
-| **Spring Data JPA**         | -         | Warstwa dostępu do danych                    |
-| **Spring Web**              | -         | REST API                                     |
-| **Spring Validation**       | -         | Walidacja danych wejściowych                 |
-| **Maven**                   | -         | System budowania i zarządzania zależnościami |
-| **H2 Database**             | -         | Wbudowana baza danych (profil domyślny)      |
-| **PostgreSQL**              | 16        | Baza danych produkcyjna (Docker)             |
-| **Docker**                  | -         | Konteneryzacja                               |
-| **Lombok**                  | -         | Redukcja kodu boilerplate (adnotacje)        |
-| **Hibernate**               | -         | ORM – mapowanie obiektowo-relacyjne          |
+| Technologia           | Wersja        | Opis                                               |
+| --------------------- | ------------- | -------------------------------------------------- |
+| **Java**              | 17            | Język programowania (LTS)                          |
+| **Spring Boot**       | 3.5.14        | Framework aplikacyjny                              |
+| **Spring Data JPA**   | —             | Mapowanie obiektowo-relacyjne (ORM)                |
+| **Spring Web**        | —             | REST API (Tomcat osadzony)                         |
+| **Spring Validation** | —             | Walidacja danych wejściowych                       |
+| **Maven**             | —             | System budowania i zarządzania zależnościami       |
+| **PostgreSQL**        | 16            | Produkcyjna baza danych                            |
+| **Hibernate**         | —             | Implementacja JPA — automatyczne generowanie DDL   |
+| **Docker**            | —             | Konteneryzacja bazy danych                         |
+| **Lombok**            | —             | Eliminacja kodu boilerplate (gettery, settery itd.)|
 
 ---
 
-## 📦 Model danych – Product
+## 📦 Model danych
 
-Encja `Product` reprezentuje produkt w magazynie:
-
-| Pole          | Typ               | Opis                                 |
-| ------------- | ----------------- | ------------------------------------ |
-| `id`          | `Long` (PK, auto) | Unikalny identyfikator produktu      |
-| `name`        | `String`          | Nazwa produktu (wymagane)            |
-| `sku`         | `String`          | Kod SKU – unikalny (wymagane)        |
-| `description` | `String`          | Opis produktu (opcjonalne)           |
-| `unit`        | `String`          | Jednostka miary, np. szt., kg, m (wymagane) |
-| `createdAt`   | `LocalDateTime`   | Automatycznie generowana data utworzenia |
-
+Encja `Product` reprezentuje pojedynczy produkt w magazynie.  
 Tabela w bazie danych: **`products`**
+
+| Pole          | Typ Javy         | Kolumna SQL        | Ograniczenia                        |
+| ------------- | ---------------- | ------------------ | ----------------------------------- |
+| `id`          | `Long`           | `id`               | PK, autoinkrement                   |
+| `name`        | `String`         | `name`             | `NOT NULL`                          |
+| `sku`         | `String`         | `sku`              | `NOT NULL`, `UNIQUE`                |
+| `description` | `String`         | `description`      | —                                   |
+| `unit`        | `String`         | `unit`             | `NOT NULL` (np. szt., kg, m, opak.) |
+| `createdAt`   | `LocalDateTime`  | `created_at`       | Automatycznie ustawiane przy insert |
 
 ---
 
 ## 🌐 API Endpointy
 
-Podstawowy URL: **`http://localhost:8080/api/products`**
+**Base URL (produkcja):** `http://REMOVED:8080/api/products`  
+**Base URL (lokalnie):** `http://localhost:8080/api/products`
 
-| Metoda   | Endpoint              | Opis                             | Status odpowiedzi                               |
-| -------- | --------------------- | -------------------------------- | ----------------------------------------------- |
-| `GET`    | `/api/products`       | Pobiera listę wszystkich produktów | `200 OK`                                        |
-| `GET`    | `/api/products/{id}`  | Pobiera produkt po ID            | `200 OK` / `404 Not Found`                      |
-| `GET`    | `/api/products/sku/{sku}` | Pobiera produkt po kodzie SKU    | `200 OK` / `404 Not Found`                      |
-| `POST`   | `/api/products`       | Tworzy nowy produkt              | `201 Created` / `400 Bad Request`               |
-| `PUT`    | `/api/products/{id}`  | Aktualizuje istniejący produkt   | `200 OK` / `400 Bad Request`                    |
-| `DELETE` | `/api/products/{id}`  | Usuwa produkt                    | `204 No Content` / `404 Not Found`              |
+### Zestawienie endpointów
 
-### Przykładowe ciało żądania (POST / PUT)
+| Metoda   | Endpoint                    | Opis                               | Kod odpowiedzi                |
+| -------- | --------------------------- | ---------------------------------- | ----------------------------- |
+| `GET`    | `/api/products`             | Lista wszystkich produktów         | `200 OK`                      |
+| `GET`    | `/api/products/{id}`        | Pojedynczy produkt po ID           | `200 OK` / `404 Not Found`    |
+| `GET`    | `/api/products/sku/{sku}`   | Pojedynczy produkt po kodzie SKU   | `200 OK` / `404 Not Found`    |
+| `POST`   | `/api/products`             | Utworzenie nowego produktu         | `201 Created` / `400 Bad Request` |
+| `PUT`    | `/api/products/{id}`        | Aktualizacja istniejącego produktu | `200 OK` / `400 Bad Request`  |
+| `DELETE`  | `/api/products/{id}`        | Usunięcie produktu                 | `204 No Content` / `404 Not Found` |
+
+### Przykładowe żądanie POST / PUT
 
 ```json
 {
@@ -81,106 +100,125 @@ Podstawowy URL: **`http://localhost:8080/api/products`**
 }
 ```
 
-> **Uwaga:** Pole `sku` musi być unikalne – próba utworzenia/zaktualizowania produktu z istniejącym SKU zwróci błąd `400 Bad Request`.
+> **Uwaga:** Pole `sku` musi być unikalne. Próba utworzenia lub aktualizacji produktu na istniejący SKU zwróci `400 Bad Request`.
+
+### Przykłady z curl
+
+```bash
+# Lista produktów
+curl http://REMOVED:8080/api/products
+
+# Produkt po ID
+curl http://REMOVED:8080/api/products/1
+
+# Produkt po SKU
+curl http://REMOVED:8080/api/products/sku/SRU-M8-001
+
+# Utworzenie produktu
+curl -X POST http://REMOVED:8080/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Śruba M8","sku":"SRU-M8-001","description":"Śruba nierdzewna M8 x 30mm","unit":"szt."}'
+
+# Aktualizacja produktu
+curl -X PUT http://REMOVED:8080/api/products/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Śruba M10","sku":"SRU-M10-001","unit":"szt."}'
+
+# Usunięcie produktu
+curl -X DELETE http://REMOVED:8080/api/products/1
+```
 
 ---
 
-## 🚀 Uruchomienie
+## 🚀 Uruchomienie lokalne
 
-### 1. Wymagania wstępne
+### Wymagania
 
 - [Java 17 JDK](https://adoptium.net/)
 - [Maven 3.8+](https://maven.apache.org/download.cgi) (lub użyj wrappera `mvnw`)
-- [Docker](https://www.docker.com/) (opcjonalnie – do uruchomienia PostgreSQL)
-- [Git](https://git-scm.com/) (opcjonalnie)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (do uruchomienia PostgreSQL)
 
-### 2. Uruchomienie lokalne (H2 – baza w pamięci)
-
-Domyślnie aplikacja korzysta z wbudowanej bazy H2 – nie wymaga instalowania dodatkowej bazy danych.
+### Krok po kroku
 
 ```bash
-# Sklonuj repozytorium (jeśli dotyczy)
-git clone <repozytorium-url>
-cd magazyn
+# 1. Sklonuj repozytorium
+git clone https://github.com/krzysztofzelman/magazyn-app.git
+cd magazyn-app/magazyn
 
-# Zbuduj i uruchom
+# 2. Uruchom PostgreSQL przez Docker (port 5432)
+docker compose up -d
+
+# 3. Uruchom aplikację — automatycznie połączy się z PostgreSQL
 ./mvnw spring-boot:run
 ```
 
 Aplikacja będzie dostępna pod adresem: **http://localhost:8080**
 
-Konsola H2: **http://localhost:8080/h2-console**
-- JDBC URL: `jdbc:h2:mem:magazyn_db`
-- User: `sa`
-- Password: *(puste)*
-
-### 3. Uruchomienie z PostgreSQL (Docker)
-
-Aplikacja jest skonfigurowana do współpracy z PostgreSQL poprzez Docker Compose.
-
-```bash
-# Uruchom kontener PostgreSQL w tle
-docker compose up -d
-
-# Uruchom aplikację
-./mvnw spring-boot:run
-```
-
-> Aby przełączyć się na PostgreSQL, zmień konfigurację w pliku `application.properties` na poniższe wartości:
+### Konfiguracja bazy danych (application.properties)
 
 ```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/magazyn_db
-spring.datasource.driverClassName=org.postgresql.Driver
+spring.datasource.url=jdbc:postgresql://REMOVED:5432/magazyn_db
 spring.datasource.username=admin
 spring.datasource.password=REMOVED
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
 ```
 
-### 4. Budowanie pliku JAR
+Do celów lokalnych wystarczy zmienić `spring.datasource.url` na `jdbc:postgresql://localhost:5432/magazyn_db`.
+
+### Budowanie pliku JAR
 
 ```bash
 ./mvnw clean package -DskipTests
 java -jar target/magazyn-0.0.1-SNAPSHOT.jar
 ```
 
-### 5. Testowanie API (przykład z curl)
+---
+
+## 🐳 Uruchomienie przez Docker
+
+### Tylko baza danych
 
 ```bash
-# Pobierz wszystkie produkty
-curl http://localhost:8080/api/products
-
-# Utwórz nowy produkt
-curl -X POST http://localhost:8080/api/products \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Śruba M8","sku":"SRU-M8-001","description":"Śruba nierdzewna M8 x 30mm","unit":"szt."}'
-
-# Pobierz produkt po ID
-curl http://localhost:8080/api/products/1
-
-# Pobierz produkt po SKU
-curl http://localhost:8080/api/products/sku/SRU-M8-001
-
-# Zaktualizuj produkt
-curl -X PUT http://localhost:8080/api/products/1 \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Śruba M10","sku":"SRU-M10-001","unit":"szt."}'
-
-# Usuń produkt
-curl -X DELETE http://localhost:8080/api/products/1
+docker compose up -d
 ```
+
+Usługa `postgres` uruchomi PostgreSQL 16 z następującymi parametrami:
+
+| Parametr       | Wartość       |
+| -------------- | ------------- |
+| Baza danych    | `magazyn_db`  |
+| Użytkownik     | `admin`       |
+| Hasło          | `REMOVED`    |
+| Port           | `5432`        |
+
+Dane są przechowywane w volume `postgres_data`.
 
 ---
 
-## 🔧 Konfiguracja
+## ☁️ Deploy produkcyjny
 
-Kluczowe ustawienia w `src/main/resources/application.properties`:
+Aplikacja działa na **VPS** (IP: `REMOVED`) na porcie `8080`.  
+Frontend (aplikacja kliencka) dostępny pod adresem: **[magazyn-frontend.vercel.app](https://magazyn-frontend.vercel.app)**
 
-| Właściwość               | Wartość domyślna       | Opis                                     |
-| ------------------------ | ---------------------- | ---------------------------------------- |
-| `spring.datasource.url`  | `jdbc:h2:mem:magazyn_db` | URL bazy danych                         |
-| `spring.jpa.hibernate.ddl-auto` | `update`         | Automatyczne tworzenie/aktualizacja schematu bazy |
-| `spring.jpa.show-sql`    | `true`                 | Wyświetlanie zapytań SQL w konsoli       |
-| `spring.h2.console.enabled` | `true`              | Włączenie konsoli H2                     |
+### Dozwolone źródła CORS
+
+```java
+.allowedOrigins(
+    "http://localhost:5173",                         // lokalny dev frontendu (Vite)
+    "http://REMOVED:5180",                      // frontend na VPS (opcjonalnie)
+    "https://magazyn-frontend.vercel.app"            // produkcyjny frontend (Vercel)
+)
+```
+
+### Proces deployu (skrócony)
+
+1. Zbuduj JAR: `./mvnw clean package -DskipTests`
+2. Skopiuj JAR na VPS (np. przez `scp`)
+3. Uruchom: `java -jar magazyn-0.0.1-SNAPSHOT.jar --server.port=8080`
+
+> W środowisku produkcyjnym zaleca się uruchomienie aplikacji jako usługi systemd (lub w kontenerze Docker).
 
 ---
 
@@ -191,44 +229,30 @@ magazyn/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/magazyn/
-│   │   │   ├── MagazynApplication.java      # Klasa główna (entry point)
+│   │   │   ├── MagazynApplication.java         # Entry point Spring Boot
+│   │   │   ├── config/
+│   │   │   │   └── CorsConfig.java             # Konfiguracja CORS
 │   │   │   ├── controller/
-│   │   │   │   └── ProductController.java    # REST endpointy
+│   │   │   │   └── ProductController.java      # REST endpointy
 │   │   │   ├── entity/
-│   │   │   │   └── Product.java              # Model danych (JPA)
+│   │   │   │   └── Product.java                # Encja JPA
 │   │   │   ├── repository/
-│   │   │   │   └── ProductRepository.java    # Warstwa dostępu do danych
+│   │   │   │   └── ProductRepository.java      # Repozytorium JPA
 │   │   │   └── service/
-│   │   │       └── ProductService.java       # Logika biznesowa
+│   │   │       └── ProductService.java         # Logika biznesowa
 │   │   └── resources/
-│   │       └── application.properties        # Konfiguracja aplikacji
+│   │       └── application.properties          # Konfiguracja
 │   └── test/
-├── docker-compose.yml                        # Konfiguracja kontenera PostgreSQL
-├── pom.xml                                   # Plik Maven (zależności, build)
-├── mvnw / mvnw.cmd                           # Maven Wrapper
-└── HELP.md
+│       └── java/com/example/magazyn/
+│           └── MagazynApplicationTests.java    # Test kontekstu
+├── docker-compose.yml                          # PostgreSQL 16
+├── pom.xml                                     # Maven — zależności i build
+├── mvnw / mvnw.cmd                             # Maven Wrapper
+└── README.md                                   # Ta dokumentacja
 ```
-
----
-
-## 📜 Uwagi
-
-- **Brak repozytorium GitHub** – ten projekt nie ma aktualnie skonfigurowanego zdalnego repozytorium. Aby utworzyć repozytorium, wykonaj:
-
-  ```bash
-  # Zainicjuj lokalne repozytorium Git
-  git init
-  git add .
-  git commit -m "Initial commit"
-
-  # Utwórz repozytorium na GitHub, a następnie:
-  git remote add origin https://github.com/TWOJA_NAZWA_UZYTKOWNIKA/magazyn.git
-  git branch -M main
-  git push -u origin main
-  ```
 
 ---
 
 ## 📄 Licencja
 
-Projekt jest udostępniany bez określonej licencji. W razie potrzeby dodaj odpowiednią licencję (np. MIT, Apache 2.0).
+Projekt nie posiada określonej licencji. W razie potrzeby dodaj odpowiednią (np. MIT, Apache 2.0).
