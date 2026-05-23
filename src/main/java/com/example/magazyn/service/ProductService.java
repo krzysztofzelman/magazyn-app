@@ -7,12 +7,14 @@ import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -22,17 +24,20 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<ProductResponse> getAllProducts() {
         return productRepository.findAll().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
         return productRepository.findById(id)
                 .map(this::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductBySku(String sku) {
         return productRepository.findBySku(sku)
                 .map(this::toResponse);
