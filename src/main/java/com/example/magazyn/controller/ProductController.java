@@ -1,7 +1,10 @@
 package com.example.magazyn.controller;
 
-import com.example.magazyn.entity.Product;
+import com.example.magazyn.dto.CreateProductRequest;
+import com.example.magazyn.dto.ProductResponse;
+import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.service.ProductService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,29 +31,29 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
-        List<Product> products = productService.getAllProducts();
+    public ResponseEntity<List<ProductResponse>> getAllProducts() {
+        List<ProductResponse> products = productService.getAllProducts();
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
         return productService.getProductById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/sku/{sku}")
-    public ResponseEntity<Product> getProductBySku(@PathVariable String sku) {
+    public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
         return productService.getProductBySku(sku)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+    public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody CreateProductRequest request) {
         try {
-            Product created = productService.createProduct(product);
+            ProductResponse created = productService.createProduct(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
@@ -58,9 +61,10 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product productDetails) {
+    public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id,
+                                                          @RequestBody UpdateProductRequest request) {
         try {
-            Product updated = productService.updateProduct(id, productDetails);
+            ProductResponse updated = productService.updateProduct(id, request);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();

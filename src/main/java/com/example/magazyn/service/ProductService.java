@@ -1,5 +1,8 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.dto.CreateProductRequest;
+import com.example.magazyn.dto.ProductResponse;
+import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -18,47 +22,61 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
-    public List<Product> getAllProducts() {
-        return productRepository.findAll();
+    public List<ProductResponse> getAllProducts() {
+        return productRepository.findAll().stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
-    public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id);
+    public Optional<ProductResponse> getProductById(Long id) {
+        return productRepository.findById(id)
+                .map(this::toResponse);
     }
 
-    public Optional<Product> getProductBySku(String sku) {
-        return productRepository.findBySku(sku);
+    public Optional<ProductResponse> getProductBySku(String sku) {
+        return productRepository.findBySku(sku)
+                .map(this::toResponse);
     }
 
-    public Product createProduct(Product product) {
-        if (productRepository.findBySku(product.getSku()).isPresent()) {
-            throw new RuntimeException("Product with SKU '" + product.getSku() + "' already exists");
+    public ProductResponse createProduct(CreateProductRequest request) {
+        if (productRepository.findBySku(request.getSku()).isPresent()) {
+            throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
         }
-        return productRepository.save(product);
+
+        Product product = Product.builder()
+                .name(request.getName())
+                .sku(request.getSku())
+                .description(request.getDescription())
+                .unit(request.getUnit())
+                .build();
+
+        Product saved = productRepository.save(product);
+        return toResponse(saved);
     }
 
-    public Product updateProduct(Long id, Product productDetails) {
+    public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
         Product existing = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
 
-        if (productDetails.getName() != null) {
-            existing.setName(productDetails.getName());
+        if (request.getName() != null) {
+            existing.setName(request.getName());
         }
-        if (productDetails.getSku() != null) {
-            if (!existing.getSku().equals(productDetails.getSku())
-                    && productRepository.findBySku(productDetails.getSku()).isPresent()) {
-                throw new RuntimeException("Product with SKU '" + productDetails.getSku() + "' already exists");
+        if (request.getSku() != null) {
+            if (!existing.getSku().equals(request.getSku())
+                    && productRepository.findBySku(request.getSku()).isPresent()) {
+                throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
             }
-            existing.setSku(productDetails.getSku());
+            existing.setSku(request.getSku());
         }
-        if (productDetails.getDescription() != null) {
-            existing.setDescription(productDetails.getDescription());
+        if (request.getDescription() != null) {
+            existing.setDescription(request.getDescription());
         }
-        if (productDetails.getUnit() != null) {
-            existing.setUnit(productDetails.getUnit());
+        if (request.getUnit() != null) {
+            existing.setUnit(request.getUnit());
         }
 
-        return productRepository.save(existing);
+        Product saved = productRepository.save(existing);
+        return toResponse(saved);
     }
 
     public void deleteProduct(Long id) {
@@ -66,5 +84,16 @@ public class ProductService {
             throw new RuntimeException("Product not found with id: " + id);
         }
         productRepository.deleteById(id);
+    }
+
+    private ProductResponse toResponse(Product product) {
+        return new ProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getSku(),
+                product.getDescription(),
+                product.getUnit(),
+                product.getCreatedAt()
+        );
     }
 }
