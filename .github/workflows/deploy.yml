@@ -19,4 +19,4 @@ jobs:
             cd /var/www/magazyn-app
             git pull
             mvn clean package -DskipTests
-            systemctl restart magazyn-app
+            systemctl restart magazyn
