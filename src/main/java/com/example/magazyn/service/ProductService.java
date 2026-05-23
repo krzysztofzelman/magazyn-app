@@ -53,6 +53,7 @@ public class ProductService {
                 .sku(request.getSku())
                 .description(request.getDescription())
                 .unit(request.getUnit())
+                .quantity(0)
                 .build();
 
         Product saved = productRepository.save(product);
@@ -98,6 +99,7 @@ public class ProductService {
                 product.getSku(),
                 product.getDescription(),
                 product.getUnit(),
+                product.getQuantity(),
                 product.getCreatedAt()
         );
     }

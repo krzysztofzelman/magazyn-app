@@ -9,16 +9,19 @@ public class ProductResponse {
     private String sku;
     private String description;
     private String unit;
+    private Integer quantity;
     private LocalDateTime createdAt;
 
     public ProductResponse() {}
 
-    public ProductResponse(Long id, String name, String sku, String description, String unit, LocalDateTime createdAt) {
+    public ProductResponse(Long id, String name, String sku, String description, String unit,
+                           Integer quantity, LocalDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.sku = sku;
         this.description = description;
         this.unit = unit;
+        this.quantity = quantity;
         this.createdAt = createdAt;
     }
 
@@ -36,6 +39,9 @@ public class ProductResponse {
 
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
+
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

@@ -1,0 +1,102 @@
+package com.example.magazyn.service;
+
+import com.example.magazyn.dto.StockMovementRequest;
+import com.example.magazyn.dto.StockMovementResponse;
+import com.example.magazyn.dto.StockResponse;
+import com.example.magazyn.entity.MovementType;
+import com.example.magazyn.entity.Product;
+import com.example.magazyn.entity.StockMovement;
+import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.repository.StockMovementRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class StockService {
+
+    private final StockMovementRepository stockMovementRepository;
+    private final ProductRepository productRepository;
+
+    @Autowired
+    public StockService(StockMovementRepository stockMovementRepository,
+                        ProductRepository productRepository) {
+        this.stockMovementRepository = stockMovementRepository;
+        this.productRepository = productRepository;
+    }
+
+    public StockMovementResponse addMovement(Long productId, StockMovementRequest request, String username) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+
+        if (request.getQuantity() == null || request.getQuantity() <= 0) {
+            throw new RuntimeException("Quantity must be positive");
+        }
+        if (request.getType() == null) {
+            throw new RuntimeException("Movement type is required");
+        }
+
+        switch (request.getType()) {
+            case PRZYJECIE:
+                product.setQuantity(product.getQuantity() + request.getQuantity());
+                break;
+            case WYDANIE:
+                if (product.getQuantity() < request.getQuantity()) {
+                    throw new RuntimeException("Insufficient stock — available: "
+                            + product.getQuantity() + ", requested: " + request.getQuantity());
+                }
+                product.setQuantity(product.getQuantity() - request.getQuantity());
+                break;
+            case KOREKTA:
+                product.setQuantity(request.getQuantity());
+                break;
+        }
+
+        productRepository.save(product);
+
+        StockMovement movement = StockMovement.builder()
+                .product(product)
+                .type(request.getType())
+                .quantity(request.getQuantity())
+                .note(request.getNote())
+                .createdBy(username)
+                .build();
+
+        StockMovement saved = stockMovementRepository.save(movement);
+        return toResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockMovementResponse> getMovements(Long productId) {
+        if (!productRepository.existsById(productId)) {
+            throw new RuntimeException("Product not found with id: " + productId);
+        }
+        return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public StockResponse getStock(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        return new StockResponse(product.getId(), product.getName(), product.getSku(), product.getQuantity());
+    }
+
+    private StockMovementResponse toResponse(StockMovement movement) {
+        return new StockMovementResponse(
+                movement.getId(),
+                movement.getProduct().getId(),
+                movement.getProduct().getName(),
+                movement.getType(),
+                movement.getQuantity(),
+                movement.getNote(),
+                movement.getCreatedAt(),
+                movement.getCreatedBy()
+        );
+    }
+}

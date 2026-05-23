@@ -2,9 +2,14 @@ package com.example.magazyn.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,28 +24,29 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "products")
-public class Product {
+@Table(name = "stock_movements")
+public class StockMovement {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String name;
-
-    @Column(unique = true, nullable = false)
-    private String sku;
-
-    private String description;
-
-    @Column(nullable = false)
-    private String unit;
+    private MovementType type;
 
     @Column(nullable = false)
-    @Builder.Default
-    private Integer quantity = 0;
+    private Integer quantity;
+
+    private String note;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
+    private String createdBy;
 }
