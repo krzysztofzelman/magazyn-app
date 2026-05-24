@@ -44,24 +44,24 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
+                    byte[] body = ("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\""
+                        + java.time.LocalDateTime.now() + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     response.setStatus(401);
                     response.setContentType("application/json");
                     response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write(
-                        String.format("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\"%s\"}",
-                        java.time.LocalDateTime.now())
-                    );
-                    response.getWriter().flush();
+                    response.setContentLength(body.length);
+                    response.getOutputStream().write(body);
+                    response.getOutputStream().flush();
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    byte[] body = ("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\""
+                        + java.time.LocalDateTime.now() + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     response.setStatus(401);
                     response.setContentType("application/json");
                     response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write(
-                        String.format("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\"%s\"}",
-                        java.time.LocalDateTime.now())
-                    );
-                    response.getWriter().flush();
+                    response.setContentLength(body.length);
+                    response.getOutputStream().write(body);
+                    response.getOutputStream().flush();
                 })
             );
 
