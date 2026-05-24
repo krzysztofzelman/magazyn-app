@@ -1,6 +1,7 @@
 package com.example.magazyn.config;
 
 import com.example.magazyn.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -41,7 +42,21 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write(
+                        String.format(
+                            "{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\"%s\"}",
+                            java.time.LocalDateTime.now()
+                        )
+                    );
+                    response.getWriter().flush();
+                })
+            );
 
         return http.build();
     }

@@ -37,44 +37,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            sendUnauthorized(response, "Token nieważny lub wygasł");
-            return;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+
+            if (jwtUtil.isTokenValid(token)) {
+                String username = jwtUtil.extractUsername(token);
+                String role = jwtUtil.extractRole(token);
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                username,
+                                null,
+                                List.of(new SimpleGrantedAuthority(role))
+                        );
+
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
-        String token = authHeader.substring(7);
-
-        if (!jwtUtil.isTokenValid(token)) {
-            sendUnauthorized(response, "Token nieważny lub wygasł");
-            return;
-        }
-
-        String username = jwtUtil.extractUsername(token);
-        String role = jwtUtil.extractRole(token);
-
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        username,
-                        null,
-                        List.of(new SimpleGrantedAuthority(role))
-                );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        // If no valid token, SecurityContext remains empty
+        // Spring Security's AuthenticationEntryPoint handles the 401 response
         filterChain.doFilter(request, response);
-    }
-
-    private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-
-        String body = String.format(
-            "{\"status\":401,\"message\":\"%s\",\"timestamp\":\"%s\"}",
-            message,
-            java.time.LocalDateTime.now()
-        );
-
-        response.getWriter().write(body);
-        response.getWriter().flush();
     }
 }
