@@ -1,7 +1,6 @@
 package com.example.magazyn.config;
 
 import com.example.magazyn.util.JwtUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,20 +12,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final ObjectMapper objectMapper;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, ObjectMapper objectMapper) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -74,11 +68,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("status", 401);
-        body.put("message", message);
-        body.put("timestamp", LocalDateTime.now().toString());
+        String body = String.format(
+            "{\"status\":401,\"message\":\"%s\",\"timestamp\":\"%s\"}",
+            message,
+            java.time.LocalDateTime.now()
+        );
 
-        objectMapper.writeValue(response.getWriter(), body);
+        response.getWriter().write(body);
+        response.getWriter().flush();
     }
 }
