@@ -7,6 +7,7 @@ import com.example.magazyn.service.StockService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ public class StockController {
     }
 
     @PostMapping("/{productId}/movement")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #request.type.name() == 'PRZYJECIE')")
     public ResponseEntity<StockMovementResponse> addMovement(
             @PathVariable Long productId,
             @Valid @RequestBody StockMovementRequest request) {
@@ -37,12 +39,14 @@ public class StockController {
     }
 
     @GetMapping("/{productId}/movements")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<StockMovementResponse>> getMovements(@PathVariable Long productId) {
         List<StockMovementResponse> movements = stockService.getMovements(productId);
         return ResponseEntity.ok(movements);
     }
 
     @GetMapping("/{productId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StockResponse> getStock(@PathVariable Long productId) {
         StockResponse stock = stockService.getStock(productId);
         return ResponseEntity.ok(stock);
