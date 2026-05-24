@@ -17,7 +17,7 @@ jobs:
           port: 2022
           script: |
             cd /var/www/magazyn-app
-            git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/krzysztofzelman/magazyn-app.git
+            git remote set-url origin https://${{ secrets.PAT_TOKEN }}@github.com/krzysztofzelman/magazyn-app.git
             git pull
             mvn clean package -DskipTests
             systemctl restart magazyn
