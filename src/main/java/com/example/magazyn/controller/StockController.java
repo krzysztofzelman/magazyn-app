@@ -4,7 +4,7 @@ import com.example.magazyn.dto.StockMovementRequest;
 import com.example.magazyn.dto.StockMovementResponse;
 import com.example.magazyn.dto.StockResponse;
 import com.example.magazyn.service.StockService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,7 +23,6 @@ public class StockController {
 
     private final StockService stockService;
 
-    @Autowired
     public StockController(StockService stockService) {
         this.stockService = stockService;
     }
@@ -31,33 +30,21 @@ public class StockController {
     @PostMapping("/{productId}/movement")
     public ResponseEntity<StockMovementResponse> addMovement(
             @PathVariable Long productId,
-            @RequestBody StockMovementRequest request) {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            StockMovementResponse response = stockService.addMovement(productId, request, username);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+            @Valid @RequestBody StockMovementRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        StockMovementResponse response = stockService.addMovement(productId, request, username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{productId}/movements")
     public ResponseEntity<List<StockMovementResponse>> getMovements(@PathVariable Long productId) {
-        try {
-            List<StockMovementResponse> movements = stockService.getMovements(productId);
-            return ResponseEntity.ok(movements);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        List<StockMovementResponse> movements = stockService.getMovements(productId);
+        return ResponseEntity.ok(movements);
     }
 
     @GetMapping("/{productId}")
     public ResponseEntity<StockResponse> getStock(@PathVariable Long productId) {
-        try {
-            StockResponse stock = stockService.getStock(productId);
-            return ResponseEntity.ok(stock);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        StockResponse stock = stockService.getStock(productId);
+        return ResponseEntity.ok(stock);
     }
 }
