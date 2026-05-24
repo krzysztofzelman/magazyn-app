@@ -11,6 +11,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -125,14 +129,15 @@ class ProductServiceTest {
     @Test
     void getAllProducts_returnsEmptyList() {
         // given
-        when(productRepository.findAll()).thenReturn(Collections.emptyList());
+        Pageable pageable = PageRequest.of(0, 10);
+        when(productRepository.findAll(pageable)).thenReturn(Page.empty());
 
         // when
-        List<ProductResponse> result = productService.getAllProducts();
+        Page<ProductResponse> result = productService.getAllProducts(pageable);
 
         // then
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(productRepository).findAll();
+        verify(productRepository).findAll(pageable);
     }
 }
