@@ -2,289 +2,134 @@
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk)](https://adoptium.net/)
-[![Maven](https://img.shields.io/badge/Maven-3.9-C71A36?logo=apache-maven)](https://maven.apache.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![JWT](https://img.shields.io/badge/JWT-jjwt%200.12.6-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
-[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker)](https://www.docker.com/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
 
-REST API systemu zarządzania magazynem — autoryzacja JWT, pełny CRUD produktów, stany i ruchy magazynowe. Zbudowane na **Spring Boot 3.5** z **Java 17** i bazą **PostgreSQL 16**.
+Backend REST API systemu zarządzania magazynem. Udostępnia w pełni funkcjonalne endpointy do rejestracji i logowania użytkowników (JWT), CRUD produktów z paginacją oraz zarządzania stanami magazynowymi (przyjęcia, wydania, korekty) z kontrolą dostępu opartą na rolach (RBAC).
 
-🌐 **Backend live:** [magazyn.kzelman.pl](https://magazyn.kzelman.pl)  
-🖥️ **Frontend:** [magazyn-frontend.vercel.app](https://magazyn-frontend.vercel.app)  
-📦 **Repozytorium:** [github.com/krzysztofzelman/magazyn-app](https://github.com/krzysztofzelman/magazyn-app)
-
----
-
-## Spis treści
-
-- [Tech Stack](#tech-stack)
-- [Model danych](#model-danych)
-- [Endpointy API](#endpointy-api)
-  - [Auth](#-autoryzacja-auth)
-  - [Produkty](#-produkty-products)
-  - [Stan magazynowy](#-stan-magazynowy-stock)
-- [Zmienne środowiskowe](#zmienne-środowiskowe)
-- [Uruchomienie lokalne](#uruchomienie-lokalne)
-- [Deploy na VPS](#deploy-na-vps)
-- [CORS](#cors)
-- [Struktura projektu](#struktura-projektu)
+**Frontend:** [magazyn-frontend.vercel.app](https://magazyn-frontend.vercel.app)  
+**API (produkcja):** `https://magazyn.kzelman.pl/api`
 
 ---
 
-## Tech Stack
+## Stack technologiczny
 
 | Technologia | Wersja | Zastosowanie |
 |---|---|---|
-| **Java** | 17 (LTS) | Język programowania |
-| **Spring Boot** | 3.5.14 | Framework aplikacyjny |
-| **Spring Data JPA / Hibernate** | — | ORM, automatyczne DDL |
-| **Spring Web** | — | REST API, osadzony Tomcat |
-| **Spring Security** | — | Autoryzacja JWT, BCrypt |
-| **Spring Validation** | — | Walidacja `@Valid`, `@NotBlank` itd. |
-| **jjwt** | 0.12.6 | Generowanie i walidacja tokenów JWT |
-| **PostgreSQL** | 16 | Baza danych (produkcja i lokalnie przez Docker) |
-| **Hibernate** | — | Dialekt PostgreSQL, `ddl-auto=update` |
-| **Lombok** | — | Adnotacje — eliminacja boilerplate |
-| **Maven** | 3.9+ | Build i zarządzanie zależnościami |
-| **Docker Compose** | — | Konteneryzacja bazy PostgreSQL |
+| Java | 17 (LTS) | Język programowania |
+| Spring Boot | 3.5.14 | Framework aplikacyjny, osadzony Tomcat |
+| Spring Data JPA / Hibernate | — | ORM, automatyczne DDL (ddl-auto=update) |
+| Spring Security | 6.5.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
+| Spring Validation | — | Walidacja adnotacjami (@NotBlank, @Size, @Positive) |
+| jjwt (io.jsonwebtoken) | 0.12.6 | Generowanie i weryfikacja tokenów JWT |
+| PostgreSQL | 16 | Relacyjna baza danych |
+| Lombok | — | Redukcja boilerplate (@Data, @Builder, @NoArgsConstructor) |
+| Maven | 3.9+ | Build i zarządzanie zależnościami |
+| Docker Compose | — | Lokalne uruchomienie PostgreSQL |
 
 ---
 
-## Model danych
+## Architektura
 
-### `User` — użytkownik
+### Warstwy aplikacji
 
-| Pole | Typ | Ograniczenia |
-|---|---|---|
-| `id` | `Long` | PK, autoinkrement |
-| `username` | `String` | UNIQUE, NOT NULL |
-| `password` | `String` | NOT NULL (BCrypt) |
-| `role` | `String` | NOT NULL (np. `ROLE_USER`) |
-
-### `Product` — produkt
-
-| Pole | Typ | Ograniczenia |
-|---|---|---|
-| `id` | `Long` | PK, autoinkrement |
-| `name` | `String` | NOT NULL |
-| `sku` | `String` | UNIQUE, NOT NULL |
-| `description` | `String` | — |
-| `unit` | `String` | NOT NULL (np. `szt.`, `kg`, `m`, `opak.`) |
-| `quantity` | `Integer` | DEFAULT 0 |
-| `createdAt` | `LocalDateTime` | Auto-set @CreationTimestamp |
-
-### `StockMovement` — ruch magazynowy
-
-| Pole | Typ | Ograniczenia |
-|---|---|---|
-| `id` | `Long` | PK, autoinkrement |
-| `product` | `Product` | @ManyToOne(LAZY), NOT NULL |
-| `type` | `MovementType` (enum) | `PRZYJECIE` / `WYDANIE` / `KOREKTA` |
-| `quantity` | `Integer` | NOT NULL |
-| `note` | `String` | — |
-| `createdAt` | `LocalDateTime` | Auto-set |
-| `createdBy` | `String` | NOT NULL (username) |
-
----
-
-## Endpointy API
-
-**Base URL:** `https://magazyn.kzelman.pl/api` (produkcja) lub `http://localhost:8080/api` (lokalnie)
-
----
-
-### 🔐 Autoryzacja (`/api/auth`)
-
-Endpointy **publiczne** — nie wymagają tokena JWT.
-
-#### `POST /api/auth/register` — rejestracja
-
-```bash
-curl -X POST https://magazyn.kzelman.pl/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"jan","password":"haslo123"}'
+```
+Controller (@RestController) → Service (@Service) → Repository (JpaRepository) → PostgreSQL
+                                   ↑
+                              DTO (Request/Response)
+                                   ↑
+Security: JwtAuthenticationFilter → SecurityConfig (@EnableMethodSecurity)
 ```
 
-**Odpowiedź** `201 Created`:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "username": "jan",
-  "role": "ROLE_USER"
-}
-```
+**Zasada:** Kontrolery przyjmują i zwracają DTO, nie encje. Logika biznesowa w serwisach. Repozytoria operują bezpośrednio na encjach. Dostęp do chronionych zasobów odbywa się przez token JWT umieszczony w nagłówku `Authorization: Bearer <token>`.
 
-**Odpowiedź** `400 Bad Request`:
-```json
-{ "error": "Nazwa użytkownika jest już zajęta" }
-```
+### Autoryzacja
 
-#### `POST /api/auth/login` — logowanie
+- Każde żądanie (oprócz `/api/auth/**`) przechodzi przez `JwtAuthenticationFilter`
+- Filtr wyciąga token z nagłówka, waliduje go przez `JwtUtil`, ustawia kontekst bezpieczeństwa
+- Role sprawdzane są na poziomie metod przez `@PreAuthorize`:
 
-```bash
-curl -X POST https://magazyn.kzelman.pl/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"jan","password":"haslo123"}'
-```
-
-**Odpowiedź** `200 OK`:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9...",
-  "username": "jan",
-  "role": "ROLE_USER"
-}
-```
-
-**Odpowiedź** `400 Bad Request`:
-```json
-{ "error": "Nieprawidłowa nazwa użytkownika lub hasło" }
+```java
+@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("isAuthenticated()")
+@PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #request.type.name() == 'PRZYJECIE')")
 ```
 
 ---
 
-### 📦 Produkty (`/api/products`)
+## Endpointy REST
 
-Wszystkie endpointy wymagają nagłówka `Authorization: Bearer <token>`.
+### Autoryzacja — `/api/auth`
 
-#### `GET /api/products` — lista wszystkich produktów
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| POST | `/api/auth/register` | Rejestracja nowego użytkownika | Publiczny |
+| POST | `/api/auth/login` | Logowanie, zwraca token JWT | Publiczny |
 
-```bash
-curl -H "Authorization: Bearer <token>" https://magazyn.kzelman.pl/api/products
-```
+**Register:** Wymaga `username` (3–50 znaków) i `password` (6–100 znaków). Tworzy użytkownika z rolą `ROLE_USER`. Sprawdza unikalność nazwy użytkownika.
 
-**Odpowiedź** `200 OK`:
-```json
-[
-  {
-    "id": 1,
-    "name": "Śruba M8",
-    "sku": "SRU-M8-001",
-    "description": "Śruba nierdzewna M8 x 30mm",
-    "unit": "szt.",
-    "quantity": 100,
-    "createdAt": "2026-05-22T12:00:00"
-  }
-]
-```
-
-#### `GET /api/products/{id}` — produkt po ID
-
-```bash
-curl -H "Authorization: Bearer <token>" https://magazyn.kzelman.pl/api/products/1
-```
-
-**Odpowiedź** `200 OK` / `404 Not Found`
-
-#### `GET /api/products/sku/{sku}` — produkt po SKU
-
-```bash
-curl -H "Authorization: Bearer <token>" https://magazyn.kzelman.pl/api/products/sku/SRU-M8-001
-```
-
-**Odpowiedź** `200 OK` / `404 Not Found`
-
-#### `POST /api/products` — utworzenie produktu
-
-```bash
-curl -X POST https://magazyn.kzelman.pl/api/products \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Śruba M8","sku":"SRU-M8-001","description":"Śruba nierdzewna M8 x 30mm","unit":"szt."}'
-```
-
-**Odpowiedź** `201 Created` / `400 Bad Request` (np. duplikat SKU, brak wymaganych pól)
-
-#### `PUT /api/products/{id}` — aktualizacja produktu
-
-```bash
-curl -X PUT https://magazyn.kzelman.pl/api/products/1 \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Śruba M10","sku":"SRU-M10-001","description":"Nowy opis","unit":"szt."}'
-```
-
-Aktualizacja częściowa — pomiń w JSON pola, których nie chcesz zmieniać.
-
-**Odpowiedź** `200 OK` / `400 Bad Request`
-
-#### `DELETE /api/products/{id}` — usunięcie produktu
-
-```bash
-curl -X DELETE https://magazyn.kzelman.pl/api/products/1 \
-  -H "Authorization: Bearer <token>"
-```
-
-**Odpowiedź** `204 No Content` / `404 Not Found`
+**Login:** Przyjmuje `username` i `password`, autoryzuje przez `AuthenticationManager`, zwraca `{ token, username, role }`.
 
 ---
 
-### 📊 Stan magazynowy (`/api/stock`)
+### Produkty — `/api/products`
 
-Wszystkie endpointy wymagają nagłówka `Authorization: Bearer <token>`.
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/products?page=0&size=10&sort=name` | Lista produktów z paginacją | Zalogowany |
+| GET | `/api/products/{id}` | Produkt po ID | Zalogowany |
+| GET | `/api/products/sku/{sku}` | Produkt po SKU | Zalogowany |
+| POST | `/api/products` | Utworzenie produktu | ADMIN |
+| PUT | `/api/products/{id}` | Aktualizacja produktu (częściowa) | ADMIN |
+| DELETE | `/api/products/{id}` | Usunięcie produktu | ADMIN |
 
-#### `GET /api/stock/{productId}` — aktualny stan
+**Dane wejściowe (POST/PUT):** `name` (wymagane), `sku` (wymagane, unikalne), `description`, `unit` (wymagane).  
+**Walidacja:** Brak wymaganych pól → 400. Duplikat SKU → 400. Nieistniejące ID → 404.  
+**Paginacja:** GET `/api/products` zwraca `Page<ProductResponse>` z `content`, `totalPages`, `totalElements`, `number`.
 
-```bash
-curl -H "Authorization: Bearer <token>" https://magazyn.kzelman.pl/api/stock/1
-```
+---
 
-**Odpowiedź** `200 OK`:
-```json
-{
-  "productId": 1,
-  "sku": "SRU-M8-001",
-  "quantity": 100
-}
-```
+### Stan magazynowy — `/api/stock`
 
-#### `GET /api/stock/{productId}/movements` — historia ruchów
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/stock/{productId}` | Aktualny stan magazynowy produktu | Zalogowany |
+| GET | `/api/stock/{productId}/movements` | Historia ruchów magazynowych (DESC) | Zalogowany |
+| POST | `/api/stock/{productId}/movement` | Dodanie ruchu magazynowego | ADMIN / USER (tylko PRZYJECIE) |
 
-```bash
-curl -H "Authorization: Bearer <token>" https://magazyn.kzelman.pl/api/stock/1/movements
-```
+**Typy ruchu:**
+- `PRZYJECIE` — dodaje podaną ilość do stanu produktu
+- `WYDANIE` — odejmuje od stanu (sprawdza dostępność; brak → 400)
+- `KOREKTA` — ustawia stan dokładnie na podaną wartość
 
-**Odpowiedź** `200 OK`:
-```json
-[
-  {
-    "id": 1,
-    "productId": 1,
-    "type": "PRZYJECIE",
-    "quantity": 50,
-    "note": "Dostawa od dostawcy X",
-    "createdAt": "2026-05-22T12:00:00",
-    "createdBy": "jan"
-  }
-]
-```
+**Dane wejściowe (POST):** `type` (enum, wymagane), `quantity` (Integer > 0, wymagane), `note` (opcjonalne).  
+Endpoint zapisuje również nazwę użytkownika wykonującego ruch (pobraną z tokena JWT).
 
-#### `POST /api/stock/{productId}/movement` — dodanie ruchu
+---
 
-```bash
-curl -X POST https://magazyn.kzelman.pl/api/stock/1/movement \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"type":"PRZYJECIE","quantity":50,"note":"Dostawa od dostawcy X"}'
-```
+## Role i uprawnienia
 
-**Typy ruchu:** `PRZYJECIE` (dodaje do stanu), `WYDANIE` (odejmuje — sprawdza dostępność), `KOREKTA` (ustawia dokładnie podaną wartość)
+| Rola | Uprawnienia |
+|---|---|
+| `ROLE_ADMIN` | Pełny CRUD produktów, wszystkie typy ruchów magazynowych (PRZYJECIE, WYDANIE, KOREKTA) |
+| `ROLE_USER` | Podgląd produktów i stanów magazynowych, możliwość dodawania tylko ruchów PRZYJECIE |
 
-**Odpowiedź** `201 Created` / `400 Bad Request` (np. za mało towaru przy wydaniu)
+Nowi użytkownicy rejestrowani są zawsze z rolą `ROLE_USER`. Nadanie roli `ROLE_ADMIN` wymaga ręcznej zmiany w bazie danych.
 
 ---
 
 ## Zmienne środowiskowe
 
-Aplikacja korzysta ze zmiennych środowiskowych skonfigurowanych w `application.properties`. W środowisku lokalnym można użyć pliku `.env` (automatycznie ignorowany przez Git).
+Wszystkie wrażliwe wartości konfiguracyjne są externalizowane przez `application.properties` i wczytywane ze zmiennych środowiskowych.
 
 | Zmienna | Opis | Przykład |
 |---|---|---|
 | `DB_URL` | URL połączenia z PostgreSQL | `jdbc:postgresql://localhost:5432/magazyn_db` |
 | `DB_USERNAME` | Użytkownik bazy danych | `admin` |
 | `DB_PASSWORD` | Hasło użytkownika bazy | `REMOVED` |
-| `JWT_SECRET` | Sekretny klucz do podpisu JWT (minimum 32 znaki) | `kF8pL2mN4qR7sT5vW9xY1zA3bC6dE8gH0j...` |
-| `JWT_EXPIRATION` | Czas ważności tokena w milisekundach | `86400000` (24h) |
+| `JWT_SECRET` | Klucz do podpisu tokenów JWT (min. 32 znaki) | `kF8pL2mN4qR7sT5v...` |
+| `JWT_EXPIRATION` | Czas ważności tokena (ms) | `86400000` (24h) |
 
 ### Przykładowy plik `.env`
 
@@ -292,39 +137,41 @@ Aplikacja korzysta ze zmiennych środowiskowych skonfigurowanych w `application.
 DB_URL=jdbc:postgresql://localhost:5432/magazyn_db
 DB_USERNAME=admin
 DB_PASSWORD=REMOVED
-JWT_SECRET=change_me_to_a_random_string_at_least_32_characters_long
+JWT_SECRET=zmien_na_wlasny_klucz_o_dlugosci_co_najmniej_32_znakow
 JWT_EXPIRATION=86400000
 ```
+
+Plik `.env` znajduje się w `.gitignore` i nie podlega wersjonowaniu. W repozytorium dostępny jest szablon `.env.example`.
+
+---
+
+## Wymagania lokalne
+
+- **Java 17 JDK** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=17)
+- **Maven 3.8+** — lub użyj dołączonego `mvnw` (Maven Wrapper)
+- **PostgreSQL 16** — zalecane uruchomienie przez Docker Compose
+- **Docker Desktop** — opcjonalnie, do PostgreSQL
 
 ---
 
 ## Uruchomienie lokalne
-
-### Wymagania
-
-- **Java 17 JDK** ([Adoptium](https://adoptium.net/))
-- **Maven 3.8+** (lub użyj wrappera `mvnw`)
-- **Docker Desktop** (do uruchomienia PostgreSQL)
-
-### Krok po kroku
 
 ```bash
 # 1. Sklonuj repozytorium
 git clone https://github.com/krzysztofzelman/magazyn-app.git
 cd magazyn-app/magazyn
 
-# 2. Skopiuj i skonfiguruj zmienne środowiskowe
+# 2. Skopiuj plik zmiennych środowiskowych i dostosuj
 cp .env.example .env
-# Edytuj .env — ustaw dane do lokalnej bazy danych
 
-# 3. Uruchom PostgreSQL przez Docker
+# 3. Uruchom PostgreSQL przez Dockera
 docker compose up -d
 
-# 4. Uruchom aplikację
+# 4. Uruchom aplikację (Maven Wrapper pobierze odpowiednią wersję Mavena)
 ./mvnw spring-boot:run
 ```
 
-Aplikacja dostępna pod adresem **http://localhost:8080**.
+Aplikacja startuje na **http://localhost:8080**.
 
 ### Budowanie pliku JAR
 
@@ -341,75 +188,28 @@ java -jar target/magazyn-0.0.1-SNAPSHOT.jar
 
 ---
 
-## Deploy na VPS
+## CI/CD
 
-### Budowanie i przesyłanie
+Wdrożenie produkcyjne odbywa się automatycznie przez **GitHub Actions** przy każdym pushu na gałąź `main`.
 
-```bash
-# 1. Zbuduj JAR (pomiń testy dla szybszego builda)
-./mvnw clean package -DskipTests
+**Plik:** `.github/workflows/deploy.yml`
 
-# 2. Prześlij na VPS
-scp target/magazyn-0.0.1-SNAPSHOT.jar user@twoj-vps:/opt/magazyn/
+**Przebieg:**
+1. Trigger: push do `main`
+2. Runner: `ubuntu-latest`
+3. Akcja: `appleboy/ssh-action` łączy się przez SSH z VPS (`REMOVED`, port `2022`)
+4. Skrypt na VPS:
+   ```bash
+   cd /var/www/magazyn-app
+   git pull
+   mvn clean package -DskipTests
+   systemctl restart magazyn
+   ```
 
-# 3. Ustaw zmienne środowiskowe na VPS
-export DB_URL=jdbc:postgresql://localhost:5432/magazyn_db
-export DB_USERNAME=...
-export DB_PASSWORD=...
-export JWT_SECRET=...
-export JWT_EXPIRATION=86400000
+**Wymagane Secret w repozytorium GitHub:**
+- `VPS_SSH_KEY` — klucz prywatny SSH do połączenia z VPS
 
-# 4. Uruchom
-java -jar /opt/magazyn/magazyn-0.0.1-SNAPSHOT.jar --server.port=8080
-```
-
-### Uruchomienie jako usługa systemd (zalecane na produkcji)
-
-```ini
-# /etc/systemd/system/magazyn.service
-[Unit]
-Description=Magazyn REST API
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=deploy
-WorkingDirectory=/opt/magazyn
-EnvironmentFile=/opt/magazyn/.env
-ExecStart=/usr/bin/java -jar /opt/magazyn/magazyn-0.0.1-SNAPSHOT.jar --server.port=8080
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable magazyn
-sudo systemctl start magazyn
-sudo systemctl status magazyn
-```
-
-### Wymagania na VPS
-
-- Java 17 JDK lub JRE
-- PostgreSQL 16 (lub dostęp do zewnętrznej bazy)
-- Domena skonfigurowana z przekierowaniem na port 8080 (np. przez Nginx reverse proxy)
-
----
-
-## CORS
-
-Backend zezwala na żądania z następujących źródeł:
-
-```
-http://localhost:5173           # lokalny dev frontendu (Vite)
-http://REMOVED:5180        # frontend na VPS (opcjonalnie)
-https://magazyn-frontend.vercel.app  # produkcyjny frontend (Vercel)
-```
-
-Konfiguracja w `CorsConfig.java` — dozwolone metody: GET, POST, PUT, DELETE, OPTIONS.
+Aplikacja na produkcji działa jako usługa **systemd** (`magazyn.service`), co zapewnia automatyczne restarty przy awariach i starcie systemu.
 
 ---
 
@@ -417,61 +217,59 @@ Konfiguracja w `CorsConfig.java` — dozwolone metody: GET, POST, PUT, DELETE, O
 
 ```
 magazyn/
+├── .github/workflows/
+│   └── deploy.yml                    # CI/CD — GitHub Actions → VPS
 ├── src/
 │   ├── main/
 │   │   ├── java/com/example/magazyn/
-│   │   │   ├── MagazynApplication.java          # Entry point
-│   │   │   ├── auth/
-│   │   │   │   ├── AuthController.java           # POST /api/auth/login, /register
-│   │   │   │   ├── AuthService.java              # Logika rejestracji/logowania
-│   │   │   │   ├── AuthResponse.java             # DTO: token, username, role
-│   │   │   │   ├── LoginRequest.java             # DTO: username, password
-│   │   │   │   └── RegisterRequest.java          # DTO: username, password
-│   │   │   ├── config/
-│   │   │   │   ├── CorsConfig.java               # CORS dla frontendu
-│   │   │   │   ├── JwtAuthenticationFilter.java  # Filtrowanie JWT (OncePerRequestFilter)
-│   │   │   │   └── SecurityConfig.java           # Spring Security, BCrypt, stateless sesje
-│   │   │   ├── controller/
-│   │   │   │   ├── ProductController.java        # CRUD produktów
-│   │   │   │   └── StockController.java          # Ruchy i stan magazynowy
-│   │   │   ├── dto/
+│   │   │   ├── MagazynApplication.java         # Entry point @SpringBootApplication
+│   │   │   ├── auth/                           # Autoryzacja
+│   │   │   │   ├── AuthController.java         #   Endpointy /api/auth/**
+│   │   │   │   ├── AuthService.java            #   Logika rejestracji/logowania
+│   │   │   │   ├── AuthResponse.java           #   DTO: token, username, role
+│   │   │   │   ├── LoginRequest.java           #   DTO: username, password
+│   │   │   │   └── RegisterRequest.java        #   DTO: username, password
+│   │   │   ├── config/                         # Konfiguracja
+│   │   │   │   ├── CorsConfig.java             #   CORS dla frontendu
+│   │   │   │   ├── JwtAuthenticationFilter.java#   Filtr JWT (OncePerRequestFilter)
+│   │   │   │   └── SecurityConfig.java         #   Spring Security, BCrypt, @EnableMethodSecurity
+│   │   │   ├── controller/                     # REST API
+│   │   │   │   ├── ProductController.java      #   CRUD produktów
+│   │   │   │   └── StockController.java        #   Ruchy i stan magazynowy
+│   │   │   ├── dto/                            # Data Transfer Objects
 │   │   │   │   ├── CreateProductRequest.java
 │   │   │   │   ├── UpdateProductRequest.java
 │   │   │   │   ├── ProductResponse.java
 │   │   │   │   ├── StockMovementRequest.java
 │   │   │   │   ├── StockMovementResponse.java
 │   │   │   │   └── StockResponse.java
-│   │   │   ├── entity/
-│   │   │   │   ├── Product.java                  # Encja produktu
-│   │   │   │   ├── StockMovement.java            # Encja ruchu magazynowego
-│   │   │   │   ├── User.java                     # Encja użytkownika
-│   │   │   │   └── MovementType.java             # Enum: PRZYJECIE, WYDANIE, KOREKTA
-│   │   │   ├── repository/
+│   │   │   ├── entity/                         # Encje JPA
+│   │   │   │   ├── Product.java                #   Produkt
+│   │   │   │   ├── StockMovement.java          #   Ruch magazynowy
+│   │   │   │   ├── User.java                   #   Użytkownik
+│   │   │   │   └── MovementType.java           #   Enum: PRZYJECIE/WYDANIE/KOREKTA
+│   │   │   ├── exception/
+│   │   │   │   └── GlobalExceptionHandler.java # @ControllerAdvice — JSON + status HTTP
+│   │   │   ├── repository/                     # Spring Data JPA
 │   │   │   │   ├── ProductRepository.java
 │   │   │   │   ├── StockMovementRepository.java
 │   │   │   │   └── UserRepository.java
-│   │   │   ├── service/
-│   │   │   │   ├── ProductService.java           # Logika biznesowa produktów
-│   │   │   │   ├── StockService.java             # Logika ruchów magazynowych
-│   │   │   │   └── CustomUserDetailsService.java # UserDetailsService dla Spring Security
+│   │   │   ├── service/                        # Logika biznesowa
+│   │   │   │   ├── ProductService.java         #   Operacje na produktach
+│   │   │   │   ├── StockService.java           #   Ruchy magazynowe
+│   │   │   │   └── CustomUserDetailsService.java#  UserDetailsService
 │   │   │   └── util/
-│   │   │       └── JwtUtil.java                  # Generowanie/walidacja JWT
+│   │   │       └── JwtUtil.java                # Generowanie/walidacja JWT
 │   │   └── resources/
-│   │       └── application.properties            # Konfiguracja (zmienne env)
+│   │       └── application.properties          # Konfiguracja (zmienne env)
 │   └── test/
 │       └── java/com/example/magazyn/
-│           ├── MagazynApplicationTests.java      # Test kontekstu
+│           ├── MagazynApplicationTests.java
 │           └── service/
-│               └── ProductServiceTest.java       # Testy jednostkowe serwisu
-├── docker-compose.yml                            # PostgreSQL 16
-├── .env.example                                  # Szablon zmiennych środowiskowych
-├── pom.xml                                       # Maven — zależności, wtyczki
-├── mvnw / mvnw.cmd                               # Maven Wrapper
-└── README.md                                     # Ta dokumentacja
+│               └── ProductServiceTest.java     # Testy jednostkowe
+├── docker-compose.yml                          # PostgreSQL 16 dla dewelopmentu
+├── .env.example                                # Szablon zmiennych środowiskowych
+├── pom.xml                                     # Zależności Maven
+├── mvnw / mvnw.cmd                             # Maven Wrapper
+└── README.md                                   # Niniejszy plik
 ```
-
----
-
-## Licencja
-
-Projekt prywatny — wszelkie prawa zastrzeżone.
