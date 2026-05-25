@@ -57,9 +57,9 @@ public class SecurityConfig {
                     response.getOutputStream().flush();
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    byte[] body = ("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\""
+                    byte[] body = ("{\"status\":403,\"message\":\"Brak uprawnień\",\"timestamp\":\""
                         + java.time.LocalDateTime.now() + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    response.setStatus(401);
+                    response.setStatus(403);
                     response.setContentType("application/json");
                     response.setCharacterEncoding("UTF-8");
                     response.setContentLength(body.length);
