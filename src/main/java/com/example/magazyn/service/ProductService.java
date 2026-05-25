@@ -25,8 +25,12 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductResponse> getAllProducts(Pageable pageable) {
-        return productRepository.findAll(pageable)
+    public Page<ProductResponse> getAllProducts(Pageable pageable, String search) {
+        if (search == null || search.isBlank()) {
+            return productRepository.findAll(pageable)
+                    .map(this::toResponse);
+        }
+        return productRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(search, search, pageable)
                 .map(this::toResponse);
     }
 

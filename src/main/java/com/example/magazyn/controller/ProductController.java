@@ -39,9 +39,10 @@ public class ProductController {
     public ResponseEntity<Page<ProductResponse>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name") String sort) {
+            @RequestParam(defaultValue = "name") String sort,
+            @RequestParam(required = false) String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sort));
-        Page<ProductResponse> products = productService.getAllProducts(pageable);
+        Page<ProductResponse> products = productService.getAllProducts(pageable, search);
         return ResponseEntity.ok(products);
     }
 
