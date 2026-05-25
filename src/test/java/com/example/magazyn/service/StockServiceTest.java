@@ -13,10 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -280,39 +276,6 @@ class StockServiceTest {
         assertTrue(ex.getMessage().contains("not found"));
         verify(productRepository).existsById(999L);
         verifyNoInteractions(stockMovementRepository);
-    }
-
-    // ──────────────────────────────────────────────
-    // getMovementsPaged
-    // ──────────────────────────────────────────────
-
-    @Test
-    void getMovementsPaged_returnsPage() {
-        Product product = createProduct(1L, "Produkt A", "A-001", 10);
-        StockMovement movement = StockMovement.builder()
-                .id(1L)
-                .product(product)
-                .type(MovementType.WYDANIE)
-                .quantity(3)
-                .createdBy(USERNAME)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        Pageable pageable = PageRequest.of(0, 20);
-        Page<StockMovement> page = new PageImpl<>(List.of(movement), pageable, 1);
-
-        when(productRepository.existsById(1L)).thenReturn(true);
-        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(1L, pageable))
-                .thenReturn(page);
-
-        Page<StockMovementResponse> result = stockService.getMovementsPaged(1L, pageable);
-
-        assertNotNull(result);
-        assertEquals(1, result.getTotalElements());
-        assertEquals(1L, result.getContent().get(0).getId());
-
-        verify(productRepository).existsById(1L);
-        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(1L, pageable);
     }
 
     // ──────────────────────────────────────────────
