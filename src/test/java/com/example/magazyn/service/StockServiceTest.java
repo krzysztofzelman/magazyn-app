@@ -1,0 +1,349 @@
+package com.example.magazyn.service;
+
+import com.example.magazyn.dto.StockMovementRequest;
+import com.example.magazyn.dto.StockMovementResponse;
+import com.example.magazyn.dto.StockResponse;
+import com.example.magazyn.entity.MovementType;
+import com.example.magazyn.entity.Product;
+import com.example.magazyn.entity.StockMovement;
+import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.repository.StockMovementRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class StockServiceTest {
+
+    @Mock
+    private StockMovementRepository stockMovementRepository;
+
+    @Mock
+    private ProductRepository productRepository;
+
+    @InjectMocks
+    private StockService stockService;
+
+    private static final String USERNAME = "testuser";
+
+    private Product createProduct(Long id, String name, String sku, int quantity) {
+        return Product.builder()
+                .id(id)
+                .name(name)
+                .sku(sku)
+                .unit("szt.")
+                .quantity(quantity)
+                .createdAt(LocalDateTime.of(2025, 1, 1, 12, 0))
+                .build();
+    }
+
+    private StockMovementRequest createRequest(MovementType type, int quantity, String note) {
+        StockMovementRequest request = new StockMovementRequest();
+        request.setType(type);
+        request.setQuantity(quantity);
+        request.setNote(note);
+        return request;
+    }
+
+    // ──────────────────────────────────────────────
+    // addMovement — happy paths
+    // ──────────────────────────────────────────────
+
+    @Test
+    void addMovement_przyjecie_increasesQuantity() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovementRequest request = createRequest(MovementType.PRZYJECIE, 5, "Dostawa");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+        when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
+            StockMovement m = i.getArgument(0);
+            return StockMovement.builder()
+                    .id(100L)
+                    .product(m.getProduct())
+                    .type(m.getType())
+                    .quantity(m.getQuantity())
+                    .note(m.getNote())
+                    .createdBy(m.getCreatedBy())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+        });
+
+        StockMovementResponse response = stockService.addMovement(1L, request, USERNAME);
+
+        assertNotNull(response);
+        assertEquals(100L, response.getId());
+        assertEquals(MovementType.PRZYJECIE, response.getType());
+        assertEquals(5, response.getQuantity());
+        assertEquals(USERNAME, response.getCreatedBy());
+        assertEquals(15, product.getQuantity()); // 10 + 5
+
+        verify(productRepository).findById(1L);
+        verify(productRepository).save(product);
+        verify(stockMovementRepository).save(any(StockMovement.class));
+    }
+
+    @Test
+    void addMovement_wydanie_decreasesQuantity() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 20);
+        StockMovementRequest request = createRequest(MovementType.WYDANIE, 8, "Wydanie do klienta");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+        when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
+            StockMovement m = i.getArgument(0);
+            return StockMovement.builder()
+                    .id(101L)
+                    .product(m.getProduct())
+                    .type(m.getType())
+                    .quantity(m.getQuantity())
+                    .note(m.getNote())
+                    .createdBy(m.getCreatedBy())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+        });
+
+        StockMovementResponse response = stockService.addMovement(1L, request, USERNAME);
+
+        assertNotNull(response);
+        assertEquals(MovementType.WYDANIE, response.getType());
+        assertEquals(8, response.getQuantity());
+        assertEquals(12, product.getQuantity()); // 20 - 8
+
+        verify(productRepository).findById(1L);
+        verify(productRepository).save(product);
+        verify(stockMovementRepository).save(any(StockMovement.class));
+    }
+
+    @Test
+    void addMovement_korekta_setsAbsoluteQuantity() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 100);
+        StockMovementRequest request = createRequest(MovementType.KOREKTA, 50, "Korekta stanu");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+        when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
+            StockMovement m = i.getArgument(0);
+            return StockMovement.builder()
+                    .id(102L)
+                    .product(m.getProduct())
+                    .type(m.getType())
+                    .quantity(m.getQuantity())
+                    .note(m.getNote())
+                    .createdBy(m.getCreatedBy())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+        });
+
+        StockMovementResponse response = stockService.addMovement(1L, request, USERNAME);
+
+        assertEquals(50, product.getQuantity()); // korekta sets absolute value
+        assertEquals(50, response.getQuantity());
+
+        verify(productRepository).findById(1L);
+        verify(productRepository).save(product);
+        verify(stockMovementRepository).save(any(StockMovement.class));
+    }
+
+    // ──────────────────────────────────────────────
+    // addMovement — error cases
+    // ──────────────────────────────────────────────
+
+    @Test
+    void addMovement_productNotFound_throws() {
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.addMovement(999L, createRequest(MovementType.PRZYJECIE, 5, null), USERNAME));
+
+        assertTrue(ex.getMessage().contains("not found"));
+        verify(productRepository).findById(999L);
+        verifyNoInteractions(stockMovementRepository);
+    }
+
+    @Test
+    void addMovement_quantityNull_throws() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovementRequest request = new StockMovementRequest();
+        request.setType(MovementType.PRZYJECIE);
+        request.setQuantity(null);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.addMovement(1L, request, USERNAME));
+
+        assertTrue(ex.getMessage().contains("positive"));
+        verify(stockMovementRepository, never()).save(any());
+    }
+
+    @Test
+    void addMovement_quantityNonPositive_throws() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovementRequest request = createRequest(MovementType.PRZYJECIE, 0, null);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.addMovement(1L, request, USERNAME));
+
+        assertTrue(ex.getMessage().contains("positive"));
+        verify(stockMovementRepository, never()).save(any());
+    }
+
+    @Test
+    void addMovement_typeNull_throws() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovementRequest request = new StockMovementRequest();
+        request.setType(null);
+        request.setQuantity(5);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.addMovement(1L, request, USERNAME));
+
+        assertTrue(ex.getMessage().contains("required"));
+        verify(stockMovementRepository, never()).save(any());
+    }
+
+    @Test
+    void addMovement_insufficientStock_throws() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 3);
+        StockMovementRequest request = createRequest(MovementType.WYDANIE, 10, null);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.addMovement(1L, request, USERNAME));
+
+        assertTrue(ex.getMessage().contains("Insufficient"));
+        assertTrue(ex.getMessage().contains("3"));
+        verify(productRepository, never()).save(any());
+        verify(stockMovementRepository, never()).save(any());
+    }
+
+    // ──────────────────────────────────────────────
+    // getMovements
+    // ──────────────────────────────────────────────
+
+    @Test
+    void getMovements_returnsList() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovement movement = StockMovement.builder()
+                .id(1L)
+                .product(product)
+                .type(MovementType.PRZYJECIE)
+                .quantity(10)
+                .note("Dostawa")
+                .createdBy(USERNAME)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(productRepository.existsById(1L)).thenReturn(true);
+        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(1L))
+                .thenReturn(List.of(movement));
+
+        List<StockMovementResponse> result = stockService.getMovements(1L);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(MovementType.PRZYJECIE, result.get(0).getType());
+        assertEquals(10, result.get(0).getQuantity());
+
+        verify(productRepository).existsById(1L);
+        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(1L);
+    }
+
+    @Test
+    void getMovements_productNotFound_throws() {
+        when(productRepository.existsById(999L)).thenReturn(false);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.getMovements(999L));
+
+        assertTrue(ex.getMessage().contains("not found"));
+        verify(productRepository).existsById(999L);
+        verifyNoInteractions(stockMovementRepository);
+    }
+
+    // ──────────────────────────────────────────────
+    // getMovementsPaged
+    // ──────────────────────────────────────────────
+
+    @Test
+    void getMovementsPaged_returnsPage() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 10);
+        StockMovement movement = StockMovement.builder()
+                .id(1L)
+                .product(product)
+                .type(MovementType.WYDANIE)
+                .quantity(3)
+                .createdBy(USERNAME)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<StockMovement> page = new PageImpl<>(List.of(movement), pageable, 1);
+
+        when(productRepository.existsById(1L)).thenReturn(true);
+        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(1L, pageable))
+                .thenReturn(page);
+
+        Page<StockMovementResponse> result = stockService.getMovementsPaged(1L, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(1L, result.getContent().get(0).getId());
+
+        verify(productRepository).existsById(1L);
+        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(1L, pageable);
+    }
+
+    // ──────────────────────────────────────────────
+    // getStock
+    // ──────────────────────────────────────────────
+
+    @Test
+    void getStock_returnsStockInfo() {
+        Product product = createProduct(1L, "Produkt A", "A-001", 42);
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+        StockResponse response = stockService.getStock(1L);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getProductId());
+        assertEquals("Produkt A", response.getProductName());
+        assertEquals("A-001", response.getSku());
+        assertEquals(42, response.getQuantity());
+
+        verify(productRepository).findById(1L);
+    }
+
+    @Test
+    void getStock_productNotFound_throws() {
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> stockService.getStock(999L));
+
+        assertTrue(ex.getMessage().contains("not found"));
+        verify(productRepository).findById(999L);
+    }
+}
