@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -23,4 +25,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("SELECT p FROM Product p WHERE p.quantity < p.minQuantity ORDER BY (p.minQuantity - p.quantity) DESC")
+    List<Product> findProductsBelowMinStock();
+
+    @Query("SELECT COALESCE(SUM(p.quantity * p.price), 0) FROM Product p")
+    BigDecimal getTotalStockValue();
 }

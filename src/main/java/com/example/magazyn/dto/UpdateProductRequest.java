@@ -1,11 +1,15 @@
 package com.example.magazyn.dto;
 
+import java.math.BigDecimal;
+
 public class UpdateProductRequest {
 
     private String name;
     private String sku;
     private String description;
     private String unit;
+    private BigDecimal price;
+    private Integer minQuantity;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -18,4 +22,10 @@ public class UpdateProductRequest {
 
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
+
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public Integer getMinQuantity() { return minQuantity; }
+    public void setMinQuantity(Integer minQuantity) { this.minQuantity = minQuantity; }
 }

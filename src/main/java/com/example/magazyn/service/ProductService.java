@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 @Service
@@ -57,6 +58,8 @@ public class ProductService {
                 .description(request.getDescription())
                 .unit(request.getUnit())
                 .quantity(0)
+                .price(request.getPrice() != null ? request.getPrice() : BigDecimal.ZERO)
+                .minQuantity(request.getMinQuantity() != null ? request.getMinQuantity() : 0)
                 .build();
 
         Product saved = productRepository.save(product);
@@ -83,6 +86,12 @@ public class ProductService {
         if (request.getUnit() != null) {
             existing.setUnit(request.getUnit());
         }
+        if (request.getPrice() != null) {
+            existing.setPrice(request.getPrice());
+        }
+        if (request.getMinQuantity() != null) {
+            existing.setMinQuantity(request.getMinQuantity());
+        }
 
         Product saved = productRepository.save(existing);
         return toResponse(saved);
@@ -103,6 +112,8 @@ public class ProductService {
                 product.getDescription(),
                 product.getUnit(),
                 product.getQuantity(),
+                product.getPrice(),
+                product.getMinQuantity(),
                 product.getCreatedAt()
         );
     }

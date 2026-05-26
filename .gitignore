@@ -5,7 +5,7 @@ jdk-*/
 D/
 .qwen/
 metadata.json
-magazyn/
+/magazyn/
 
 # IDE
 .idea/

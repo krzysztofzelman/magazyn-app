@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -40,6 +41,14 @@ public class Product {
     @Column(nullable = false)
     @Builder.Default
     private Integer quantity = 0;
+
+    @Column(precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal price = BigDecimal.ZERO;
+
+    @Column
+    @Builder.Default
+    private Integer minQuantity = 0;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/products/**").authenticated()
                 .requestMatchers("/api/stock/**").authenticated()
+                .requestMatchers("/api/stats/**").authenticated()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
@@ -52,7 +53,7 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
-                    byte[] body = ("{\"status\":401,\"message\":\"Token nieważny lub wygasł\",\"timestamp\":\""
+                    byte[] body = ("{\"status\":401,\"message\":\"Token niewa\u017cny lub wygas\u0142\",\"timestamp\":\""
                         + java.time.LocalDateTime.now() + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     response.setStatus(401);
                     response.setContentType("application/json");
@@ -62,7 +63,7 @@ public class SecurityConfig {
                     response.getOutputStream().flush();
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    byte[] body = ("{\"status\":403,\"message\":\"Brak uprawnień\",\"timestamp\":\""
+                    byte[] body = ("{\"status\":403,\"message\":\"Brak uprawnie\u0144\",\"timestamp\":\""
                         + java.time.LocalDateTime.now() + "\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
                     response.setStatus(403);
                     response.setContentType("application/json");

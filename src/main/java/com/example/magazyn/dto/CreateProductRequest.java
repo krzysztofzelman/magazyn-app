@@ -1,6 +1,8 @@
 package com.example.magazyn.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import java.math.BigDecimal;
 
 public class CreateProductRequest {
 
@@ -15,6 +17,12 @@ public class CreateProductRequest {
     @NotBlank(message = "Jednostka miary jest wymagana")
     private String unit;
 
+    @PositiveOrZero(message = "Cena musi być większa lub równa 0")
+    private BigDecimal price;
+
+    @PositiveOrZero(message = "Minimalny stan musi być większy lub równy 0")
+    private Integer minQuantity;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -26,4 +34,10 @@ public class CreateProductRequest {
 
     public String getUnit() { return unit; }
     public void setUnit(String unit) { this.unit = unit; }
+
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public Integer getMinQuantity() { return minQuantity; }
+    public void setMinQuantity(Integer minQuantity) { this.minQuantity = minQuantity; }
 }

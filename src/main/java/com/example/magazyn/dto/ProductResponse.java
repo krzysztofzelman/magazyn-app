@@ -1,5 +1,6 @@
 package com.example.magazyn.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class ProductResponse {
@@ -10,18 +11,23 @@ public class ProductResponse {
     private String description;
     private String unit;
     private Integer quantity;
+    private BigDecimal price;
+    private Integer minQuantity;
     private LocalDateTime createdAt;
 
     public ProductResponse() {}
 
     public ProductResponse(Long id, String name, String sku, String description, String unit,
-                           Integer quantity, LocalDateTime createdAt) {
+                           Integer quantity, BigDecimal price, Integer minQuantity,
+                           LocalDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.sku = sku;
         this.description = description;
         this.unit = unit;
         this.quantity = quantity;
+        this.price = price;
+        this.minQuantity = minQuantity;
         this.createdAt = createdAt;
     }
 
@@ -42,6 +48,12 @@ public class ProductResponse {
 
     public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public Integer getMinQuantity() { return minQuantity; }
+    public void setMinQuantity(Integer minQuantity) { this.minQuantity = minQuantity; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
