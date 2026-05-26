@@ -19,3 +19,8 @@ target/
 # system
 Thumbs.db
 .DS_Store
+
+# temp files
+*.tmp
+/*.sh
+/magazyn.service
