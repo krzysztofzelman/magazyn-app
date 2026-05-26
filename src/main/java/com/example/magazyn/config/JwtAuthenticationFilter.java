@@ -29,8 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String path = request.getRequestURI();
 
-        // Public endpoints — always let through without token
-        if (path.startsWith("/api/auth/")) {
+        // Public endpoint — always let through without token
+        if (path.equals("/api/auth/login")) {
             filterChain.doFilter(request, response);
             return;
         }

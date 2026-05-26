@@ -1,6 +1,7 @@
 package com.example.magazyn.repository;
 
 import com.example.magazyn.entity.StockMovement;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -9,5 +10,6 @@ import java.util.List;
 @Repository
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
 
+    @EntityGraph(attributePaths = "product")
     List<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId);
 }

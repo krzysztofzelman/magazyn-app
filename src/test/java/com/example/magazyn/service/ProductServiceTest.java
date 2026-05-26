@@ -133,7 +133,7 @@ class ProductServiceTest {
         when(productRepository.findAll(pageable)).thenReturn(Page.empty());
 
         // when
-        Page<ProductResponse> result = productService.getAllProducts(pageable);
+        Page<ProductResponse> result = productService.getAllProducts(pageable, null);
 
         // then
         assertNotNull(result);

@@ -30,7 +30,7 @@ public class StockService {
     }
 
     public StockMovementResponse addMovement(Long productId, StockMovementRequest request, String username) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
