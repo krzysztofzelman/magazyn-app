@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.example
+*.md
+target/
+.mvn/
+mvnw
+mvnw.cmd
+magazyn/
+.qwen/
