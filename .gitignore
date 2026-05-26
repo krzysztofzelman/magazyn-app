@@ -24,3 +24,7 @@ Thumbs.db
 *.tmp
 /*.sh
 /magazyn.service
+
+# env
+.env
+gen_env.py
