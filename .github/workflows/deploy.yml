@@ -16,8 +16,8 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 2022
           script: |
-            cd /var/www/magazyn-app
-            git remote set-url origin https://${{ secrets.PAT_TOKEN }}@github.com/krzysztofzelman/magazyn-app.git
-            git pull
-            mvn clean package -DskipTests
-            systemctl restart magazyn
+            cd /root/magazyn-app
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
+            docker image prune -f
