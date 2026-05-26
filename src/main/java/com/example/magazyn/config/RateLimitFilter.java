@@ -48,18 +48,23 @@ public class RateLimitFilter extends GenericFilterBean {
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
+            HttpServletResponse httpResponse = (HttpServletResponse) response;
+            httpResponse.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
+            httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+            httpResponse.setHeader("Access-Control-Allow-Headers", "*");
+            httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+            httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            httpResponse.setContentType("application/json");
+            httpResponse.setCharacterEncoding("UTF-8");
             String body = "{\"status\":429,\"message\":\"Too many requests — try again later\",\"timestamp\":\""
                     + java.time.LocalDateTime.now() + "\"}";
-            response.getOutputStream().write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            response.getOutputStream().flush();
+            httpResponse.getOutputStream().write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            httpResponse.getOutputStream().flush();
         }
     }
 
     private Bucket createBucket(String ip) {
-        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1)));
+        Bandwidth limit = Bandwidth.classic(20, Refill.greedy(20, Duration.ofMinutes(1)));
         return Bucket.builder().addLimit(limit).build();
     }
 }
