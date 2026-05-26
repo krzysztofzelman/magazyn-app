@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {

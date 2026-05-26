@@ -5,11 +5,15 @@ import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -17,14 +21,27 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
-public class RateLimitFilter extends OncePerRequestFilter {
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
+public class RateLimitFilter extends GenericFilterBean {
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
+                         FilterChain filterChain) throws IOException, ServletException {
+
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpServletResponse response = (HttpServletResponse) servletResponse;
+
+        String method = request.getMethod();
+        String path = request.getRequestURI();
+
+        // Only rate-limit POST /api/auth/login
+        if (!("POST".equalsIgnoreCase(method) && "/api/auth/login".equals(path))) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String clientIp = request.getRemoteAddr();
         Bucket bucket = buckets.computeIfAbsent(clientIp, this::createBucket);
 
@@ -39,13 +56,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.getOutputStream().write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             response.getOutputStream().flush();
         }
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String method = request.getMethod();
-        String path = request.getRequestURI();
-        return !("POST".equalsIgnoreCase(method) && "/api/auth/login".equals(path));
     }
 
     private Bucket createBucket(String ip) {

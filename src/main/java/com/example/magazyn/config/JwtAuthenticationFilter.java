@@ -3,6 +3,8 @@ package com.example.magazyn.config;
 import com.example.magazyn.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,14 +13,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
 import java.util.List;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 10)
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter extends GenericFilterBean {
 
     private final JwtUtil jwtUtil;
 
@@ -27,9 +29,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
+                         FilterChain filterChain) throws IOException, ServletException {
+
+        HttpServletRequest request = (HttpServletRequest) servletRequest;
+        HttpServletResponse response = (HttpServletResponse) servletResponse;
+
         String path = request.getRequestURI();
 
         // Public endpoint — always let through without token
@@ -58,8 +63,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // If no valid token, SecurityContext remains empty
-        // Spring Security's AuthenticationEntryPoint handles the 401 response
         filterChain.doFilter(request, response);
     }
 }
