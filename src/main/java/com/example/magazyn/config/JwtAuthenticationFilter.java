@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 58)
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
