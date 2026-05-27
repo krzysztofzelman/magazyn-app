@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/products/**").authenticated()
                 .requestMatchers("/api/stock/**").authenticated()
                 .requestMatchers("/api/stats/**").authenticated()
+                .requestMatchers("/api/seed/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
