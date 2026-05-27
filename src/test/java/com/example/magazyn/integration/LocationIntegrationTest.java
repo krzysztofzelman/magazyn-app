@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -16,7 +17,9 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @ActiveProfiles("test")
 class LocationIntegrationTest {
 
-    @Autowired
+    @LocalServerPort
+    private int port;
+
     private WebTestClient webTestClient;
 
     @Autowired
@@ -30,6 +33,9 @@ class LocationIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        webTestClient = WebTestClient.bindToServer()
+                .baseUrl("http://localhost:" + port)
+                .build();
         locationRepository.deleteAll();
         adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
         userToken = jwtUtil.generateToken("user", "ROLE_USER");

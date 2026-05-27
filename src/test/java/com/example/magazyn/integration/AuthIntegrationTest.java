@@ -2,8 +2,10 @@ package com.example.magazyn.integration;
 
 import com.example.magazyn.util.JwtUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -12,11 +14,20 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 @ActiveProfiles("test")
 class AuthIntegrationTest {
 
-    @Autowired
+    @LocalServerPort
+    private int port;
+
     private WebTestClient webTestClient;
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @BeforeEach
+    void setUp() {
+        webTestClient = WebTestClient.bindToServer()
+                .baseUrl("http://localhost:" + port)
+                .build();
+    }
 
     @Test
     void register_success() {
