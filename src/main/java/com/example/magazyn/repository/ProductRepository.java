@@ -29,6 +29,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("SELECT p FROM Product p WHERE p.quantity < p.minQuantity ORDER BY (p.minQuantity - p.quantity) DESC")
     List<Product> findProductsBelowMinStock();
 
+    List<Product> findByLocationId(Long locationId);
+
     @Query("SELECT COALESCE(SUM(p.quantity * p.price), 0) FROM Product p")
     BigDecimal getTotalStockValue();
 }

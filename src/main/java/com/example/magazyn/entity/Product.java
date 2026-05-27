@@ -50,6 +50,9 @@ public class Product {
     @Builder.Default
     private Integer minQuantity = 0;
 
+    @Column
+    private Long locationId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

@@ -13,13 +13,14 @@ public class ProductResponse {
     private Integer quantity;
     private BigDecimal price;
     private Integer minQuantity;
+    private Long locationId;
     private LocalDateTime createdAt;
 
     public ProductResponse() {}
 
     public ProductResponse(Long id, String name, String sku, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
-                           LocalDateTime createdAt) {
+                           Long locationId, LocalDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.sku = sku;
@@ -28,6 +29,7 @@ public class ProductResponse {
         this.quantity = quantity;
         this.price = price;
         this.minQuantity = minQuantity;
+        this.locationId = locationId;
         this.createdAt = createdAt;
     }
 
@@ -57,4 +59,7 @@ public class ProductResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Long getLocationId() { return locationId; }
+    public void setLocationId(Long locationId) { this.locationId = locationId; }
 }

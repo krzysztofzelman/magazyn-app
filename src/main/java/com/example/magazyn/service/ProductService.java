@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.dto.AssignLocationRequest;
 import com.example.magazyn.dto.CreateProductRequest;
 import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -104,6 +106,21 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getProductsByLocation(Long locationId) {
+        return productRepository.findByLocationId(locationId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public ProductResponse assignLocation(Long productId, AssignLocationRequest request) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+        product.setLocationId(request.getLocationId());
+        Product saved = productRepository.save(product);
+        return toResponse(saved);
+    }
+
     private ProductResponse toResponse(Product product) {
         return new ProductResponse(
                 product.getId(),
@@ -114,6 +131,7 @@ public class ProductService {
                 product.getQuantity(),
                 product.getPrice(),
                 product.getMinQuantity(),
+                product.getLocationId(),
                 product.getCreatedAt()
         );
     }
