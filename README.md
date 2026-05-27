@@ -1,7 +1,7 @@
 # Magazyn — Backend REST API
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.14-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk)](https://adoptium.net/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![JWT](https://img.shields.io/badge/JWT-jjwt%200.12.6-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
 [![Docker](https://img.shields.io/badge/Docker-29.5.2-2496ED?logo=docker)](https://www.docker.com/)
@@ -21,10 +21,10 @@ Backend REST API systemu zarządzania magazynem. Udostępnia w pełni funkcjonal
 
 | Technologia | Wersja | Zastosowanie |
 |---|---|---|
-| Java | 17 (LTS) | Język programowania |
-| Spring Boot | 3.5.14 | Framework aplikacyjny, osadzony Tomcat |
+| Java | 21 (LTS) | Język programowania |
+| Spring Boot | 4.0.6 | Framework aplikacyjny, osadzony Tomcat 11 |
 | Spring Data JPA / Hibernate | — | ORM, automatyczne DDL (ddl-auto=update) |
-| Spring Security | 6.5.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
+| Spring Security | 7.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
 | Spring Validation | — | Walidacja adnotacjami (@NotBlank, @Size, @Positive) |
 | jjwt (io.jsonwebtoken) | 0.12.6 | Generowanie i weryfikacja tokenów JWT |
 | PostgreSQL | 16 | Relacyjna baza danych |
@@ -189,7 +189,7 @@ Plik `.env` znajduje się w `.gitignore` i nie podlega wersjonowaniu. W repozyto
 
 ### Wymagania
 
-- **Java 17 JDK** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=17)
+- **Java 21 JDK** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=21)
 - **Maven 3.8+** — lub użyj dołączonego `mvnw` (Maven Wrapper)
 - **Docker Desktop** — do PostgreSQL (lub lokalna instalacja PostgreSQL 16)
 
