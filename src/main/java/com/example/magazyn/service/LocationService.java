@@ -63,7 +63,7 @@ public class LocationService {
         node.setType(location.getType().name());
         node.setDescription(location.getDescription());
 
-        List<Location> children = childrenByParent.getOrDefault(location.getId(), List.of());
+        List<Location> children = new ArrayList<>(childrenByParent.getOrDefault(location.getId(), List.of()));
         children.sort(Comparator.comparing(Location::getId));
         for (Location child : children) {
             node.getChildren().add(buildTreeNode(child, childrenByParent));

@@ -59,6 +59,8 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
         }
 
+        log.error("RuntimeException (returning 400): {}", message != null ? message : "(null message)", ex);
+
         ErrorResponse body = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
                 message != null ? message : "Nieprawidłowe żądanie",
