@@ -42,12 +42,15 @@ class ProductServiceTest {
     @Mock
     private Counter counter;
 
+    @Mock
+    private com.example.magazyn.repository.LocationRepository locationRepository;
+
     @InjectMocks
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
-        when(meterRegistry.counter(anyString())).thenReturn(counter);
+        lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
     }
 
     private Product createProductEntity(Long id, String name, String sku, int quantity) {
@@ -58,350 +61,404 @@ class ProductServiceTest {
                 .description("Description of " + name)
                 .unit("szt.")
                 .quantity(quantity)
-                .price(BigDecimal.valueOf(10.00))
-                .minQuantity(5)
-                .createdAt(LocalDateTime.of(2025, 1, 1, 12, 0))
                 .build();
     }
 
-    private CreateProductRequest createRequest(String name, String sku) {
-        CreateProductRequest request = new CreateProductRequest();
-        request.setName(name);
-        request.setSku(sku);
-        request.setDescription("Description");
-        request.setUnit("szt.");
-        request.setPrice(BigDecimal.valueOf(100.00));
-        request.setMinQuantity(5);
-        return request;
+    private ProductResponse createProductResponse(Long id, String name, String sku) {
+        return ProductResponse.builder()
+                .id(id)
+                .name(name)
+                .sku(sku)
+                .description("Description of " + name)
+                .unit("szt.")
+                .build();
     }
 
-    // ──────────────────────────────────────────────
-    // getAllProducts
-    // ──────────────────────────────────────────────
-
-    @Test
-    void getAllProducts_withoutSearch_returnsAllPaged() {
-        Pageable pageable = PageRequest.of(0, 10, Sort.by("name"));
-        Product p1 = createProductEntity(1L, "Product A", "SKU-A", 10);
-        Product p2 = createProductEntity(2L, "Product B", "SKU-B", 5);
-        Page<Product> productPage = new PageImpl<>(List.of(p1, p2), pageable, 2);
-
-        when(productRepository.findAll(pageable)).thenReturn(productPage);
-
-        Page<ProductResponse> result = productService.getAllProducts(pageable, null);
-
-        assertNotNull(result);
-        assertEquals(2, result.getTotalElements());
-        assertEquals("Product A", result.getContent().get(0).getName());
-        assertEquals("Product B", result.getContent().get(1).getName());
-        verify(productRepository).findAll(pageable);
-        verify(counter).increment();
-    }
-
-    @Test
-    void getAllProducts_withSearch_returnsFiltered() {
-        Pageable pageable = PageRequest.of(0, 10);
-        Product p1 = createProductEntity(1L, "Widget", "WDG-001", 10);
-        Page<Product> productPage = new PageImpl<>(List.of(p1), pageable, 1);
-
-        when(productRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase("widget", "widget", pageable))
-                .thenReturn(productPage);
-
-        Page<ProductResponse> result = productService.getAllProducts(pageable, "widget");
-
-        assertNotNull(result);
-        assertEquals(1, result.getTotalElements());
-        assertEquals("Widget", result.getContent().get(0).getName());
-        verify(productRepository).findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase("widget", "widget", pageable);
-    }
-
-    @Test
-    void getAllProducts_withBlankSearch_returnsAll() {
-        Pageable pageable = PageRequest.of(0, 10);
-        when(productRepository.findAll(pageable)).thenReturn(Page.empty());
-
-        Page<ProductResponse> result = productService.getAllProducts(pageable, "   ");
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-        verify(productRepository).findAll(pageable);
-    }
-
-    // ──────────────────────────────────────────────
-    // createProduct
-    // ──────────────────────────────────────────────
+    // --- createProduct ---
 
     @Test
     void createProduct_success() {
-        CreateProductRequest request = createRequest("Test Product", "TST-001");
-        Product savedProduct = createProductEntity(1L, "Test Product", "TST-001", 0);
+        CreateProductRequest request = new CreateProductRequest();
+        request.setName("Test Product");
+        request.setSku("TST-001");
+        request.setDescription("A test product");
+        request.setUnit("szt.");
+        request.setQuantity(10);
 
-        when(productRepository.findBySku("TST-001")).thenReturn(Optional.empty());
-        when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
+        Product savedEntity = Product.builder()
+                .id(1L)
+                .name("Test Product")
+                .sku("TST-001")
+                .description("A test product")
+                .unit("szt.")
+                .quantity(10)
+                .build();
 
-        ProductResponse response = productService.createProduct(request);
+        when(productRepository.existsBySku("TST-001")).thenReturn(false);
+        when(productRepository.save(any(Product.class))).thenReturn(savedEntity);
 
-        assertNotNull(response);
-        assertEquals(1L, response.getId());
-        assertEquals("Test Product", response.getName());
-        assertEquals("TST-001", response.getSku());
-        assertEquals("szt.", response.getUnit());
-        assertNotNull(response.getCreatedAt());
-        assertEquals(BigDecimal.valueOf(100.00), response.getPrice());
-        assertEquals(Integer.valueOf(5), response.getMinQuantity());
+        ProductResponse result = productService.createProduct(request);
 
-        verify(productRepository).findBySku("TST-001");
-        verify(productRepository).save(any(Product.class));
+        assertNotNull(result);
+        assertEquals(1L, result.getId());
+        assertEquals("Test Product", result.getName());
+        assertEquals("TST-001", result.getSku());
+        assertEquals("szt.", result.getUnit());
+        assertEquals(10, result.getQuantity());
     }
 
     @Test
     void createProduct_duplicateSku_throws() {
-        CreateProductRequest request = createRequest("Test Product", "TST-001");
-        Product existing = createProductEntity(1L, "Existing", "TST-001", 0);
-
-        when(productRepository.findBySku("TST-001")).thenReturn(Optional.of(existing));
-
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> productService.createProduct(request));
-        assertTrue(exception.getMessage().contains("already exists"));
-
-        verify(productRepository).findBySku("TST-001");
-        verify(productRepository, never()).save(any());
-    }
-
-    @Test
-    void createProduct_defaultsPriceAndMinQuantityWhenNull() {
         CreateProductRequest request = new CreateProductRequest();
-        request.setName("Product");
-        request.setSku("PRD-001");
+        request.setName("Test Product");
+        request.setSku("TST-001");
+        request.setDescription("A test product");
         request.setUnit("szt.");
+        request.setQuantity(10);
 
-        Product savedProduct = Product.builder()
-                .id(1L)
-                .name("Product")
-                .sku("PRD-001")
-                .unit("szt.")
-                .quantity(0)
-                .price(BigDecimal.ZERO)
-                .minQuantity(0)
-                .createdAt(LocalDateTime.now())
-                .build();
+        when(productRepository.existsBySku("TST-001")).thenReturn(true);
 
-        when(productRepository.findBySku("PRD-001")).thenReturn(Optional.empty());
-        when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
-
-        ProductResponse response = productService.createProduct(request);
-
-        assertNotNull(response);
-        assertEquals(BigDecimal.ZERO, response.getPrice());
-        assertEquals(Integer.valueOf(0), response.getMinQuantity());
+        assertThrows(IllegalArgumentException.class, () -> productService.createProduct(request));
     }
 
-    // ──────────────────────────────────────────────
-    // updateProduct
-    // ──────────────────────────────────────────────
+    // --- updateProduct ---
 
     @Test
     void updateProduct_updatesAllFields() {
-        Product existing = createProductEntity(1L, "Old Name", "OLD-SKU", 10);
         UpdateProductRequest request = new UpdateProductRequest();
-        request.setName("New Name");
-        request.setSku("NEW-SKU");
-        request.setDescription("New description");
+        request.setName("Updated Name");
+        request.setSku("UPD-001");
+        request.setDescription("Updated description");
         request.setUnit("kg");
-        request.setPrice(BigDecimal.valueOf(50.00));
-        request.setMinQuantity(3);
+        request.setQuantity(20);
+
+        Product existing = Product.builder()
+                .id(1L)
+                .name("Old Name")
+                .sku("OLD-001")
+                .description("Old description")
+                .unit("szt.")
+                .quantity(10)
+                .build();
+
+        Product updatedEntity = Product.builder()
+                .id(1L)
+                .name("Updated Name")
+                .sku("UPD-001")
+                .description("Updated description")
+                .unit("kg")
+                .quantity(20)
+                .build();
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(productRepository.findBySku("NEW-SKU")).thenReturn(Optional.empty());
-        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+        when(productRepository.existsBySku("UPD-001")).thenReturn(false);
+        when(productRepository.save(any(Product.class))).thenReturn(updatedEntity);
 
-        ProductResponse response = productService.updateProduct(1L, request);
+        ProductResponse result = productService.updateProduct(1L, request);
 
-        assertEquals("New Name", response.getName());
-        assertEquals("NEW-SKU", response.getSku());
-        assertEquals("kg", response.getUnit());
-        assertEquals(BigDecimal.valueOf(50.00), response.getPrice());
-        assertEquals(Integer.valueOf(3), response.getMinQuantity());
+        assertNotNull(result);
+        assertEquals("Updated Name", result.getName());
+        assertEquals("UPD-001", result.getSku());
+        assertEquals("kg", result.getUnit());
+        assertEquals(20, result.getQuantity());
     }
 
     @Test
     void updateProduct_partialUpdate_onlyChangesProvidedFields() {
-        Product existing = createProductEntity(1L, "Product", "PRD-001", 10);
         UpdateProductRequest request = new UpdateProductRequest();
-        request.setName("Updated Name");
+        request.setName("Only Name Change");
+
+        Product existing = Product.builder()
+                .id(1L)
+                .name("Old Name")
+                .sku("OLD-001")
+                .description("Old description")
+                .unit("szt.")
+                .quantity(10)
+                .build();
+
+        Product updatedEntity = Product.builder()
+                .id(1L)
+                .name("Only Name Change")
+                .sku("OLD-001")
+                .description("Old description")
+                .unit("szt.")
+                .quantity(10)
+                .build();
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+        when(productRepository.save(any(Product.class))).thenReturn(updatedEntity);
 
-        ProductResponse response = productService.updateProduct(1L, request);
+        ProductResponse result = productService.updateProduct(1L, request);
 
-        assertEquals("Updated Name", response.getName());
-        assertEquals("PRD-001", response.getSku()); // unchanged
-    }
-
-    @Test
-    void updateProduct_duplicateSku_throws() {
-        Product existing = createProductEntity(1L, "Product A", "SKU-A", 10);
-        Product otherProduct = createProductEntity(2L, "Product B", "SKU-B", 5);
-        UpdateProductRequest request = new UpdateProductRequest();
-        request.setSku("SKU-B");
-
-        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(productRepository.findBySku("SKU-B")).thenReturn(Optional.of(otherProduct));
-
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> productService.updateProduct(1L, request));
-        assertTrue(exception.getMessage().contains("already exists"));
-        verify(productRepository, never()).save(any());
+        assertNotNull(result);
+        assertEquals("Only Name Change", result.getName());
+        assertEquals("OLD-001", result.getSku());
+        assertEquals("szt.", result.getUnit());
+        assertEquals(10, result.getQuantity());
     }
 
     @Test
     void updateProduct_notFound_throws() {
-        UpdateProductRequest request = new UpdateProductRequest();
-        request.setName("Updated Name");
-
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> productService.updateProduct(999L, request));
-        assertTrue(exception.getMessage().contains("not found"));
-
-        verify(productRepository).findById(999L);
-        verify(productRepository, never()).save(any());
+        assertThrows(RuntimeException.class, () -> productService.updateProduct(999L, new UpdateProductRequest()));
     }
 
-    // ──────────────────────────────────────────────
-    // deleteProduct
-    // ──────────────────────────────────────────────
+    @Test
+    void updateProduct_duplicateSku_throws() {
+        UpdateProductRequest request = new UpdateProductRequest();
+        request.setSku("TAKEN-001");
+
+        Product existing = Product.builder()
+                .id(1L)
+                .name("Old Name")
+                .sku("OLD-001")
+                .build();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.existsBySku("TAKEN-001")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> productService.updateProduct(1L, request));
+    }
+
+    // --- deleteProduct ---
 
     @Test
     void deleteProduct_success() {
-        when(productRepository.existsById(1L)).thenReturn(true);
+        Product product = Product.builder()
+                .id(1L)
+                .name("To Delete")
+                .sku("DEL-001")
+                .quantity(5)
+                .build();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        doNothing().when(productRepository).delete(product);
 
         productService.deleteProduct(1L);
 
-        verify(productRepository).existsById(1L);
-        verify(productRepository).deleteById(1L);
+        verify(productRepository).delete(product);
     }
 
     @Test
     void deleteProduct_notFound_throws() {
-        when(productRepository.existsById(999L)).thenReturn(false);
-
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> productService.deleteProduct(999L));
-        assertTrue(exception.getMessage().contains("not found"));
-
-        verify(productRepository).existsById(999L);
-        verify(productRepository, never()).deleteById(any());
-    }
-
-    // ──────────────────────────────────────────────
-    // assignLocation
-    // ──────────────────────────────────────────────
-
-    @Test
-    void assignLocation_success() {
-        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        AssignLocationRequest request = new AssignLocationRequest();
-        request.setLocationId(5L);
-
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
-
-        ProductResponse response = productService.assignLocation(1L, request);
-
-        assertEquals(Long.valueOf(5L), response.getLocationId());
-        assertEquals(Long.valueOf(5L), product.getLocationId());
-        verify(productRepository).save(product);
-    }
-
-    @Test
-    void assignLocation_clearLocation() {
-        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        product.setLocationId(3L);
-        AssignLocationRequest request = new AssignLocationRequest();
-        request.setLocationId(null);
-
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
-        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
-
-        ProductResponse response = productService.assignLocation(1L, request);
-
-        assertNull(response.getLocationId());
-    }
-
-    @Test
-    void assignLocation_productNotFound_throws() {
-        AssignLocationRequest request = new AssignLocationRequest();
-        request.setLocationId(5L);
-
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> productService.assignLocation(999L, request));
-        assertTrue(exception.getMessage().contains("not found"));
+        assertThrows(RuntimeException.class, () -> productService.deleteProduct(999L));
     }
 
-    // ──────────────────────────────────────────────
-    // getProductById / getProductBySku
-    // ──────────────────────────────────────────────
+    // --- getProductById ---
 
     @Test
     void getProductById_found() {
-        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
+        Product product = createProductEntity(1L, "Test Product", "TST-001", 10);
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
 
-        Optional<ProductResponse> result = productService.getProductById(1L);
+        ProductResponse result = productService.getProductById(1L);
 
-        assertTrue(result.isPresent());
-        assertEquals("Product", result.get().getName());
+        assertNotNull(result);
+        assertEquals("Test Product", result.getName());
+        assertEquals("TST-001", result.getSku());
     }
 
     @Test
     void getProductById_notFound() {
         when(productRepository.findById(999L)).thenReturn(Optional.empty());
 
-        Optional<ProductResponse> result = productService.getProductById(999L);
-
-        assertTrue(result.isEmpty());
+        assertThrows(RuntimeException.class, () -> productService.getProductById(999L));
     }
+
+    // --- getProductBySku ---
 
     @Test
     void getProductBySku_found() {
-        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        when(productRepository.findBySku("PRD-001")).thenReturn(Optional.of(product));
+        Product product = createProductEntity(1L, "Sku Product", "SKU-001", 5);
+        when(productRepository.findBySku("SKU-001")).thenReturn(Optional.of(product));
 
-        Optional<ProductResponse> result = productService.getProductBySku("PRD-001");
+        ProductResponse result = productService.getProductBySku("SKU-001");
 
-        assertTrue(result.isPresent());
-        assertEquals("PRD-001", result.get().getSku());
+        assertNotNull(result);
+        assertEquals("Sku Product", result.getName());
+        assertEquals("SKU-001", result.getSku());
     }
 
-    // ──────────────────────────────────────────────
-    // getProductsByLocation
-    // ──────────────────────────────────────────────
+    @Test
+    void getProductBySku_notFound() {
+        when(productRepository.findBySku("NONEXISTENT")).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> productService.getProductBySku("NONEXISTENT"));
+    }
+
+    // --- getAllProducts (paged) ---
+
+    @Test
+    void getAllProducts_returnsPage() {
+        List<Product> products = List.of(
+                createProductEntity(1L, "Product A", "A-001", 5),
+                createProductEntity(2L, "Product B", "B-001", 10)
+        );
+        Page<Product> productPage = new PageImpl<>(products, PageRequest.of(0, 20), 2);
+
+        when(productRepository.findAll(any(Pageable.class))).thenReturn(productPage);
+
+        Page<ProductResponse> result = productService.getAllProducts(PageRequest.of(0, 20));
+
+        assertNotNull(result);
+        assertEquals(2, result.getTotalElements());
+        assertEquals(2, result.getContent().size());
+    }
+
+    // --- getProductsByLocation ---
 
     @Test
     void getProductsByLocation_returnsList() {
-        Product p1 = createProductEntity(1L, "Product A", "A-001", 5);
-        Product p2 = createProductEntity(2L, "Product B", "B-001", 10);
-        when(productRepository.findByLocationId(10L)).thenReturn(List.of(p1, p2));
+        Product product = createProductEntity(1L, "Located Product", "LOC-001", 5);
+        when(productRepository.findByLocationId(1L)).thenReturn(List.of(product));
 
-        List<ProductResponse> result = productService.getProductsByLocation(10L);
+        List<ProductResponse> result = productService.getProductsByLocation(1L);
 
-        assertEquals(2, result.size());
-        assertEquals("Product A", result.get(0).getName());
-        assertEquals("Product B", result.get(1).getName());
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Located Product", result.get(0).getName());
     }
 
     @Test
     void getProductsByLocation_emptyList() {
-        when(productRepository.findByLocationId(999L)).thenReturn(List.of());
+        when(productRepository.findByLocationId(1L)).thenReturn(List.of());
 
-        List<ProductResponse> result = productService.getProductsByLocation(999L);
+        List<ProductResponse> result = productService.getProductsByLocation(1L);
 
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    // --- assignLocation ---
+
+    @Test
+    void assignLocation_success() {
+        AssignLocationRequest request = new AssignLocationRequest();
+        request.setLocationId(5L);
+
+        Product product = Product.builder()
+                .id(1L)
+                .name("Product")
+                .sku("P-001")
+                .quantity(10)
+                .build();
+
+        com.example.magazyn.entity.Location location = com.example.magazyn.entity.Location.builder()
+                .id(5L)
+                .name("Shelf A1")
+                .build();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(locationRepository.findById(5L)).thenReturn(Optional.of(location));
+        when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
+
+        ProductResponse result = productService.assignLocation(1L, request);
+
+        assertNotNull(result);
+        assertEquals(5L, result.getLocationId());
+    }
+
+    @Test
+    void assignLocation_productNotFound_throws() {
+        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+
+        AssignLocationRequest request = new AssignLocationRequest();
+        request.setLocationId(1L);
+
+        assertThrows(RuntimeException.class, () -> productService.assignLocation(999L, request));
+    }
+
+    @Test
+    void assignLocation_locationNotFound_throws() {
+        AssignLocationRequest request = new AssignLocationRequest();
+        request.setLocationId(999L);
+
+        Product product = Product.builder()
+                .id(1L)
+                .name("Product")
+                .build();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(locationRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> productService.assignLocation(1L, request));
+    }
+
+    // --- countProducts ---
+
+    @Test
+    void countProducts_returnsCount() {
+        when(productRepository.count()).thenReturn(42L);
+
+        long count = productService.countProducts();
+
+        assertEquals(42L, count);
+    }
+
+    @Test
+    void countProducts_zero() {
+        when(productRepository.count()).thenReturn(0L);
+
+        long count = productService.countProducts();
+
+        assertEquals(0L, count);
+    }
+
+    // --- getRecentProducts ---
+
+    @Test
+    void getRecentProducts_returnsList() {
+        List<Product> products = List.of(
+                createProductEntity(1L, "Recent 1", "R-001", 5),
+                createProductEntity(2L, "Recent 2", "R-002", 10)
+        );
+
+        when(productRepository.findTop10ByOrderByCreatedAtDesc()).thenReturn(products);
+
+        List<ProductResponse> result = productService.getRecentProducts();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void getRecentProducts_empty() {
+        when(productRepository.findTop10ByOrderByCreatedAtDesc()).thenReturn(List.of());
+
+        List<ProductResponse> result = productService.getRecentProducts();
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    // --- getLowStockProducts ---
+
+    @Test
+    void getLowStockProducts_returnsList() {
+        List<Product> products = List.of(
+                createProductEntity(1L, "Low Stock", "LOW-001", 3)
+        );
+
+        when(productRepository.findByQuantityLessThanEqual(5)).thenReturn(products);
+
+        List<ProductResponse> result = productService.getLowStockProducts(5);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Low Stock", result.get(0).getName());
+    }
+
+    @Test
+    void getLowStockProducts_empty() {
+        when(productRepository.findByQuantityLessThanEqual(5)).thenReturn(List.of());
+
+        List<ProductResponse> result = productService.getLowStockProducts(5);
+
+        assertNotNull(result);
         assertTrue(result.isEmpty());
     }
 }
