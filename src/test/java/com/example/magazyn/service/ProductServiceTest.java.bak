@@ -47,7 +47,7 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
+        when(meterRegistry.counter(anyString())).thenReturn(counter);
     }
 
     private Product createProductEntity(Long id, String name, String sku, int quantity) {
