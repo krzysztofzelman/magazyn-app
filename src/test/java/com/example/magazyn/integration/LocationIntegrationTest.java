@@ -8,22 +8,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class LocationIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private WebTestClient webTestClient;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -31,19 +25,14 @@ class LocationIntegrationTest {
     @Autowired
     private LocationRepository locationRepository;
 
-    private HttpHeaders adminHeaders;
-    private HttpHeaders userHeaders;
+    private String adminToken;
+    private String userToken;
 
     @BeforeEach
     void setUp() {
         locationRepository.deleteAll();
-        adminHeaders = new HttpHeaders();
-        adminHeaders.setContentType(MediaType.APPLICATION_JSON);
-        adminHeaders.setBearerAuth(jwtUtil.generateToken("admin", "ROLE_ADMIN"));
-
-        userHeaders = new HttpHeaders();
-        userHeaders.setContentType(MediaType.APPLICATION_JSON);
-        userHeaders.setBearerAuth(jwtUtil.generateToken("user", "ROLE_USER"));
+        adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        userToken = jwtUtil.generateToken("user", "ROLE_USER");
     }
 
     @Test
@@ -56,12 +45,14 @@ class LocationIntegrationTest {
                 .code("RACK-01").name("Rack 1").type(LocationType.RACK).parentId(wh.getId()).build();
         locationRepository.save(rack);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).contains("WH-01", "RACK-01");
+        webTestClient.get().uri("/api/locations")
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2)
+                .jsonPath("$[0].code").isEqualTo("WH-01")
+                .jsonPath("$[1].code").isEqualTo("RACK-01");
     }
 
     @Test
@@ -78,12 +69,14 @@ class LocationIntegrationTest {
                 .code("SH-A1").name("Shelf A1").type(LocationType.SHELF).parentId(rack.getId()).build();
         locationRepository.save(shelf);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations/tree", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).contains("WH-01", "RACK-A", "SH-A1");
+        webTestClient.get().uri("/api/locations/tree")
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].code").isEqualTo("WH-01")
+                .jsonPath("$[0].children[0].code").isEqualTo("RACK-A")
+                .jsonPath("$[0].children[0].children[0].code").isEqualTo("SH-A1");
     }
 
     @Test
@@ -96,30 +89,31 @@ class LocationIntegrationTest {
                 .code("WH-02").name("Warehouse 2").type(LocationType.WAREHOUSE).build();
         locationRepository.save(wh2);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations/tree", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).contains("WH-01", "WH-02");
+        webTestClient.get().uri("/api/locations/tree")
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.length()").isEqualTo(2);
     }
 
     @Test
-    void createLocation_created() throws Exception {
+    void createLocation_created() {
         String locationJson = """
                 {"code": "NEW-WH", "name": "New Warehouse", "type": "WAREHOUSE"}
                 """;
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations", HttpMethod.POST,
-                new HttpEntity<>(locationJson, adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.getBody());
-        assertThat(json.get("id")).isNotNull();
-        assertThat(json.get("code").asText()).isEqualTo("NEW-WH");
-        assertThat(json.get("name").asText()).isEqualTo("New Warehouse");
-        assertThat(json.get("type").asText()).isEqualTo("WAREHOUSE");
+        webTestClient.post().uri("/api/locations")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(locationJson)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isNotEmpty()
+                .jsonPath("$.code").isEqualTo("NEW-WH")
+                .jsonPath("$.name").isEqualTo("New Warehouse")
+                .jsonPath("$.type").isEqualTo("WAREHOUSE");
     }
 
     @Test
@@ -130,12 +124,14 @@ class LocationIntegrationTest {
 
         String childJson = "{\"code\": \"CHILD-RACK\", \"name\": \"Child Rack\", \"type\": \"RACK\", \"parentId\": " + parent.getId() + "}";
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations", HttpMethod.POST,
-                new HttpEntity<>(childJson, adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        assertThat(response.getBody()).contains("\"parentId\":");
+        webTestClient.post().uri("/api/locations")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(childJson)
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.parentId").isEqualTo(parent.getId());
     }
 
     @Test
@@ -144,11 +140,12 @@ class LocationIntegrationTest {
                 {"code": "BAD-RACK", "name": "Bad Rack", "type": "RACK", "parentId": 99999}
                 """;
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations", HttpMethod.POST,
-                new HttpEntity<>(locationJson, adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().is5xxServerError()).isTrue();
+        webTestClient.post().uri("/api/locations")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(locationJson)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
@@ -157,12 +154,13 @@ class LocationIntegrationTest {
                 .code("EMPTY-LOC").name("Empty Location").type(LocationType.WAREHOUSE).build();
         location = locationRepository.save(location);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations/" + location.getId() + "/products", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).isEqualTo("[]");
+        webTestClient.get().uri("/api/locations/{id}/products", location.getId())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$").isArray()
+                .jsonPath("$.length()").isEqualTo(0);
     }
 
     @Test
@@ -171,16 +169,16 @@ class LocationIntegrationTest {
                 .code("DEL-01").name("Deletable").type(LocationType.WAREHOUSE).build();
         location = locationRepository.save(location);
 
-        ResponseEntity<String> deleteResponse = restTemplate.exchange(
-                "/api/locations/" + location.getId(), HttpMethod.DELETE,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(deleteResponse.getStatusCode().value()).isEqualTo(204);
+        webTestClient.delete().uri("/api/locations/{id}", location.getId())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isNoContent();
 
         // Verify it's gone
-        ResponseEntity<String> getResponse = restTemplate.exchange(
-                "/api/locations/" + location.getId(), HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(getResponse.getStatusCode().value()).isEqualTo(404);
+        webTestClient.get().uri("/api/locations/{id}", location.getId())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isNotFound();
     }
 
     @Test
@@ -193,10 +191,10 @@ class LocationIntegrationTest {
                 .code("CHILD").name("Child").type(LocationType.RACK).parentId(parent.getId()).build();
         locationRepository.save(child);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations/" + parent.getId(), HttpMethod.DELETE,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(response.getStatusCode().is5xxServerError()).isTrue();
+        webTestClient.delete().uri("/api/locations/{id}", parent.getId())
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
@@ -205,9 +203,11 @@ class LocationIntegrationTest {
                 {"code": "USER-LOC", "name": "User Location", "type": "WAREHOUSE"}
                 """;
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/locations", HttpMethod.POST,
-                new HttpEntity<>(locationJson, userHeaders), String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(403);
+        webTestClient.post().uri("/api/locations")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(locationJson)
+                .exchange()
+                .expectStatus().isForbidden();
     }
 }

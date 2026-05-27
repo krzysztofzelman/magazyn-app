@@ -1,29 +1,19 @@
 package com.example.magazyn.integration;
 
 import com.example.magazyn.util.JwtUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class AuthIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    private WebTestClient webTestClient;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -35,17 +25,16 @@ class AuthIntegrationTest {
                 {"username": "newuser", "password": "password123"}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(adminToken);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/auth/register",
-                new HttpEntity<>(registerJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).contains("token", "newuser", "ROLE_USER");
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(registerJson)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.token").isNotEmpty()
+                .jsonPath("$.username").isEqualTo("newuser")
+                .jsonPath("$.role").isEqualTo("ROLE_USER");
     }
 
     @Test
@@ -55,18 +44,21 @@ class AuthIntegrationTest {
                 {"username": "duplicateuser", "password": "password123"}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(adminToken);
-        HttpEntity<String> entity = new HttpEntity<>(registerJson, headers);
-
         // First registration
-        ResponseEntity<String> first = restTemplate.postForEntity("/api/auth/register", entity, String.class);
-        assertThat(first.getStatusCode().value()).isEqualTo(200);
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(registerJson)
+                .exchange()
+                .expectStatus().isOk();
 
         // Second registration with same username
-        ResponseEntity<String> second = restTemplate.postForEntity("/api/auth/register", entity, String.class);
-        assertThat(second.getStatusCode().is5xxServerError()).isTrue();
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(registerJson)
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
@@ -75,15 +67,11 @@ class AuthIntegrationTest {
                 {"username": "unauthuser", "password": "password123"}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/auth/register",
-                new HttpEntity<>(registerJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(401);
+        webTestClient.post().uri("/api/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(registerJson)
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test
@@ -93,16 +81,12 @@ class AuthIntegrationTest {
                 {"username": "ab", "password": "12"}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(adminToken);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/auth/register",
-                new HttpEntity<>(invalidJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(invalidJson)
+                .exchange()
+                .expectStatus().isBadRequest();
     }
 
     @Test
@@ -114,31 +98,27 @@ class AuthIntegrationTest {
                 {"username": "logintest", "password": "password123"}
                 """;
 
-        HttpHeaders authHeaders = new HttpHeaders();
-        authHeaders.setContentType(MediaType.APPLICATION_JSON);
-        authHeaders.setBearerAuth(adminToken);
-
-        ResponseEntity<String> registerResponse = restTemplate.postForEntity(
-                "/api/auth/register",
-                new HttpEntity<>(registerJson, authHeaders),
-                String.class);
-        assertThat(registerResponse.getStatusCode().value()).isEqualTo(200);
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(registerJson)
+                .exchange()
+                .expectStatus().isOk();
 
         // Then login
         String loginJson = """
                 {"username": "logintest", "password": "password123"}
                 """;
 
-        HttpHeaders loginHeaders = new HttpHeaders();
-        loginHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<String> loginResponse = restTemplate.postForEntity(
-                "/api/auth/login",
-                new HttpEntity<>(loginJson, loginHeaders),
-                String.class);
-
-        assertThat(loginResponse.getStatusCode().value()).isEqualTo(200);
-        assertThat(loginResponse.getBody()).contains("token", "logintest", "ROLE_USER");
+        webTestClient.post().uri("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(loginJson)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.token").isNotEmpty()
+                .jsonPath("$.username").isEqualTo("logintest")
+                .jsonPath("$.role").isEqualTo("ROLE_USER");
     }
 
     @Test
@@ -147,37 +127,28 @@ class AuthIntegrationTest {
                 {"username": "nonexistent", "password": "wrongpassword"}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/auth/login",
-                new HttpEntity<>(loginJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(401);
+        webTestClient.post().uri("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(loginJson)
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test
     void accessProtectedEndpoint_withValidToken_success() {
         String token = jwtUtil.generateToken("testuser", "ROLE_USER");
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products",
-                HttpMethod.GET,
-                new HttpEntity<>(headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        webTestClient.get().uri("/api/products")
+                .header("Authorization", "Bearer " + token)
+                .exchange()
+                .expectStatus().isOk();
     }
 
     @Test
     void accessProtectedEndpoint_withoutToken_returns401() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/api/products", String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(401);
+        webTestClient.get().uri("/api/products")
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test
@@ -187,16 +158,12 @@ class AuthIntegrationTest {
                 {"name": "Test", "sku": "TST-AUTH", "unit": "szt."}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(userToken);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/products",
-                new HttpEntity<>(productJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(403);
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(productJson)
+                .exchange()
+                .expectStatus().isForbidden();
     }
 
     @Test
@@ -206,21 +173,18 @@ class AuthIntegrationTest {
                 {"name": "Admin Product", "sku": "ADM-001", "unit": "szt."}
                 """;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(adminToken);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/products",
-                new HttpEntity<>(productJson, headers),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(productJson)
+                .exchange()
+                .expectStatus().isCreated();
     }
 
     @Test
     void accessActuatorHealth_withoutAuth() {
-        ResponseEntity<String> response = restTemplate.getForEntity("/actuator/health", String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        webTestClient.get().uri("/actuator/health")
+                .exchange()
+                .expectStatus().isOk();
     }
 }

@@ -11,24 +11,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class ProductControllerIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private WebTestClient webTestClient;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -39,28 +33,24 @@ class ProductControllerIntegrationTest {
     @Autowired
     private LocationRepository locationRepository;
 
-    private HttpHeaders adminHeaders;
-    private HttpHeaders userHeaders;
+    private String adminToken;
+    private String userToken;
 
     @BeforeEach
     void setUp() {
-        adminHeaders = new HttpHeaders();
-        adminHeaders.setContentType(MediaType.APPLICATION_JSON);
-        adminHeaders.setBearerAuth(jwtUtil.generateToken("admin", "ROLE_ADMIN"));
-
-        userHeaders = new HttpHeaders();
-        userHeaders.setContentType(MediaType.APPLICATION_JSON);
-        userHeaders.setBearerAuth(jwtUtil.generateToken("user", "ROLE_USER"));
+        adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        userToken = jwtUtil.generateToken("user", "ROLE_USER");
     }
 
     @Test
     void getAllProducts_returnsPage() {
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(200);
-        assertThat(response.getBody()).contains("content", "totalElements");
+        webTestClient.get().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.content").isArray()
+                .jsonPath("$.totalElements").isNumber();
     }
 
     @Test
@@ -72,18 +62,18 @@ class ProductControllerIntegrationTest {
         request.setPrice(BigDecimal.valueOf(99.99));
         request.setMinQuantity(5);
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
-                String.class);
-
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        var json = objectMapper.readTree(response.getBody());
-        assertThat(json.get("id")).isNotNull();
-        assertThat(json.get("name").asText()).isEqualTo("Integration Product");
-        assertThat(json.get("sku").asText()).isEqualTo("INT-001");
-        assertThat(json.get("price").asDecimal()).isEqualByComparingTo("99.99");
-        assertThat(json.get("minQuantity").asInt()).isEqualTo(5);
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isNotEmpty()
+                .jsonPath("$.name").isEqualTo("Integration Product")
+                .jsonPath("$.sku").isEqualTo("INT-001")
+                .jsonPath("$.price").isEqualTo(99.99)
+                .jsonPath("$.minQuantity").isEqualTo(5);
     }
 
     @Test
@@ -94,18 +84,20 @@ class ProductControllerIntegrationTest {
         request.setUnit("szt.");
 
         // Create first product
-        ResponseEntity<String> first = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
-                String.class);
-        assertThat(first.getStatusCode().value()).isEqualTo(201);
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isCreated();
 
         // Try to create second product with same SKU
-        ResponseEntity<String> second = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
-                String.class);
-        assertThat(second.getStatusCode().is5xxServerError()).isTrue();
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 
     @Test
@@ -115,29 +107,33 @@ class ProductControllerIntegrationTest {
         request.setSku("FND-001");
         request.setUnit("szt.");
 
-        ResponseEntity<String> createResponse = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
-                String.class);
-        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
+        byte[] createResponse = webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isNotEmpty()
+                .returnResult()
+                .getResponseBody();
 
-        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
 
-        ResponseEntity<String> getResponse = restTemplate.exchange(
-                "/api/products/" + productId, HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-
-        assertThat(getResponse.getStatusCode().value()).isEqualTo(200);
-        var json = objectMapper.readTree(getResponse.getBody());
-        assertThat(json.get("sku").asText()).isEqualTo("FND-001");
+        webTestClient.get().uri("/api/products/{id}", productId)
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.sku").isEqualTo("FND-001");
     }
 
     @Test
     void getProductById_notFound() {
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products/99999", HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(404);
+        webTestClient.get().uri("/api/products/{id}", 99999L)
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isNotFound();
     }
 
     @Test
@@ -147,28 +143,31 @@ class ProductControllerIntegrationTest {
         createReq.setSku("UPD-001");
         createReq.setUnit("szt.");
 
-        ResponseEntity<String> createResponse = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(createReq), adminHeaders),
-                String.class);
-        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
+        byte[] createResponse = webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(createReq))
+                .exchange()
+                .expectStatus().isCreated()
+                .returnResult()
+                .getResponseBody();
 
-        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
 
         UpdateProductRequest updateReq = new UpdateProductRequest();
         updateReq.setName("Updated Name");
         updateReq.setPrice(BigDecimal.valueOf(199.99));
 
-        ResponseEntity<String> updateResponse = restTemplate.exchange(
-                "/api/products/" + productId, HttpMethod.PUT,
-                new HttpEntity<>(objectMapper.writeValueAsString(updateReq), adminHeaders),
-                String.class);
-
-        assertThat(updateResponse.getStatusCode().value()).isEqualTo(200);
-        var json = objectMapper.readTree(updateResponse.getBody());
-        assertThat(json.get("name").asText()).isEqualTo("Updated Name");
-        assertThat(json.get("price").asDecimal()).isEqualByComparingTo("199.99");
-        assertThat(json.get("sku").asText()).isEqualTo("UPD-001");
+        webTestClient.put().uri("/api/products/{id}", productId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(updateReq))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.name").isEqualTo("Updated Name")
+                .jsonPath("$.price").isEqualTo(199.99)
+                .jsonPath("$.sku").isEqualTo("UPD-001");
     }
 
     @Test
@@ -178,24 +177,27 @@ class ProductControllerIntegrationTest {
         request.setSku("DEL-001");
         request.setUnit("szt.");
 
-        ResponseEntity<String> createResponse = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
-                String.class);
-        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
+        byte[] createResponse = webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isCreated()
+                .returnResult()
+                .getResponseBody();
 
-        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
 
-        ResponseEntity<String> deleteResponse = restTemplate.exchange(
-                "/api/products/" + productId, HttpMethod.DELETE,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(deleteResponse.getStatusCode().value()).isEqualTo(204);
+        webTestClient.delete().uri("/api/products/{id}", productId)
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isNoContent();
 
         // Verify it's gone
-        ResponseEntity<String> getResponse = restTemplate.exchange(
-                "/api/products/" + productId, HttpMethod.GET,
-                new HttpEntity<>(adminHeaders), String.class);
-        assertThat(getResponse.getStatusCode().value()).isEqualTo(404);
+        webTestClient.get().uri("/api/products/{id}", productId)
+                .header("Authorization", "Bearer " + adminToken)
+                .exchange()
+                .expectStatus().isNotFound();
     }
 
     @Test
@@ -205,14 +207,11 @@ class ProductControllerIntegrationTest {
         request.setSku("UNAUTH-001");
         request.setUnit("szt.");
 
-        HttpHeaders noAuthHeaders = new HttpHeaders();
-        noAuthHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), noAuthHeaders),
-                String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(401);
+        webTestClient.post().uri("/api/products")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test
@@ -222,11 +221,12 @@ class ProductControllerIntegrationTest {
         request.setSku("USER-001");
         request.setUnit("szt.");
 
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(request), userHeaders),
-                String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(403);
+        webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + userToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(request))
+                .exchange()
+                .expectStatus().isForbidden();
     }
 
     @Test
@@ -237,12 +237,16 @@ class ProductControllerIntegrationTest {
         productReq.setSku("LOC-001");
         productReq.setUnit("szt.");
 
-        ResponseEntity<String> createResponse = restTemplate.exchange(
-                "/api/products", HttpMethod.POST,
-                new HttpEntity<>(objectMapper.writeValueAsString(productReq), adminHeaders),
-                String.class);
-        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
-        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
+        byte[] createResponse = webTestClient.post().uri("/api/products")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(objectMapper.writeValueAsString(productReq))
+                .exchange()
+                .expectStatus().isCreated()
+                .returnResult()
+                .getResponseBody();
+
+        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
 
         // Create a location
         Location location = Location.builder()
@@ -255,13 +259,13 @@ class ProductControllerIntegrationTest {
         // Assign location to product
         String assignJson = "{\"locationId\": " + location.getId() + "}";
 
-        ResponseEntity<String> assignResponse = restTemplate.exchange(
-                "/api/products/" + productId + "/location", HttpMethod.PATCH,
-                new HttpEntity<>(assignJson, adminHeaders),
-                String.class);
-
-        assertThat(assignResponse.getStatusCode().value()).isEqualTo(200);
-        var json = objectMapper.readTree(assignResponse.getBody());
-        assertThat(json.get("locationId").asInt()).isEqualTo(location.getId().intValue());
+        webTestClient.patch().uri("/api/products/{id}/location", productId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(assignJson)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.locationId").isEqualTo(location.getId());
     }
 }
