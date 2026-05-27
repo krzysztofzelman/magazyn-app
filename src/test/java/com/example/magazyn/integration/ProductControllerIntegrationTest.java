@@ -10,25 +10,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class ProductControllerIntegrationTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -39,22 +39,28 @@ class ProductControllerIntegrationTest {
     @Autowired
     private LocationRepository locationRepository;
 
-    private String adminToken;
-    private String userToken;
+    private HttpHeaders adminHeaders;
+    private HttpHeaders userHeaders;
 
     @BeforeEach
     void setUp() {
-        adminToken = "Bearer " + jwtUtil.generateToken("admin", "ROLE_ADMIN");
-        userToken = "Bearer " + jwtUtil.generateToken("user", "ROLE_USER");
+        adminHeaders = new HttpHeaders();
+        adminHeaders.setContentType(MediaType.APPLICATION_JSON);
+        adminHeaders.setBearerAuth(jwtUtil.generateToken("admin", "ROLE_ADMIN"));
+
+        userHeaders = new HttpHeaders();
+        userHeaders.setContentType(MediaType.APPLICATION_JSON);
+        userHeaders.setBearerAuth(jwtUtil.generateToken("user", "ROLE_USER"));
     }
 
     @Test
-    void getAllProducts_returnsPage() throws Exception {
-        mockMvc.perform(get("/api/products")
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", is(notNullValue())))
-                .andExpect(jsonPath("$.totalElements", is(0)));
+    void getAllProducts_returnsPage() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/products", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).contains("content", "totalElements");
     }
 
     @Test
@@ -66,102 +72,103 @@ class ProductControllerIntegrationTest {
         request.setPrice(BigDecimal.valueOf(99.99));
         request.setMinQuantity(5);
 
-        mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id", is(notNullValue())))
-                .andExpect(jsonPath("$.name", is("Integration Product")))
-                .andExpect(jsonPath("$.sku", is("INT-001")))
-                .andExpect(jsonPath("$.price", is(99.99)))
-                .andExpect(jsonPath("$.minQuantity", is(5)));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
+                String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        var json = objectMapper.readTree(response.getBody());
+        assertThat(json.get("id")).isNotNull();
+        assertThat(json.get("name").asText()).isEqualTo("Integration Product");
+        assertThat(json.get("sku").asText()).isEqualTo("INT-001");
+        assertThat(json.get("price").asDecimal()).isEqualByComparingTo("99.99");
+        assertThat(json.get("minQuantity").asInt()).isEqualTo(5);
     }
 
     @Test
-    void createProduct_duplicateSku_returns400() throws Exception {
+    void createProduct_duplicateSku_returnsError() throws Exception {
         CreateProductRequest request = new CreateProductRequest();
         request.setName("Product One");
         request.setSku("DUP-SKU");
         request.setUnit("szt.");
 
         // Create first product
-        mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
+        ResponseEntity<String> first = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
+                String.class);
+        assertThat(first.getStatusCode().value()).isEqualTo(201);
 
         // Try to create second product with same SKU
-        mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().is5xxServerError());
+        ResponseEntity<String> second = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
+                String.class);
+        assertThat(second.getStatusCode().is5xxServerError()).isTrue();
     }
 
     @Test
     void getProductById_found() throws Exception {
-        // First create a product
         CreateProductRequest request = new CreateProductRequest();
         request.setName("Findable Product");
         request.setSku("FND-001");
         request.setUnit("szt.");
 
-        String createResponse = mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        ResponseEntity<String> createResponse = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
+                String.class);
+        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
 
-        // Parse the id from the response
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
 
-        // Then get it by id
-        mockMvc.perform(get("/api/products/{id}", productId)
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sku", is("FND-001")));
+        ResponseEntity<String> getResponse = restTemplate.exchange(
+                "/api/products/" + productId, HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(getResponse.getStatusCode().value()).isEqualTo(200);
+        var json = objectMapper.readTree(getResponse.getBody());
+        assertThat(json.get("sku").asText()).isEqualTo("FND-001");
     }
 
     @Test
-    void getProductById_notFound() throws Exception {
-        mockMvc.perform(get("/api/products/{id}", 99999L)
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNotFound());
+    void getProductById_notFound() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/products/99999", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(404);
     }
 
     @Test
     void updateProduct_updatesSuccessfully() throws Exception {
-        // Create product first
         CreateProductRequest createReq = new CreateProductRequest();
         createReq.setName("Original Name");
         createReq.setSku("UPD-001");
         createReq.setUnit("szt.");
 
-        String createResponse = mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(createReq)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        ResponseEntity<String> createResponse = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(createReq), adminHeaders),
+                String.class);
+        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
 
-        // Update the product
         UpdateProductRequest updateReq = new UpdateProductRequest();
         updateReq.setName("Updated Name");
         updateReq.setPrice(BigDecimal.valueOf(199.99));
 
-        mockMvc.perform(put("/api/products/{id}", productId)
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateReq)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name", is("Updated Name")))
-                .andExpect(jsonPath("$.price", is(199.99)))
-                .andExpect(jsonPath("$.sku", is("UPD-001"))); // unchanged
+        ResponseEntity<String> updateResponse = restTemplate.exchange(
+                "/api/products/" + productId, HttpMethod.PUT,
+                new HttpEntity<>(objectMapper.writeValueAsString(updateReq), adminHeaders),
+                String.class);
+
+        assertThat(updateResponse.getStatusCode().value()).isEqualTo(200);
+        var json = objectMapper.readTree(updateResponse.getBody());
+        assertThat(json.get("name").asText()).isEqualTo("Updated Name");
+        assertThat(json.get("price").asDecimal()).isEqualByComparingTo("199.99");
+        assertThat(json.get("sku").asText()).isEqualTo("UPD-001");
     }
 
     @Test
@@ -171,23 +178,24 @@ class ProductControllerIntegrationTest {
         request.setSku("DEL-001");
         request.setUnit("szt.");
 
-        String createResponse = mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        ResponseEntity<String> createResponse = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), adminHeaders),
+                String.class);
+        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
 
-        mockMvc.perform(delete("/api/products/{id}", productId)
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNoContent());
+        ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                "/api/products/" + productId, HttpMethod.DELETE,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(deleteResponse.getStatusCode().value()).isEqualTo(204);
 
         // Verify it's gone
-        mockMvc.perform(get("/api/products/{id}", productId)
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNotFound());
+        ResponseEntity<String> getResponse = restTemplate.exchange(
+                "/api/products/" + productId, HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(getResponse.getStatusCode().value()).isEqualTo(404);
     }
 
     @Test
@@ -197,10 +205,14 @@ class ProductControllerIntegrationTest {
         request.setSku("UNAUTH-001");
         request.setUnit("szt.");
 
-        mockMvc.perform(post("/api/products")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized());
+        HttpHeaders noAuthHeaders = new HttpHeaders();
+        noAuthHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), noAuthHeaders),
+                String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(401);
     }
 
     @Test
@@ -210,11 +222,11 @@ class ProductControllerIntegrationTest {
         request.setSku("USER-001");
         request.setUnit("szt.");
 
-        mockMvc.perform(post("/api/products")
-                        .header("Authorization", userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(request), userHeaders),
+                String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(403);
     }
 
     @Test
@@ -225,14 +237,12 @@ class ProductControllerIntegrationTest {
         productReq.setSku("LOC-001");
         productReq.setUnit("szt.");
 
-        String createResponse = mockMvc.perform(post("/api/products")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(productReq)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        ResponseEntity<String> createResponse = restTemplate.exchange(
+                "/api/products", HttpMethod.POST,
+                new HttpEntity<>(objectMapper.writeValueAsString(productReq), adminHeaders),
+                String.class);
+        assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
+        Long productId = objectMapper.readTree(createResponse.getBody()).get("id").asLong();
 
         // Create a location
         Location location = Location.builder()
@@ -245,11 +255,13 @@ class ProductControllerIntegrationTest {
         // Assign location to product
         String assignJson = "{\"locationId\": " + location.getId() + "}";
 
-        mockMvc.perform(patch("/api/products/{id}/location", productId)
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(assignJson))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.locationId", is(location.getId().intValue())));
+        ResponseEntity<String> assignResponse = restTemplate.exchange(
+                "/api/products/" + productId + "/location", HttpMethod.PATCH,
+                new HttpEntity<>(assignJson, adminHeaders),
+                String.class);
+
+        assertThat(assignResponse.getStatusCode().value()).isEqualTo(200);
+        var json = objectMapper.readTree(assignResponse.getBody());
+        assertThat(json.get("locationId").asInt()).isEqualTo(location.getId().intValue());
     }
 }

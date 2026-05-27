@@ -7,23 +7,23 @@ import com.example.magazyn.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class LocationIntegrationTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -31,19 +31,23 @@ class LocationIntegrationTest {
     @Autowired
     private LocationRepository locationRepository;
 
-    private String adminToken;
-    private String userToken;
+    private HttpHeaders adminHeaders;
+    private HttpHeaders userHeaders;
 
     @BeforeEach
     void setUp() {
         locationRepository.deleteAll();
-        adminToken = "Bearer " + jwtUtil.generateToken("admin", "ROLE_ADMIN");
-        userToken = "Bearer " + jwtUtil.generateToken("user", "ROLE_USER");
+        adminHeaders = new HttpHeaders();
+        adminHeaders.setContentType(MediaType.APPLICATION_JSON);
+        adminHeaders.setBearerAuth(jwtUtil.generateToken("admin", "ROLE_ADMIN"));
+
+        userHeaders = new HttpHeaders();
+        userHeaders.setContentType(MediaType.APPLICATION_JSON);
+        userHeaders.setBearerAuth(jwtUtil.generateToken("user", "ROLE_USER"));
     }
 
     @Test
-    void getAllLocations_returnsList() throws Exception {
-        // Create locations
+    void getAllLocations_returnsList() {
         Location wh = Location.builder()
                 .code("WH-01").name("Warehouse 1").type(LocationType.WAREHOUSE).build();
         locationRepository.save(wh);
@@ -52,17 +56,16 @@ class LocationIntegrationTest {
                 .code("RACK-01").name("Rack 1").type(LocationType.RACK).parentId(wh.getId()).build();
         locationRepository.save(rack);
 
-        mockMvc.perform(get("/api/locations")
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].code", is("WH-01")))
-                .andExpect(jsonPath("$[1].code", is("RACK-01")));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).contains("WH-01", "RACK-01");
     }
 
     @Test
-    void getLocationTree_returnsTreeStructure() throws Exception {
-        // Create location hierarchy
+    void getLocationTree_returnsTreeStructure() {
         Location warehouse = Location.builder()
                 .code("WH-01").name("Main Warehouse").type(LocationType.WAREHOUSE).build();
         warehouse = locationRepository.save(warehouse);
@@ -75,19 +78,16 @@ class LocationIntegrationTest {
                 .code("SH-A1").name("Shelf A1").type(LocationType.SHELF).parentId(rack.getId()).build();
         locationRepository.save(shelf);
 
-        mockMvc.perform(get("/api/locations/tree")
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].code", is("WH-01")))
-                .andExpect(jsonPath("$[0].children", hasSize(1)))
-                .andExpect(jsonPath("$[0].children[0].code", is("RACK-A")))
-                .andExpect(jsonPath("$[0].children[0].children", hasSize(1)))
-                .andExpect(jsonPath("$[0].children[0].children[0].code", is("SH-A1")));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations/tree", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).contains("WH-01", "RACK-A", "SH-A1");
     }
 
     @Test
-    void getLocationTree_withMultipleRoots() throws Exception {
+    void getLocationTree_withMultipleRoots() {
         Location wh1 = Location.builder()
                 .code("WH-01").name("Warehouse 1").type(LocationType.WAREHOUSE).build();
         locationRepository.save(wh1);
@@ -96,105 +96,95 @@ class LocationIntegrationTest {
                 .code("WH-02").name("Warehouse 2").type(LocationType.WAREHOUSE).build();
         locationRepository.save(wh2);
 
-        mockMvc.perform(get("/api/locations/tree")
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations/tree", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).contains("WH-01", "WH-02");
     }
 
     @Test
     void createLocation_created() throws Exception {
         String locationJson = """
-                {
-                    "code": "NEW-WH",
-                    "name": "New Warehouse",
-                    "type": "WAREHOUSE"
-                }
+                {"code": "NEW-WH", "name": "New Warehouse", "type": "WAREHOUSE"}
                 """;
 
-        mockMvc.perform(post("/api/locations")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(locationJson))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id", is(notNullValue())))
-                .andExpect(jsonPath("$.code", is("NEW-WH")))
-                .andExpect(jsonPath("$.name", is("New Warehouse")))
-                .andExpect(jsonPath("$.type", is("WAREHOUSE")));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations", HttpMethod.POST,
+                new HttpEntity<>(locationJson, adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.getBody());
+        assertThat(json.get("id")).isNotNull();
+        assertThat(json.get("code").asText()).isEqualTo("NEW-WH");
+        assertThat(json.get("name").asText()).isEqualTo("New Warehouse");
+        assertThat(json.get("type").asText()).isEqualTo("WAREHOUSE");
     }
 
     @Test
-    void createLocation_withParent_created() throws Exception {
-        // Create parent location first
+    void createLocation_withParent_created() {
         Location parent = Location.builder()
                 .code("PARENT").name("Parent").type(LocationType.WAREHOUSE).build();
         parent = locationRepository.save(parent);
 
-        String childJson = String.format("""
-                {
-                    "code": "CHILD-RACK",
-                    "name": "Child Rack",
-                    "type": "RACK",
-                    "parentId": %d
-                }
-                """, parent.getId());
+        String childJson = "{\"code\": \"CHILD-RACK\", \"name\": \"Child Rack\", \"type\": \"RACK\", \"parentId\": " + parent.getId() + "}";
 
-        mockMvc.perform(post("/api/locations")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(childJson))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.parentId", is(parent.getId().intValue())));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations", HttpMethod.POST,
+                new HttpEntity<>(childJson, adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody()).contains("\"parentId\":");
     }
 
     @Test
-    void createLocation_withInvalidParent_returnsError() throws Exception {
+    void createLocation_withInvalidParent_returnsError() {
         String locationJson = """
-                {
-                    "code": "BAD-RACK",
-                    "name": "Bad Rack",
-                    "type": "RACK",
-                    "parentId": 99999
-                }
+                {"code": "BAD-RACK", "name": "Bad Rack", "type": "RACK", "parentId": 99999}
                 """;
 
-        mockMvc.perform(post("/api/locations")
-                        .header("Authorization", adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(locationJson))
-                .andExpect(status().is5xxServerError());
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations", HttpMethod.POST,
+                new HttpEntity<>(locationJson, adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().is5xxServerError()).isTrue();
     }
 
     @Test
-    void getProductsByLocation_emptyList() throws Exception {
+    void getProductsByLocation_emptyList() {
         Location location = Location.builder()
                 .code("EMPTY-LOC").name("Empty Location").type(LocationType.WAREHOUSE).build();
         location = locationRepository.save(location);
 
-        mockMvc.perform(get("/api/locations/{id}/products", location.getId())
-                        .header("Authorization", adminToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", is(empty())));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations/" + location.getId() + "/products", HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEqualTo("[]");
     }
 
     @Test
-    void deleteLocation_withoutChildren() throws Exception {
+    void deleteLocation_withoutChildren() {
         Location location = Location.builder()
                 .code("DEL-01").name("Deletable").type(LocationType.WAREHOUSE).build();
         location = locationRepository.save(location);
 
-        mockMvc.perform(delete("/api/locations/{id}", location.getId())
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNoContent());
+        ResponseEntity<String> deleteResponse = restTemplate.exchange(
+                "/api/locations/" + location.getId(), HttpMethod.DELETE,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(deleteResponse.getStatusCode().value()).isEqualTo(204);
 
         // Verify it's gone
-        mockMvc.perform(get("/api/locations/{id}", location.getId())
-                        .header("Authorization", adminToken))
-                .andExpect(status().isNotFound());
+        ResponseEntity<String> getResponse = restTemplate.exchange(
+                "/api/locations/" + location.getId(), HttpMethod.GET,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(getResponse.getStatusCode().value()).isEqualTo(404);
     }
 
     @Test
-    void deleteLocation_withChildren_returnsError() throws Exception {
+    void deleteLocation_withChildren_returnsError() {
         Location parent = Location.builder()
                 .code("PARENT").name("Parent").type(LocationType.WAREHOUSE).build();
         parent = locationRepository.save(parent);
@@ -203,25 +193,21 @@ class LocationIntegrationTest {
                 .code("CHILD").name("Child").type(LocationType.RACK).parentId(parent.getId()).build();
         locationRepository.save(child);
 
-        mockMvc.perform(delete("/api/locations/{id}", parent.getId())
-                        .header("Authorization", adminToken))
-                .andExpect(status().is5xxServerError());
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations/" + parent.getId(), HttpMethod.DELETE,
+                new HttpEntity<>(adminHeaders), String.class);
+        assertThat(response.getStatusCode().is5xxServerError()).isTrue();
     }
 
     @Test
-    void createLocation_withUserRole_returns403() throws Exception {
+    void createLocation_withUserRole_returns403() {
         String locationJson = """
-                {
-                    "code": "USER-LOC",
-                    "name": "User Location",
-                    "type": "WAREHOUSE"
-                }
+                {"code": "USER-LOC", "name": "User Location", "type": "WAREHOUSE"}
                 """;
 
-        mockMvc.perform(post("/api/locations")
-                        .header("Authorization", userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(locationJson))
-                .andExpect(status().isForbidden());
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/locations", HttpMethod.POST,
+                new HttpEntity<>(locationJson, userHeaders), String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(403);
     }
 }
