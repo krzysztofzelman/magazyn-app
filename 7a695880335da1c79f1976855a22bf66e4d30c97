@@ -1,0 +1,1 @@
+{"version":1,"generator":"deepseek-reasoner","files":{"README.md":{"aiChars":349,"humanChars":131,"percent":73,"surface":"cli"}},"summary":{"aiPercent":73,"aiChars":349,"humanChars":131,"totalFilesTouched":1,"surfaces":["cli"]},"surfaceBreakdown":{"cli":{"aiChars":349,"percent":73}},"excludedGenerated":[],"excludedGeneratedCount":0,"promptCount":0}
