@@ -7,6 +7,10 @@ import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.service.ImportService;
 import com.example.magazyn.service.ProductService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -32,6 +36,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products")
+@Tag(name = "Produkty", description = "Zarz\u0105dzanie produktami w magazynie")
+@SecurityRequirement(name = "bearerAuth")
 public class ProductController {
 
     private final ProductService productService;
@@ -44,34 +50,38 @@ public class ProductController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz list\u0119 produkt\u00f3w", description = "Zwraca stron\u0119 produkt\u00f3w z opcj\u0105 wyszukiwania i sortowania")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<ProductResponse>> getAllProducts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "name") String sort,
-            @RequestParam(required = false) String search) {
+            @RequestParam(defaultValue = "0") @Parameter(description = "Numer strony") int page,
+            @RequestParam(defaultValue = "10") @Parameter(description = "Rozmiar strony") int size,
+            @RequestParam(defaultValue = "name") @Parameter(description = "Pole sortowania") String sort,
+            @RequestParam(required = false) @Parameter(description = "Szukana fraza (po nazwie lub SKU)") String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(sort));
         Page<ProductResponse> products = productService.getAllProducts(pageable, search);
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Pobierz produkt po ID")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ProductResponse> getProductById(@PathVariable Long id) {
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable @Parameter(description = "ID produktu") Long id) {
         return productService.getProductById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/sku/{sku}")
+    @Operation(summary = "Pobierz produkt po SKU")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ProductResponse> getProductBySku(@PathVariable String sku) {
+    public ResponseEntity<ProductResponse> getProductBySku(@PathVariable @Parameter(description = "Kod SKU") String sku) {
         return productService.getProductBySku(sku)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
+    @Operation(summary = "Utw\u00f3rz nowy produkt", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductResponse> createProduct(@Valid @RequestBody CreateProductRequest request) {
         ProductResponse created = productService.createProduct(request);
@@ -79,29 +89,33 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Aktualizuj produkt", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id,
+    public ResponseEntity<ProductResponse> updateProduct(@PathVariable @Parameter(description = "ID produktu") Long id,
                                                           @Valid @RequestBody UpdateProductRequest request) {
         ProductResponse updated = productService.updateProduct(id, request);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Usu\u0144 produkt", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProduct(@PathVariable @Parameter(description = "ID produktu") Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/import")
+    @Operation(summary = "Importuj produkty z pliku CSV/XLSX", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ImportResult> importProducts(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") @Parameter(description = "Plik CSV lub XLSX") MultipartFile file) {
         ImportResult result = importService.importProducts(file);
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/import/template")
+    @Operation(summary = "Pobierz szablon importu CSV")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadTemplate() {
         byte[] data = importService.generateTemplate();
@@ -113,8 +127,9 @@ public class ProductController {
     }
 
     @PatchMapping("/{id}/location")
+    @Operation(summary = "Przypisz lokalizacj\u0119 do produktu", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ProductResponse> assignLocation(@PathVariable Long id,
+    public ResponseEntity<ProductResponse> assignLocation(@PathVariable @Parameter(description = "ID produktu") Long id,
                                                            @RequestBody AssignLocationRequest request) {
         ProductResponse updated = productService.assignLocation(id, request);
         return ResponseEntity.ok(updated);

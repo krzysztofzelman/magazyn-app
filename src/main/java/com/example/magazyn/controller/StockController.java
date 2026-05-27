@@ -4,6 +4,10 @@ import com.example.magazyn.dto.StockMovementRequest;
 import com.example.magazyn.dto.StockMovementResponse;
 import com.example.magazyn.dto.StockResponse;
 import com.example.magazyn.service.StockService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +24,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/stock")
+@Tag(name = "Stan magazynowy", description = "Operacje na stanach magazynowych i ruchach towaru")
+@SecurityRequirement(name = "bearerAuth")
 public class StockController {
 
     private final StockService stockService;
@@ -29,9 +35,10 @@ public class StockController {
     }
 
     @PostMapping("/{productId}/movement")
+    @Operation(summary = "Dodaj ruch magazynowy", description = "Przyj\u0119cie lub wydanie towaru. USER mo\u017ce tylko przyj\u0119cia, ADMIN oba typy.")
     @PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #request.type.name() == 'PRZYJECIE')")
     public ResponseEntity<StockMovementResponse> addMovement(
-            @PathVariable Long productId,
+            @PathVariable @Parameter(description = "ID produktu") Long productId,
             @Valid @RequestBody StockMovementRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         StockMovementResponse response = stockService.addMovement(productId, request, username);
@@ -39,15 +46,17 @@ public class StockController {
     }
 
     @GetMapping("/{productId}/movements")
+    @Operation(summary = "Pobierz histori\u0119 ruch\u00f3w produktu")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<StockMovementResponse>> getMovements(@PathVariable Long productId) {
+    public ResponseEntity<List<StockMovementResponse>> getMovements(@PathVariable @Parameter(description = "ID produktu") Long productId) {
         List<StockMovementResponse> movements = stockService.getMovements(productId);
         return ResponseEntity.ok(movements);
     }
 
     @GetMapping("/{productId}")
+    @Operation(summary = "Pobierz stan magazynowy produktu")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<StockResponse> getStock(@PathVariable Long productId) {
+    public ResponseEntity<StockResponse> getStock(@PathVariable @Parameter(description = "ID produktu") Long productId) {
         StockResponse stock = stockService.getStock(productId);
         return ResponseEntity.ok(stock);
     }

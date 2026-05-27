@@ -6,6 +6,7 @@ import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,14 +22,17 @@ import java.util.Optional;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final MeterRegistry meterRegistry;
 
     @Autowired
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(ProductRepository productRepository, MeterRegistry meterRegistry) {
         this.productRepository = productRepository;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(Pageable pageable, String search) {
+        meterRegistry.counter("products.queries.count").increment();
         if (search == null || search.isBlank()) {
             return productRepository.findAll(pageable)
                     .map(this::toResponse);
@@ -50,6 +54,7 @@ public class ProductService {
     }
 
     public ProductResponse createProduct(CreateProductRequest request) {
+        meterRegistry.counter("products.created.count").increment();
         if (productRepository.findBySku(request.getSku()).isPresent()) {
             throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
         }
@@ -100,6 +105,7 @@ public class ProductService {
     }
 
     public void deleteProduct(Long id) {
+        meterRegistry.counter("products.deleted.count").increment();
         if (!productRepository.existsById(id)) {
             throw new RuntimeException("Product not found with id: " + id);
         }

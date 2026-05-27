@@ -1,6 +1,10 @@
 package com.example.magazyn.controller;
 
 import com.example.magazyn.service.ExportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +17,8 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Eksport", description = "Eksport produkt\u00f3w i stan\u00f3w magazynowych do CSV/XLSX")
+@SecurityRequirement(name = "bearerAuth")
 public class ExportController {
 
     private final ExportService exportService;
@@ -22,10 +28,11 @@ public class ExportController {
     }
 
     @GetMapping("/products/export/csv")
+    @Operation(summary = "Eksportuj produkty do CSV lub XLSX")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportProducts(
-            @RequestParam(defaultValue = "csv") String format,
-            @RequestParam(required = false) Set<String> fields) {
+            @RequestParam(defaultValue = "csv") @Parameter(description = "Format: csv lub xlsx") String format,
+            @RequestParam(required = false) @Parameter(description = "Lista p\u00f3l do eksportu") Set<String> fields) {
 
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         byte[] data;
@@ -51,10 +58,11 @@ public class ExportController {
     }
 
     @GetMapping("/stock/export/excel")
+    @Operation(summary = "Eksportuj stan magazynowy do CSV lub XLSX")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> exportStock(
-            @RequestParam(defaultValue = "xlsx") String format,
-            @RequestParam(required = false) Set<String> fields) {
+            @RequestParam(defaultValue = "xlsx") @Parameter(description = "Format: csv lub xlsx") String format,
+            @RequestParam(required = false) @Parameter(description = "Lista p\u00f3l do eksportu") Set<String> fields) {
 
         String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         byte[] data;

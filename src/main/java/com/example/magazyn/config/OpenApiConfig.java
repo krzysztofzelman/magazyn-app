@@ -1,8 +1,9 @@
 package com.example.magazyn.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
-
+import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
@@ -16,14 +17,17 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Magazyn API")
-                        .version("1.0")
-                        .description("REST API systemu zarządzania magazynem"))
-                .addSecurityItem(new SecurityRequirement().addList("BearerAuth"))
+                        .title("Magazyn App API")
+                        .version("1.0.0")
+                        .description("API systemu zarz\u0105dzania magazynem")
+                        .contact(new Contact().name("Administrator"))
+                        .license(new License().name("MIT")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
-                        .addSecuritySchemes("BearerAuth", new SecurityScheme()
+                        .addSecuritySchemes("bearerAuth", new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
-                                .bearerFormat("JWT")));
+                                .bearerFormat("JWT")
+                                .description("Wpisz token JWT uzyskany z /api/auth/login")));
     }
 }
