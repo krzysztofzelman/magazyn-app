@@ -107,7 +107,7 @@ class ProductControllerIntegrationTest {
         request.setSku("FND-001");
         request.setUnit("szt.");
 
-        byte[] createResponse = webTestClient.post().uri("/api/products")
+        var result = webTestClient.post().uri("/api/products")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(objectMapper.writeValueAsString(request))
@@ -115,10 +115,9 @@ class ProductControllerIntegrationTest {
                 .expectStatus().isCreated()
                 .expectBody()
                 .jsonPath("$.id").isNotEmpty()
-                .returnResult()
-                .getResponseBody();
+                .returnResult();
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(result.getResponseBodyContent()).get("id").asLong();
 
         webTestClient.get().uri("/api/products/{id}", productId)
                 .header("Authorization", "Bearer " + adminToken)
@@ -143,16 +142,15 @@ class ProductControllerIntegrationTest {
         createReq.setSku("UPD-001");
         createReq.setUnit("szt.");
 
-        byte[] createResponse = webTestClient.post().uri("/api/products")
+        var createResult = webTestClient.post().uri("/api/products")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(objectMapper.writeValueAsString(createReq))
                 .exchange()
                 .expectStatus().isCreated()
-                .returnResult()
-                .getResponseBody();
+                .returnResult();
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(createResult.getResponseBodyContent()).get("id").asLong();
 
         UpdateProductRequest updateReq = new UpdateProductRequest();
         updateReq.setName("Updated Name");
@@ -177,16 +175,15 @@ class ProductControllerIntegrationTest {
         request.setSku("DEL-001");
         request.setUnit("szt.");
 
-        byte[] createResponse = webTestClient.post().uri("/api/products")
+        var deleteCreateResult = webTestClient.post().uri("/api/products")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(objectMapper.writeValueAsString(request))
                 .exchange()
                 .expectStatus().isCreated()
-                .returnResult()
-                .getResponseBody();
+                .returnResult();
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(deleteCreateResult.getResponseBodyContent()).get("id").asLong();
 
         webTestClient.delete().uri("/api/products/{id}", productId)
                 .header("Authorization", "Bearer " + adminToken)
@@ -237,16 +234,15 @@ class ProductControllerIntegrationTest {
         productReq.setSku("LOC-001");
         productReq.setUnit("szt.");
 
-        byte[] createResponse = webTestClient.post().uri("/api/products")
+        var locCreateResult = webTestClient.post().uri("/api/products")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(objectMapper.writeValueAsString(productReq))
                 .exchange()
                 .expectStatus().isCreated()
-                .returnResult()
-                .getResponseBody();
+                .returnResult();
 
-        Long productId = objectMapper.readTree(createResponse).get("id").asLong();
+        Long productId = objectMapper.readTree(locCreateResult.getResponseBodyContent()).get("id").asLong();
 
         // Create a location
         Location location = Location.builder()
