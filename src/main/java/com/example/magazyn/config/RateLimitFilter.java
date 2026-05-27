@@ -42,7 +42,12 @@ public class RateLimitFilter extends GenericFilterBean {
             return;
         }
 
-        String clientIp = request.getRemoteAddr();
+        String clientIp = request.getHeader("X-Forwarded-For");
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = request.getRemoteAddr();
+        } else {
+            clientIp = clientIp.split(",")[0].trim();
+        }
         Bucket bucket = buckets.computeIfAbsent(clientIp, this::createBucket);
 
         if (bucket.tryConsume(1)) {
@@ -56,7 +61,7 @@ public class RateLimitFilter extends GenericFilterBean {
             httpResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             httpResponse.setContentType("application/json");
             httpResponse.setCharacterEncoding("UTF-8");
-            String body = "{\"status\":429,\"message\":\"Too many requests — try again later\",\"timestamp\":\""
+            String body = "{\"status\":429,\"message\":\"Za du\u017co \u017c\u0105da\u0144 — spr\u00f3buj ponownie za chwil\u0119\",\"timestamp\":\""
                     + java.time.LocalDateTime.now() + "\"}";
             httpResponse.getOutputStream().write(body.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             httpResponse.getOutputStream().flush();
