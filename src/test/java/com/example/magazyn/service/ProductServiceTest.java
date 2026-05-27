@@ -137,6 +137,7 @@ class ProductServiceTest {
         Product savedProduct = createProductEntity(1L, "Test Product", "TST-001", 0);
 
         when(productRepository.findBySku("TST-001")).thenReturn(Optional.empty());
+        savedProduct.setPrice(BigDecimal.valueOf(100.00));
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
         ProductResponse response = productService.createProduct(request);

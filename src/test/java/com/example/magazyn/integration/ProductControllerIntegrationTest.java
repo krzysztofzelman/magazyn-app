@@ -27,8 +27,7 @@ class ProductControllerIntegrationTest {
 
     private WebTestClient webTestClient;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private JwtUtil jwtUtil;

@@ -151,7 +151,7 @@ class LocationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(locationJson)
                 .exchange()
-                .expectStatus().is5xxServerError();
+                .expectStatus().isNotFound();
     }
 
     @Test
@@ -200,7 +200,7 @@ class LocationIntegrationTest {
         webTestClient.delete().uri("/api/locations/{id}", parent.getId())
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
-                .expectStatus().is5xxServerError();
+                .expectStatus().isBadRequest();
     }
 
     @Test

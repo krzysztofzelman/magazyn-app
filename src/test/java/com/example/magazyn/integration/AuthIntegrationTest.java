@@ -41,7 +41,7 @@ class AuthIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(registerJson)
                 .exchange()
-                .expectStatus().isOk()
+                .expectStatus().isCreated()
                 .expectBody()
                 .jsonPath("$.token").isNotEmpty()
                 .jsonPath("$.username").isEqualTo("newuser")
@@ -61,7 +61,7 @@ class AuthIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(registerJson)
                 .exchange()
-                .expectStatus().isOk();
+                .expectStatus().isCreated();
 
         // Second registration with same username
         webTestClient.post().uri("/api/auth/register")
@@ -69,7 +69,7 @@ class AuthIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(registerJson)
                 .exchange()
-                .expectStatus().is5xxServerError();
+                .expectStatus().isBadRequest();
     }
 
     @Test
@@ -114,7 +114,7 @@ class AuthIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(registerJson)
                 .exchange()
-                .expectStatus().isOk();
+                .expectStatus().isCreated();
 
         // Then login
         String loginJson = """
