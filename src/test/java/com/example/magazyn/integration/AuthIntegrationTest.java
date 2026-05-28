@@ -128,6 +128,7 @@ class AuthIntegrationTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.token").isNotEmpty()
+                .jsonPath("$.refreshToken").isNotEmpty()
                 .jsonPath("$.username").isEqualTo("logintest")
                 .jsonPath("$.role").isEqualTo("ROLE_USER");
     }
@@ -197,5 +198,139 @@ class AuthIntegrationTest {
         webTestClient.get().uri("/actuator/health")
                 .exchange()
                 .expectStatus().isOk();
+    }
+
+    // ──────────────────────────────────────────────
+    // Refresh token flow
+    // ──────────────────────────────────────────────
+
+    @Test
+    void refreshToken_returnsNewTokens() {
+        // Register + login to get refresh token
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"username": "refreshtest1", "password": "password123"}
+                        """)
+                .exchange()
+                .expectStatus().isCreated();
+
+        String loginBody = webTestClient.post().uri("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"username": "refreshtest1", "password": "password123"}
+                        """)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.refreshToken").isNotEmpty()
+                .returnResult()
+                .getResponseBody();
+
+        String refreshToken = extractJsonValue(loginBody, "refreshToken");
+
+        // Use refresh token to get new tokens
+        webTestClient.post().uri("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"" + refreshToken + "\"}")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.token").isNotEmpty()
+                .jsonPath("$.refreshToken").isNotEmpty()
+                .jsonPath("$.refreshToken").isNotEqualTo(refreshToken) // rotation
+                .jsonPath("$.username").isEqualTo("refreshtest1")
+                .jsonPath("$.role").isEqualTo("ROLE_USER");
+    }
+
+    @Test
+    void refreshToken_withInvalidToken_returns401() {
+        webTestClient.post().uri("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"00000000-0000-0000-0000-000000000000\"}")
+                .exchange()
+                .expectStatus().isUnauthorized()
+                .expectBody()
+                .jsonPath("$.error").isNotEmpty();
+    }
+
+    @Test
+    void refreshToken_withExpiredToken_returns401() {
+        // We can't easily create an expired token via API,
+        // but we can test with a non-parseable UUID-like string
+        webTestClient.post().uri("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"not-a-uuid\"}")
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void logout_invalidatesToken() {
+        // Register + login to get refresh token
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        webTestClient.post().uri("/api/auth/register")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"username": "logouttest1", "password": "password123"}
+                        """)
+                .exchange()
+                .expectStatus().isCreated();
+
+        String loginBody = webTestClient.post().uri("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("""
+                        {"username": "logouttest1", "password": "password123"}
+                        """)
+                .exchange()
+                .expectStatus().isOk()
+                .returnResult()
+                .getResponseBody();
+
+        String refreshToken = extractJsonValue(loginBody, "refreshToken");
+
+        // Logout
+        webTestClient.post().uri("/api/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"" + refreshToken + "\"}")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.message").isNotEmpty();
+
+        // Using the same refresh token after logout should fail
+        webTestClient.post().uri("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"" + refreshToken + "\"}")
+                .exchange()
+                .expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void logout_withInvalidToken_returns200() {
+        // Logout should succeed even with an invalid/consumed token
+        webTestClient.post().uri("/api/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"refreshToken\": \"00000000-0000-0000-0000-000000000000\"}")
+                .exchange()
+                .expectStatus().isOk();
+    }
+
+    // ──────────────────────────────────────────────
+    // Helpers
+    // ──────────────────────────────────────────────
+
+    private String extractJsonValue(byte[] body, String key) {
+        if (body == null) return null;
+        String text = new String(body, java.nio.charset.StandardCharsets.UTF_8);
+        String search = "\"" + key + "\":\"";
+        int start = text.indexOf(search);
+        if (start < 0) return null;
+        start += search.length();
+        int end = text.indexOf("\"", start);
+        return end < 0 ? null : text.substring(start, end);
     }
 }

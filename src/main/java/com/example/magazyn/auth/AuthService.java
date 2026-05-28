@@ -1,5 +1,6 @@
 package com.example.magazyn.auth;
 
+import com.example.magazyn.entity.RefreshToken;
 import com.example.magazyn.entity.User;
 import com.example.magazyn.repository.UserRepository;
 import com.example.magazyn.util.JwtUtil;
@@ -7,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
@@ -15,15 +17,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.authenticationManager = authenticationManager;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -40,7 +45,8 @@ public class AuthService {
         userRepository.save(user);
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+        return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -55,6 +61,27 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
-        return new AuthResponse(token, user.getUsername(), user.getRole());
+        RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+        return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+    }
+
+    @Transactional
+    public AuthResponse refresh(String refreshTokenStr) {
+        User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
+        refreshTokenService.deleteByUser(user);
+
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        RefreshToken newRefreshToken = refreshTokenService.generateRefreshToken(user);
+        return new AuthResponse(token, newRefreshToken.getToken().toString(), user.getUsername(), user.getRole());
+    }
+
+    @Transactional
+    public void logout(String refreshTokenStr) {
+        try {
+            User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
+            refreshTokenService.deleteByUser(user);
+        } catch (RefreshTokenException e) {
+            // If token is invalid/expired, still succeed — nothing to invalidate
+        }
     }
 }
