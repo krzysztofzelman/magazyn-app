@@ -61,7 +61,8 @@ public class StockService {
     }
 
     private StockMovementResponse addMovementSingle(Product product, StockMovementRequest request, String username) {
-        Long batchId = request.getBatchId();
+        Long requestBatchId = request.getBatchId();
+        Long batchId = requestBatchId;  // may be reassigned if a new batch is created
 
         switch (request.getType()) {
             case PRZYJECIE:
@@ -73,7 +74,7 @@ public class StockService {
                 if (batchId != null) {
                     // When batchId is explicitly provided for PRZYJECIE, add to that batch
                     Batch batch = batchRepository.findByIdForUpdate(batchId)
-                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batchId));
+                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
                         throw new RuntimeException("Batch does not belong to this product");
                     }
@@ -105,7 +106,7 @@ public class StockService {
                 if (batchId != null) {
                     // Deduct from a specific batch
                     Batch batch = batchRepository.findByIdForUpdate(batchId)
-                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batchId));
+                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
                         throw new RuntimeException("Batch does not belong to this product");
                     }
