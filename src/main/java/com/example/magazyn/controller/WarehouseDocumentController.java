@@ -99,6 +99,13 @@ public class WarehouseDocumentController {
 
     private byte[] generatePdf(WarehouseDocumentResponse doc) {
         try {
+            org.apache.pdfbox.pdmodel.font.PDType1Font fontNormal =
+                    new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                            org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA);
+            org.apache.pdfbox.pdmodel.font.PDType1Font fontBold =
+                    new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                            org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA_BOLD);
+
             try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
                  org.apache.pdfbox.pdmodel.PDDocument pdfDoc = new org.apache.pdfbox.pdmodel.PDDocument()) {
 
@@ -108,66 +115,48 @@ public class WarehouseDocumentController {
 
                 try (org.apache.pdfbox.pdmodel.PDPageContentStream cs =
                              new org.apache.pdfbox.pdmodel.PDPageContentStream(pdfDoc, page)) {
-                    cs.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA_BOLD, 16);
+                    cs.setFont(fontBold, 16);
                     cs.beginText();
                     cs.newLineAtOffset(50, 750);
                     cs.showText("Dokument " + doc.getType() + " nr " + doc.getNumber());
                     cs.endText();
 
-                    cs.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA, 10);
-                    cs.beginText();
-                    cs.newLineAtOffset(50, 720);
-                    cs.showText("Status: " + doc.getStatus());
-                    cs.endText();
-                    cs.beginText();
-                    cs.newLineAtOffset(50, 705);
-                    cs.showText("Kontrahent: " + doc.getContractorName());
-                    cs.endText();
-                    cs.beginText();
-                    cs.newLineAtOffset(50, 690);
-                    cs.showText("NIP: " + (doc.getContractorTaxId() != null ? doc.getContractorTaxId() : "-"));
-                    cs.endText();
-                    cs.beginText();
-                    cs.newLineAtOffset(50, 675);
-                    cs.showText("Data utworzenia: " + doc.getCreatedAt());
-                    cs.endText();
-                    cs.beginText();
-                    cs.newLineAtOffset(50, 660);
-                    cs.showText("Utworzyl: " + doc.getCreatedBy());
-                    cs.endText();
+                    cs.setFont(fontNormal, 10);
+                    cs.beginText(); cs.newLineAtOffset(50, 720); cs.showText("Status: " + doc.getStatus()); cs.endText();
+                    cs.beginText(); cs.newLineAtOffset(50, 705); cs.showText("Kontrahent: " + doc.getContractorName()); cs.endText();
+                    cs.beginText(); cs.newLineAtOffset(50, 690); cs.showText("NIP: " + (doc.getContractorTaxId() != null ? doc.getContractorTaxId() : "-")); cs.endText();
+                    cs.beginText(); cs.newLineAtOffset(50, 675); cs.showText("Data utworzenia: " + doc.getCreatedAt()); cs.endText();
+                    cs.beginText(); cs.newLineAtOffset(50, 660); cs.showText("Utworzyl: " + doc.getCreatedBy()); cs.endText();
                     if (doc.getNotes() != null && !doc.getNotes().isBlank()) {
-                        cs.beginText();
-                        cs.newLineAtOffset(50, 645);
-                        cs.showText("Uwagi: " + doc.getNotes());
-                        cs.endText();
+                        cs.beginText(); cs.newLineAtOffset(50, 645); cs.showText("Uwagi: " + doc.getNotes()); cs.endText();
                     }
 
                     // Table header
                     float y = 620;
-                    cs.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA_BOLD, 10);
-                    drawTableCell(cs, 50, y, 40, "Lp.");
-                    drawTableCell(cs, 90, y, 200, "Produkt");
-                    drawTableCell(cs, 290, y, 80, "Ilość");
-                    drawTableCell(cs, 370, y, 80, "Cena");
-                    drawTableCell(cs, 450, y, 90, "Wartość");
+                    cs.setFont(fontBold, 10);
+                    writeText(cs, 50, y, "Lp.");
+                    writeText(cs, 90, y, "Produkt");
+                    writeText(cs, 290, y, "Ilo\u015B\u0107");
+                    writeText(cs, 370, y, "Cena");
+                    writeText(cs, 450, y, "Warto\u015B\u0107");
 
                     y -= 20;
-                    cs.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA, 10);
+                    cs.setFont(fontNormal, 10);
 
                     int lp = 1;
                     for (var item : doc.getItems()) {
                         if (y < 50) break;
-                        drawTableCell(cs, 50, y, 40, String.valueOf(lp++));
-                        drawTableCell(cs, 90, y, 200, item.getProductName());
-                        drawTableCell(cs, 290, y, 80, item.getQuantity() + " " + item.getProductUnit());
-                        drawTableCell(cs, 370, y, 80, item.getUnitPrice().toString());
-                        drawTableCell(cs, 450, y, 90, item.getTotalPrice().toString());
+                        writeText(cs, 50, y, String.valueOf(lp++));
+                        writeText(cs, 90, y, item.getProductName());
+                        writeText(cs, 290, y, item.getQuantity() + " " + item.getProductUnit());
+                        writeText(cs, 370, y, item.getUnitPrice().toString());
+                        writeText(cs, 450, y, item.getTotalPrice().toString());
                         y -= 20;
                     }
 
                     if (doc.getConfirmedAt() != null) {
                         y -= 20;
-                        cs.setFont(org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA_BOLD, 10);
+                        cs.setFont(fontBold, 10);
                         cs.beginText();
                         cs.newLineAtOffset(50, y);
                         cs.showText("Zatwierdzono: " + doc.getConfirmedAt());
@@ -183,8 +172,8 @@ public class WarehouseDocumentController {
         }
     }
 
-    private void drawTableCell(org.apache.pdfbox.pdmodel.PDPageContentStream cs,
-                               float x, float y, float width, String text) throws java.io.IOException {
+    private void writeText(org.apache.pdfbox.pdmodel.PDPageContentStream cs,
+                           float x, float y, String text) throws java.io.IOException {
         cs.beginText();
         cs.newLineAtOffset(x + 2, y);
         cs.showText(text);
