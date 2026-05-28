@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class AuthIntegrationTest {
@@ -217,7 +219,7 @@ class AuthIntegrationTest {
                 .exchange()
                 .expectStatus().isCreated();
 
-        String loginBody = webTestClient.post().uri("/api/auth/login")
+        byte[] loginBody = webTestClient.post().uri("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"username": "refreshtest1", "password": "password123"}
@@ -227,12 +229,12 @@ class AuthIntegrationTest {
                 .expectBody()
                 .jsonPath("$.refreshToken").isNotEmpty()
                 .returnResult()
-                .getResponseBody();
+                .getResponseBodyContent();
 
         String refreshToken = extractJsonValue(loginBody, "refreshToken");
 
-        // Use refresh token to get new tokens
-        webTestClient.post().uri("/api/auth/refresh")
+        // Use refresh token to get new tokens — verify rotation (different refresh token returned)
+        byte[] refreshedBody = webTestClient.post().uri("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"refreshToken\": \"" + refreshToken + "\"}")
                 .exchange()
@@ -240,9 +242,15 @@ class AuthIntegrationTest {
                 .expectBody()
                 .jsonPath("$.token").isNotEmpty()
                 .jsonPath("$.refreshToken").isNotEmpty()
-                .jsonPath("$.refreshToken").isNotEqualTo(refreshToken) // rotation
                 .jsonPath("$.username").isEqualTo("refreshtest1")
-                .jsonPath("$.role").isEqualTo("ROLE_USER");
+                .jsonPath("$.role").isEqualTo("ROLE_USER")
+                .returnResult()
+                .getResponseBodyContent();
+
+        // Verify token rotation (new refresh token is different from old one)
+        String newRefreshToken = extractJsonValue(refreshedBody, "refreshToken");
+        assertNotNull(newRefreshToken);
+        assertNotEquals(refreshToken, newRefreshToken, "refresh token should be rotated");
     }
 
     @Test
@@ -280,7 +288,7 @@ class AuthIntegrationTest {
                 .exchange()
                 .expectStatus().isCreated();
 
-        String loginBody = webTestClient.post().uri("/api/auth/login")
+        byte[] loginBody = webTestClient.post().uri("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("""
                         {"username": "logouttest1", "password": "password123"}
@@ -288,7 +296,7 @@ class AuthIntegrationTest {
                 .exchange()
                 .expectStatus().isOk()
                 .returnResult()
-                .getResponseBody();
+                .getResponseBodyContent();
 
         String refreshToken = extractJsonValue(loginBody, "refreshToken");
 
