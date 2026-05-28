@@ -1,9 +1,17 @@
 package com.example.magazyn.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class LocationRequest {
 
+    @NotBlank(message = "Kod lokalizacji jest wymagany")
     private String code;
+
+    @NotBlank(message = "Nazwa lokalizacji jest wymagana")
     private String name;
+
+    @NotNull(message = "Typ lokalizacji jest wymagany")
     private String type;
     private Long parentId;
     private String description;

@@ -130,7 +130,7 @@ public class ProductController {
     @Operation(summary = "Przypisz lokalizacj\u0119 do produktu", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProductResponse> assignLocation(@PathVariable @Parameter(description = "ID produktu") Long id,
-                                                           @RequestBody AssignLocationRequest request) {
+                                                           @Valid @RequestBody AssignLocationRequest request) {
         ProductResponse updated = productService.assignLocation(id, request);
         return ResponseEntity.ok(updated);
     }

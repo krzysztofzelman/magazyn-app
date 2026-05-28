@@ -1,5 +1,6 @@
 package com.example.magazyn.dto;
 
+import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 
 public class UpdateProductRequest {
@@ -8,7 +9,11 @@ public class UpdateProductRequest {
     private String sku;
     private String description;
     private String unit;
+
+    @PositiveOrZero(message = "Cena musi być większa lub równa 0")
     private BigDecimal price;
+
+    @PositiveOrZero(message = "Minimalny stan musi być większy lub równy 0")
     private Integer minQuantity;
 
     public String getName() { return name; }

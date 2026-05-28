@@ -9,11 +9,13 @@ import com.example.magazyn.entity.StockMovement;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockMovementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -33,8 +35,8 @@ public class StockService {
         Product product = productRepository.findByIdForUpdate(productId)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
 
-        if (request.getQuantity() == null || request.getQuantity() <= 0) {
-            throw new RuntimeException("Quantity must be positive");
+        if (request.getQuantity() == null) {
+            throw new RuntimeException("Quantity is required");
         }
         if (request.getType() == null) {
             throw new RuntimeException("Movement type is required");
@@ -42,9 +44,15 @@ public class StockService {
 
         switch (request.getType()) {
             case PRZYJECIE:
+                if (request.getQuantity() <= 0) {
+                    throw new RuntimeException("Quantity must be positive for PRZYJECIE");
+                }
                 product.setQuantity(product.getQuantity() + request.getQuantity());
                 break;
             case WYDANIE:
+                if (request.getQuantity() <= 0) {
+                    throw new RuntimeException("Quantity must be positive for WYDANIE");
+                }
                 if (product.getQuantity() < request.getQuantity()) {
                     throw new RuntimeException("Insufficient stock — available: "
                             + product.getQuantity() + ", requested: " + request.getQuantity());
@@ -52,6 +60,9 @@ public class StockService {
                 product.setQuantity(product.getQuantity() - request.getQuantity());
                 break;
             case KOREKTA:
+                if (request.getQuantity() < 0) {
+                    throw new RuntimeException("Quantity must be non-negative for KOREKTA");
+                }
                 product.setQuantity(request.getQuantity());
                 break;
         }
@@ -71,13 +82,18 @@ public class StockService {
     }
 
     @Transactional(readOnly = true)
-    public List<StockMovementResponse> getMovements(Long productId) {
+    public Page<StockMovementResponse> getMovements(Long productId, Pageable pageable) {
         if (!productRepository.existsById(productId)) {
             throw new RuntimeException("Product not found with id: " + productId);
         }
-        return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId, pageable)
+                .map(this::toResponse);
+    }
+
+    /** Backward-compatible wrapper — returns all movements for a product */
+    @Transactional(readOnly = true)
+    public List<StockMovementResponse> getMovements(Long productId) {
+        return getMovements(productId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
     }
 
     @Transactional(readOnly = true)

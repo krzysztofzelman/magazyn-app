@@ -2,7 +2,7 @@ package com.example.magazyn.dto;
 
 import com.example.magazyn.entity.MovementType;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 public class StockMovementRequest {
 
@@ -10,7 +10,7 @@ public class StockMovementRequest {
     private MovementType type;
 
     @NotNull(message = "Ilość jest wymagana")
-    @Positive(message = "Ilość musi być większa od 0")
+    @PositiveOrZero(message = "Ilość musi być większa lub równa 0")
     private Integer quantity;
 
     private String note;

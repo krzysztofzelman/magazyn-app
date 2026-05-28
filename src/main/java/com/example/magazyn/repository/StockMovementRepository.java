@@ -2,6 +2,8 @@ package com.example.magazyn.repository;
 
 import com.example.magazyn.entity.MovementType;
 import com.example.magazyn.entity.StockMovement;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +17,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
 
     @EntityGraph(attributePaths = "product")
     List<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId);
+
+    Page<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId, Pageable pageable);
 
     @Query("SELECT sm.product.id as productId, sm.product.name as productName, " +
            "SUM(sm.quantity) as totalSold " +

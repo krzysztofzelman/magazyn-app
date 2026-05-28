@@ -6,6 +6,7 @@ import com.example.magazyn.dto.LocationTreeNode;
 import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.service.LocationService;
 import com.example.magazyn.service.ProductService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -73,7 +74,7 @@ public class LocationController {
     @PostMapping
     @Operation(summary = "Utw\u00f3rz now\u0105 lokalizacj\u0119", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<LocationResponse> createLocation(@RequestBody LocationRequest request) {
+    public ResponseEntity<LocationResponse> createLocation(@Valid @RequestBody LocationRequest request) {
         LocationResponse created = locationService.createLocation(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -82,7 +83,7 @@ public class LocationController {
     @Operation(summary = "Aktualizuj lokalizacj\u0119", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LocationResponse> updateLocation(@PathVariable @Parameter(description = "ID lokalizacji") Long id,
-                                                            @RequestBody LocationRequest request) {
+                                                            @Valid @RequestBody LocationRequest request) {
         LocationResponse updated = locationService.updateLocation(id, request);
         return ResponseEntity.ok(updated);
     }

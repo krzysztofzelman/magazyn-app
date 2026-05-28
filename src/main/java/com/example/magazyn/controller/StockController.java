@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +21,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/stock")
@@ -48,8 +50,12 @@ public class StockController {
     @GetMapping("/{productId}/movements")
     @Operation(summary = "Pobierz histori\u0119 ruch\u00f3w produktu")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<StockMovementResponse>> getMovements(@PathVariable @Parameter(description = "ID produktu") Long productId) {
-        List<StockMovementResponse> movements = stockService.getMovements(productId);
+    public ResponseEntity<Page<StockMovementResponse>> getMovements(
+            @PathVariable @Parameter(description = "ID produktu") Long productId,
+            @RequestParam(defaultValue = "0") @Parameter(description = "Numer strony") int page,
+            @RequestParam(defaultValue = "50") @Parameter(description = "Rozmiar strony") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<StockMovementResponse> movements = stockService.getMovements(productId, pageable);
         return ResponseEntity.ok(movements);
     }
 
