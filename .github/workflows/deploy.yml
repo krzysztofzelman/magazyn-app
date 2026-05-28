@@ -17,6 +17,9 @@ jobs:
           port: 2022
           script: |
             cd /root/magazyn-app
+            # create backups before deploy
+            mkdir -p backups
+            docker compose exec postgres pg_dump -U "${DB_USERNAME:-magazyn}" magazyn_db > backups/pre-deploy.sql 2>/dev/null || echo "pre-deploy backup skipped (first deploy?)"
             git pull origin main
             docker compose down
             docker compose up -d --build

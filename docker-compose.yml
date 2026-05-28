@@ -32,11 +32,43 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
     networks:
       - magazyn-net
     depends_on:
       postgres:
         condition: service_healthy
+
+  backup:
+    image: postgres:16
+    container_name: magazyn-backup
+    environment:
+      PGUSER: ${DB_USERNAME}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGHOST: postgres
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh
+      - ./backups:/backups
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        chmod +x /usr/local/bin/backup.sh
+        while true; do
+          /usr/local/bin/backup.sh
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - magazyn-net
+    restart: unless-stopped
 
 networks:
   magazyn-net:

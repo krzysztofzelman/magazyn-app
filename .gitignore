@@ -29,5 +29,8 @@ Thumbs.db
 .env
 gen_env.py
 
+# backups
+/backups/
+
 # other projects
 /magazyn-frontend/
