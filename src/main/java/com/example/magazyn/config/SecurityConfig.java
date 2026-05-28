@@ -63,6 +63,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/contractors/**").authenticated()
                 .requestMatchers("/api/documents/**").authenticated()
                 .requestMatchers("/api/batches/**").authenticated()
+                .requestMatchers("/", "/index.html", "/favicon.svg", "/icons.svg", "/assets/**").permitAll()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
