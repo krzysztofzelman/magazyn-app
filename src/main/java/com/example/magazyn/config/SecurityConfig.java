@@ -24,10 +24,13 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
+    private final AuditLogFilter auditLogFilter;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil,
+                          AuditLogFilter auditLogFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
+        this.auditLogFilter = auditLogFilter;
     }
 
     @Bean
@@ -56,9 +59,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/stock/**").authenticated()
                 .requestMatchers("/api/stats/**").authenticated()
                 .requestMatchers("/api/seed/**").hasRole("ADMIN")
+                .requestMatchers("/api/audit/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
+            .addFilterBefore(auditLogFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

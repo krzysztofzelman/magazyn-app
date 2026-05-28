@@ -42,6 +42,9 @@ class ProductServiceTest {
     @Mock
     private Counter counter;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private ProductService productService;
 

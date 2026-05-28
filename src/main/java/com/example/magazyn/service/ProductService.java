@@ -10,6 +10,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,11 +24,19 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final MeterRegistry meterRegistry;
+    private final AuditLogService auditLogService;
 
     @Autowired
-    public ProductService(ProductRepository productRepository, MeterRegistry meterRegistry) {
+    public ProductService(ProductRepository productRepository, MeterRegistry meterRegistry,
+                          AuditLogService auditLogService) {
         this.productRepository = productRepository;
         this.meterRegistry = meterRegistry;
+        this.auditLogService = auditLogService;
+    }
+
+    private String currentUsername() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : "anonymous";
     }
 
     @Transactional(readOnly = true)
@@ -70,6 +79,8 @@ public class ProductService {
                 .build();
 
         Product saved = productRepository.save(product);
+        auditLogService.log(currentUsername(), "CREATE_PRODUCT", "Product", saved.getId(),
+                "Created product: " + saved.getName() + " (SKU: " + saved.getSku() + ")");
         return toResponse(saved);
     }
 
@@ -101,14 +112,17 @@ public class ProductService {
         }
 
         Product saved = productRepository.save(existing);
+        auditLogService.log(currentUsername(), "UPDATE_PRODUCT", "Product", saved.getId(),
+                "Updated product: " + saved.getName() + " (SKU: " + saved.getSku() + ")");
         return toResponse(saved);
     }
 
     public void deleteProduct(Long id) {
         meterRegistry.counter("products.deleted.count").increment();
-        if (!productRepository.existsById(id)) {
-            throw new RuntimeException("Product not found with id: " + id);
-        }
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+        auditLogService.log(currentUsername(), "DELETE_PRODUCT", "Product", id,
+                "Deleted product: " + product.getName() + " (SKU: " + product.getSku() + ")");
         productRepository.deleteById(id);
     }
 
@@ -124,6 +138,8 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
         product.setLocationId(request.getLocationId());
         Product saved = productRepository.save(product);
+        auditLogService.log(currentUsername(), "ASSIGN_LOCATION", "Product", productId,
+                "Assigned locationId=" + request.getLocationId() + " to product: " + product.getName());
         return toResponse(saved);
     }
 

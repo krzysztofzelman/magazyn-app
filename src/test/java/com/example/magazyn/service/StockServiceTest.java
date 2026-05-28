@@ -31,6 +31,9 @@ class StockServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private StockService stockService;
 

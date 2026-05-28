@@ -23,12 +23,15 @@ public class StockService {
 
     private final StockMovementRepository stockMovementRepository;
     private final ProductRepository productRepository;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public StockService(StockMovementRepository stockMovementRepository,
-                        ProductRepository productRepository) {
+                        ProductRepository productRepository,
+                        AuditLogService auditLogService) {
         this.stockMovementRepository = stockMovementRepository;
         this.productRepository = productRepository;
+        this.auditLogService = auditLogService;
     }
 
     public StockMovementResponse addMovement(Long productId, StockMovementRequest request, String username) {
@@ -78,6 +81,10 @@ public class StockService {
                 .build();
 
         StockMovement saved = stockMovementRepository.save(movement);
+        String action = "STOCK_" + request.getType().name();
+        auditLogService.log(username, action, "StockMovement", saved.getId(),
+                request.getType().name() + " productId=" + productId + " qty=" + request.getQuantity()
+                        + " (note: " + (request.getNote() != null ? request.getNote() : "") + ")");
         return toResponse(saved);
     }
 
