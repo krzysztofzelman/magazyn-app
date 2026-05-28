@@ -28,6 +28,7 @@ public class WarehouseDocumentService {
     private final StockService stockService;
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
+    private final ReservationService reservationService;
 
     public WarehouseDocumentService(WarehouseDocumentRepository documentRepository,
                                     WarehouseDocumentItemRepository itemRepository,
@@ -36,7 +37,8 @@ public class WarehouseDocumentService {
                                     StockMovementRepository stockMovementRepository,
                                     StockService stockService,
                                     BatchRepository batchRepository,
-                                    AuditLogService auditLogService) {
+                                    AuditLogService auditLogService,
+                                    ReservationService reservationService) {
         this.documentRepository = documentRepository;
         this.itemRepository = itemRepository;
         this.contractorRepository = contractorRepository;
@@ -45,6 +47,7 @@ public class WarehouseDocumentService {
         this.stockService = stockService;
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
+        this.reservationService = reservationService;
     }
 
     public WarehouseDocumentResponse createDocument(WarehouseDocumentRequest request, String username) {
@@ -202,13 +205,19 @@ public class WarehouseDocumentService {
     private void confirmWZ(WarehouseDocument document, String username) {
         List<String> insufficientProducts = new ArrayList<>();
 
-        // Phase 1: check all products first
+        // Phase 1: check all products first against available stock (considering reservations)
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
 
-            if (product.getQuantity() < item.getQuantity()) {
-                insufficientProducts.add(product.getName() + " (available: " + product.getQuantity()
+            int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
+            int availableQuantity = product.getQuantity() - reservedQuantity;
+
+            if (availableQuantity < item.getQuantity()) {
+                insufficientProducts.add(product.getName()
+                        + " (available: " + Math.max(availableQuantity, 0)
+                        + ", total: " + product.getQuantity()
+                        + ", reserved: " + reservedQuantity
                         + ", requested: " + item.getQuantity() + ")");
             }
         }
@@ -217,13 +226,16 @@ public class WarehouseDocumentService {
             throw new RuntimeException("Insufficient stock for products: " + String.join(", ", insufficientProducts));
         }
 
-        // Phase 2: execute movements with FIFO batch deduction
+        // Phase 2: execute movements with FIFO batch deduction and fulfill reservations
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() - item.getQuantity());
             productRepository.save(product);
+
+            // Fulfill active reservations for this product (FIFO)
+            reservationService.fulfillActiveReservations(product.getId(), item.getQuantity(), username);
 
             // FIFO batch deduction: deduct from oldest batches first
             List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());

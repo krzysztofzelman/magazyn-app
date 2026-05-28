@@ -4,11 +4,13 @@ import com.example.magazyn.dto.AssignLocationRequest;
 import com.example.magazyn.dto.BatchResponse;
 import com.example.magazyn.dto.CreateProductRequest;
 import com.example.magazyn.dto.ImportResult;
+import com.example.magazyn.dto.ProductAvailabilityResponse;
 import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.service.BatchService;
 import com.example.magazyn.service.ImportService;
 import com.example.magazyn.service.ProductService;
+import com.example.magazyn.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -45,13 +47,15 @@ public class ProductController {
     private final ProductService productService;
     private final ImportService importService;
     private final BatchService batchService;
+    private final ReservationService reservationService;
 
     @Autowired
     public ProductController(ProductService productService, ImportService importService,
-                             BatchService batchService) {
+                             BatchService batchService, ReservationService reservationService) {
         this.productService = productService;
         this.importService = importService;
         this.batchService = batchService;
+        this.reservationService = reservationService;
     }
 
     @GetMapping
@@ -146,5 +150,13 @@ public class ProductController {
     public ResponseEntity<java.util.List<BatchResponse>> getProductBatches(
             @PathVariable @Parameter(description = "ID produktu") Long id) {
         return ResponseEntity.ok(batchService.getBatchesByProduct(id));
+    }
+
+    @GetMapping("/{id}/availability")
+    @Operation(summary = "Pobierz dost\u0119pno\u015b\u0107 produktu", description = "Zwraca ilo\u015b\u0107 ca\u0142kowit\u0105, zarezerwowan\u0105 i dost\u0119pn\u0105")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProductAvailabilityResponse> getProductAvailability(
+            @PathVariable @Parameter(description = "ID produktu") Long id) {
+        return ResponseEntity.ok(reservationService.getProductAvailability(id));
     }
 }

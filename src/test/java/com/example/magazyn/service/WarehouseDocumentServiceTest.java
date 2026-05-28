@@ -50,6 +50,9 @@ class WarehouseDocumentServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private ReservationService reservationService;
+
     @InjectMocks
     private WarehouseDocumentService documentService;
 
@@ -203,6 +206,8 @@ class WarehouseDocumentServiceTest {
         when(documentRepository.findByIdWithItemsLocked(1L)).thenReturn(Optional.of(doc));
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
         when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
+        when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
@@ -231,6 +236,8 @@ class WarehouseDocumentServiceTest {
         when(documentRepository.findByIdWithItemsLocked(1L)).thenReturn(Optional.of(doc));
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
         when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
+        when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);

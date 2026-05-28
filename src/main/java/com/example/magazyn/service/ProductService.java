@@ -25,13 +25,16 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final MeterRegistry meterRegistry;
     private final AuditLogService auditLogService;
+    private final ReservationService reservationService;
 
     @Autowired
     public ProductService(ProductRepository productRepository, MeterRegistry meterRegistry,
-                          AuditLogService auditLogService) {
+                          AuditLogService auditLogService,
+                          ReservationService reservationService) {
         this.productRepository = productRepository;
         this.meterRegistry = meterRegistry;
         this.auditLogService = auditLogService;
+        this.reservationService = reservationService;
     }
 
     private String currentUsername() {
@@ -144,6 +147,9 @@ public class ProductService {
     }
 
     private ProductResponse toResponse(Product product) {
+        int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
+        int availableQuantity = Math.max(product.getQuantity() - reservedQuantity, 0);
+
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -154,7 +160,9 @@ public class ProductService {
                 product.getPrice(),
                 product.getMinQuantity(),
                 product.getLocationId(),
-                product.getCreatedAt()
+                product.getCreatedAt(),
+                reservedQuantity,
+                availableQuantity
         );
     }
 }

@@ -15,12 +15,22 @@ public class ProductResponse {
     private Integer minQuantity;
     private Long locationId;
     private LocalDateTime createdAt;
+    private Integer reservedQuantity;
+    private Integer availableQuantity;
 
     public ProductResponse() {}
 
     public ProductResponse(Long id, String name, String sku, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt) {
+        this(id, name, sku, description, unit, quantity, price, minQuantity,
+                locationId, createdAt, 0, quantity);
+    }
+
+    public ProductResponse(Long id, String name, String sku, String description, String unit,
+                           Integer quantity, BigDecimal price, Integer minQuantity,
+                           Long locationId, LocalDateTime createdAt,
+                           Integer reservedQuantity, Integer availableQuantity) {
         this.id = id;
         this.name = name;
         this.sku = sku;
@@ -31,6 +41,8 @@ public class ProductResponse {
         this.minQuantity = minQuantity;
         this.locationId = locationId;
         this.createdAt = createdAt;
+        this.reservedQuantity = reservedQuantity;
+        this.availableQuantity = availableQuantity;
     }
 
     public Long getId() { return id; }
@@ -62,4 +74,10 @@ public class ProductResponse {
 
     public Long getLocationId() { return locationId; }
     public void setLocationId(Long locationId) { this.locationId = locationId; }
+
+    public Integer getReservedQuantity() { return reservedQuantity; }
+    public void setReservedQuantity(Integer reservedQuantity) { this.reservedQuantity = reservedQuantity; }
+
+    public Integer getAvailableQuantity() { return availableQuantity; }
+    public void setAvailableQuantity(Integer availableQuantity) { this.availableQuantity = availableQuantity; }
 }

@@ -45,12 +45,16 @@ class ProductServiceTest {
     @Mock
     private AuditLogService auditLogService;
 
+    @Mock
+    private ReservationService reservationService;
+
     @InjectMocks
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
         lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
+        lenient().when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
     }
 
     private Product createProductEntity(Long id, String name, String sku, int quantity) {
