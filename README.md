@@ -3,7 +3,7 @@
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
-[![JWT](https://img.shields.io/badge/JWT-jjwt%200.12.6-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
+[![JWT](https://img.shields.io/badge/JWT-jjwt%200.13.0-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
 [![Docker](https://img.shields.io/badge/Docker-29.5.2-2496ED?logo=docker)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
 
@@ -26,12 +26,12 @@ Backend REST API systemu zarządzania magazynem. Udostępnia w pełni funkcjonal
 | Spring Data JPA / Hibernate | — | ORM, automatyczne DDL (ddl-auto=update) |
 | Spring Security | 7.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
 | Spring Validation | — | Walidacja adnotacjami (@NotBlank, @Size, @Positive) |
-| jjwt (io.jsonwebtoken) | 0.12.6 | Generowanie i weryfikacja tokenów JWT |
+| jjwt (io.jsonwebtoken) | 0.13.0 | Generowanie i weryfikacja tokenów JWT |
 | PostgreSQL | 16 | Relacyjna baza danych |
 | Lombok | — | Redukcja boilerplate (@Data, @Builder, @NoArgsConstructor) |
 | Maven | 3.9+ | Build i zarządzanie zależnościami |
 | Apache POI | 5.4.0 | Generowanie plików Excel (.xlsx) |
-| Bucket4j | 8.10.1 | Rate limiting dla endpointu logowania |
+| Bucket4j | 8.19.0 | Rate limiting dla endpointu logowania |
 | Springdoc OpenAPI | 2.7.0 | Swagger UI / OpenAPI docs |
 | Docker + Docker Compose | — | Budowa i uruchomienie w kontenerach |
 
