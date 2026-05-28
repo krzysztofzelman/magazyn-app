@@ -1,0 +1,1 @@
+{"version":1,"generator":"deepseek-reasoner","files":{"pom.xml":{"aiChars":1,"humanChars":79,"percent":1,"surface":"cli"}},"summary":{"aiPercent":1,"aiChars":1,"humanChars":79,"totalFilesTouched":1,"surfaces":["cli"]},"surfaceBreakdown":{"cli":{"aiChars":1,"percent":1}},"excludedGenerated":[],"excludedGeneratedCount":0,"promptCount":0}
