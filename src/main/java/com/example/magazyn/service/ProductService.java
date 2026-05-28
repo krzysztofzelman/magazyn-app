@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -26,15 +28,18 @@ public class ProductService {
     private final MeterRegistry meterRegistry;
     private final AuditLogService auditLogService;
     private final ReservationService reservationService;
+    private final BatchService batchService;
 
     @Autowired
     public ProductService(ProductRepository productRepository, MeterRegistry meterRegistry,
                           AuditLogService auditLogService,
-                          ReservationService reservationService) {
+                          ReservationService reservationService,
+                          BatchService batchService) {
         this.productRepository = productRepository;
         this.meterRegistry = meterRegistry;
         this.auditLogService = auditLogService;
         this.reservationService = reservationService;
+        this.batchService = batchService;
     }
 
     private String currentUsername() {
@@ -45,24 +50,27 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(Pageable pageable, String search) {
         meterRegistry.counter("products.queries.count").increment();
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
         if (search == null || search.isBlank()) {
             return productRepository.findAll(pageable)
-                    .map(this::toResponse);
+                    .map(product -> toResponse(product, nearestExpiryMap));
         }
         return productRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(search, search, pageable)
-                .map(this::toResponse);
+                .map(product -> toResponse(product, nearestExpiryMap));
     }
 
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
         return productRepository.findById(id)
-                .map(this::toResponse);
+                .map(product -> toResponse(product, nearestExpiryMap));
     }
 
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductBySku(String sku) {
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
         return productRepository.findBySku(sku)
-                .map(this::toResponse);
+                .map(product -> toResponse(product, nearestExpiryMap));
     }
 
     public ProductResponse createProduct(CreateProductRequest request) {
@@ -84,7 +92,7 @@ public class ProductService {
         Product saved = productRepository.save(product);
         auditLogService.log(currentUsername(), "CREATE_PRODUCT", "Product", saved.getId(),
                 "Created product: " + saved.getName() + " (SKU: " + saved.getSku() + ")");
-        return toResponse(saved);
+        return toResponse(saved, Map.of());
     }
 
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
@@ -117,7 +125,8 @@ public class ProductService {
         Product saved = productRepository.save(existing);
         auditLogService.log(currentUsername(), "UPDATE_PRODUCT", "Product", saved.getId(),
                 "Updated product: " + saved.getName() + " (SKU: " + saved.getSku() + ")");
-        return toResponse(saved);
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
+        return toResponse(saved, nearestExpiryMap);
     }
 
     public void deleteProduct(Long id) {
@@ -131,8 +140,9 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponse> getProductsByLocation(Long locationId) {
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
         return productRepository.findByLocationId(locationId).stream()
-                .map(this::toResponse)
+                .map(product -> toResponse(product, nearestExpiryMap))
                 .toList();
     }
 
@@ -143,12 +153,14 @@ public class ProductService {
         Product saved = productRepository.save(product);
         auditLogService.log(currentUsername(), "ASSIGN_LOCATION", "Product", productId,
                 "Assigned locationId=" + request.getLocationId() + " to product: " + product.getName());
-        return toResponse(saved);
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
+        return toResponse(saved, nearestExpiryMap);
     }
 
-    private ProductResponse toResponse(Product product) {
+    private ProductResponse toResponse(Product product, Map<Long, LocalDate> nearestExpiryMap) {
         int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
         int availableQuantity = Math.max(product.getQuantity() - reservedQuantity, 0);
+        LocalDate nearestExpiry = nearestExpiryMap.get(product.getId());
 
         return new ProductResponse(
                 product.getId(),
@@ -162,7 +174,8 @@ public class ProductService {
                 product.getLocationId(),
                 product.getCreatedAt(),
                 reservedQuantity,
-                availableQuantity
+                availableQuantity,
+                nearestExpiry
         );
     }
 }

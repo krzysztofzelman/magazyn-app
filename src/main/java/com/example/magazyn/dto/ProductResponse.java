@@ -1,6 +1,7 @@
 package com.example.magazyn.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ProductResponse {
@@ -17,6 +18,7 @@ public class ProductResponse {
     private LocalDateTime createdAt;
     private Integer reservedQuantity;
     private Integer availableQuantity;
+    private LocalDate nearestExpiryDate;
 
     public ProductResponse() {}
 
@@ -24,13 +26,14 @@ public class ProductResponse {
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt) {
         this(id, name, sku, description, unit, quantity, price, minQuantity,
-                locationId, createdAt, 0, quantity);
+                locationId, createdAt, 0, quantity, null);
     }
 
     public ProductResponse(Long id, String name, String sku, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt,
-                           Integer reservedQuantity, Integer availableQuantity) {
+                           Integer reservedQuantity, Integer availableQuantity,
+                           LocalDate nearestExpiryDate) {
         this.id = id;
         this.name = name;
         this.sku = sku;
@@ -43,6 +46,7 @@ public class ProductResponse {
         this.createdAt = createdAt;
         this.reservedQuantity = reservedQuantity;
         this.availableQuantity = availableQuantity;
+        this.nearestExpiryDate = nearestExpiryDate;
     }
 
     public Long getId() { return id; }
@@ -80,4 +84,7 @@ public class ProductResponse {
 
     public Integer getAvailableQuantity() { return availableQuantity; }
     public void setAvailableQuantity(Integer availableQuantity) { this.availableQuantity = availableQuantity; }
+
+    public LocalDate getNearestExpiryDate() { return nearestExpiryDate; }
+    public void setNearestExpiryDate(LocalDate nearestExpiryDate) { this.nearestExpiryDate = nearestExpiryDate; }
 }

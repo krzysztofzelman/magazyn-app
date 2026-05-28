@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -33,6 +35,15 @@ public class BatchService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public Map<Long, LocalDate> getNearestExpiryDateByProduct() {
+        return batchRepository.findNearestExpiryDateByProduct()
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (LocalDate) row[1]
+                ));
     }
 
     public List<BatchResponse> getExpiredBatches() {

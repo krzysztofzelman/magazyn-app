@@ -34,4 +34,7 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
 
     @Query("SELECT COALESCE(SUM(p.price * b.quantity), 0) FROM Batch b JOIN b.product p WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
     java.math.BigDecimal totalValueOfExpiredBatches(@Param("date") LocalDate date);
+
+    @Query("SELECT b.product.id, MIN(b.expiryDate) FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.quantity > 0 GROUP BY b.product.id")
+    List<Object[]> findNearestExpiryDateByProduct();
 }
