@@ -4,6 +4,8 @@ import com.example.magazyn.entity.MovementType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
+import java.time.LocalDate;
+
 public class StockMovementRequest {
 
     @NotNull(message = "Typ ruchu jest wymagany")
@@ -17,6 +19,12 @@ public class StockMovementRequest {
 
     private Long batchId;
 
+    private String lotNumber;
+
+    private LocalDate expiryDate;
+
+    private LocalDate manufacturingDate;
+
     public MovementType getType() { return type; }
     public void setType(MovementType type) { this.type = type; }
 
@@ -28,4 +36,13 @@ public class StockMovementRequest {
 
     public Long getBatchId() { return batchId; }
     public void setBatchId(Long batchId) { this.batchId = batchId; }
+
+    public String getLotNumber() { return lotNumber; }
+    public void setLotNumber(String lotNumber) { this.lotNumber = lotNumber; }
+
+    public LocalDate getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
+
+    public LocalDate getManufacturingDate() { return manufacturingDate; }
+    public void setManufacturingDate(LocalDate manufacturingDate) { this.manufacturingDate = manufacturingDate; }
 }

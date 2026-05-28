@@ -79,6 +79,16 @@ public class StockService {
                     }
                     batch.setQuantity(batch.getQuantity() + request.getQuantity());
                     batchRepository.save(batch);
+                } else if (request.getLotNumber() != null && !request.getLotNumber().isBlank()) {
+                    // Create new batch when lotNumber is provided
+                    Batch newBatch = new Batch();
+                    newBatch.setProduct(product);
+                    newBatch.setLotNumber(request.getLotNumber().trim());
+                    newBatch.setExpiryDate(request.getExpiryDate());
+                    newBatch.setManufacturingDate(request.getManufacturingDate());
+                    newBatch.setQuantity(request.getQuantity());
+                    newBatch = batchRepository.save(newBatch);
+                    batchId = newBatch.getId();
                 }
                 break;
 
