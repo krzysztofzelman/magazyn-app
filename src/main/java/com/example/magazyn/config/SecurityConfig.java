@@ -60,6 +60,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/stats/**").authenticated()
                 .requestMatchers("/api/seed/**").hasRole("ADMIN")
                 .requestMatchers("/api/audit/**").hasRole("ADMIN")
+                .requestMatchers("/api/contractors/**").authenticated()
+                .requestMatchers("/api/documents/**").authenticated()
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
