@@ -15,6 +15,8 @@ public class StockMovementRequest {
 
     private String note;
 
+    private Long batchId;
+
     public MovementType getType() { return type; }
     public void setType(MovementType type) { this.type = type; }
 
@@ -23,4 +25,7 @@ public class StockMovementRequest {
 
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+
+    public Long getBatchId() { return batchId; }
+    public void setBatchId(Long batchId) { this.batchId = batchId; }
 }

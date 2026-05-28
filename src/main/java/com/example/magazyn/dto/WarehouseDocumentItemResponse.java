@@ -1,6 +1,7 @@
 package com.example.magazyn.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class WarehouseDocumentItemResponse {
 
@@ -12,12 +13,22 @@ public class WarehouseDocumentItemResponse {
     private Integer quantity;
     private BigDecimal unitPrice;
     private BigDecimal totalPrice;
+    private String lotNumber;
+    private LocalDate expiryDate;
+    private LocalDate manufacturingDate;
 
     public WarehouseDocumentItemResponse() {}
 
     public WarehouseDocumentItemResponse(Long id, Long productId, String productName, String productSku,
                                          String productUnit, Integer quantity, BigDecimal unitPrice,
                                          BigDecimal totalPrice) {
+        this(id, productId, productName, productSku, productUnit, quantity, unitPrice, totalPrice, null, null, null);
+    }
+
+    public WarehouseDocumentItemResponse(Long id, Long productId, String productName, String productSku,
+                                         String productUnit, Integer quantity, BigDecimal unitPrice,
+                                         BigDecimal totalPrice, String lotNumber,
+                                         LocalDate expiryDate, LocalDate manufacturingDate) {
         this.id = id;
         this.productId = productId;
         this.productName = productName;
@@ -26,6 +37,9 @@ public class WarehouseDocumentItemResponse {
         this.quantity = quantity;
         this.unitPrice = unitPrice;
         this.totalPrice = totalPrice;
+        this.lotNumber = lotNumber;
+        this.expiryDate = expiryDate;
+        this.manufacturingDate = manufacturingDate;
     }
 
     public Long getId() { return id; }
@@ -44,4 +58,10 @@ public class WarehouseDocumentItemResponse {
     public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
     public BigDecimal getTotalPrice() { return totalPrice; }
     public void setTotalPrice(BigDecimal totalPrice) { this.totalPrice = totalPrice; }
+    public String getLotNumber() { return lotNumber; }
+    public void setLotNumber(String lotNumber) { this.lotNumber = lotNumber; }
+    public LocalDate getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
+    public LocalDate getManufacturingDate() { return manufacturingDate; }
+    public void setManufacturingDate(LocalDate manufacturingDate) { this.manufacturingDate = manufacturingDate; }
 }

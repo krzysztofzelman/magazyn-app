@@ -5,6 +5,7 @@ import com.example.magazyn.dto.StatsDashboardResponse.ReorderAlert;
 import com.example.magazyn.dto.StatsDashboardResponse.TopSellingProduct;
 import com.example.magazyn.entity.MovementType;
 import com.example.magazyn.entity.Product;
+import com.example.magazyn.repository.BatchRepository;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockMovementRepository;
 import com.example.magazyn.repository.TopSellingProjection;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,12 +25,15 @@ public class StatsService {
 
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final BatchRepository batchRepository;
 
     @Autowired
     public StatsService(ProductRepository productRepository,
-                        StockMovementRepository stockMovementRepository) {
+                        StockMovementRepository stockMovementRepository,
+                        BatchRepository batchRepository) {
         this.productRepository = productRepository;
         this.stockMovementRepository = stockMovementRepository;
+        this.batchRepository = batchRepository;
     }
 
     public StatsDashboardResponse getDashboard() {
@@ -43,12 +48,19 @@ public class StatsService {
         // No sales module — return null for revenue
         BigDecimal revenueLast30Days = null;
 
+        // Batch stats
+        LocalDate today = LocalDate.now();
+        long expiringBatchesCount = batchRepository.countExpiringBatches(today, today.plusDays(30));
+        BigDecimal expiredBatchesValue = batchRepository.totalValueOfExpiredBatches(today);
+
         return new StatsDashboardResponse(
                 totalProducts,
                 totalStockValue,
                 topSelling,
                 reorderAlerts,
-                revenueLast30Days
+                revenueLast30Days,
+                expiringBatchesCount,
+                expiredBatchesValue
         );
     }
 

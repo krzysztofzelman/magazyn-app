@@ -42,6 +42,12 @@ class WarehouseDocumentServiceTest {
     private StockMovementRepository stockMovementRepository;
 
     @Mock
+    private StockService stockService;
+
+    @Mock
+    private BatchRepository batchRepository;
+
+    @Mock
     private AuditLogService auditLogService;
 
     @InjectMocks

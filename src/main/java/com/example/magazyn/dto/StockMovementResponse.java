@@ -14,11 +14,18 @@ public class StockMovementResponse {
     private String note;
     private LocalDateTime createdAt;
     private String createdBy;
+    private Long batchId;
 
     public StockMovementResponse() {}
 
     public StockMovementResponse(Long id, Long productId, String productName, MovementType type,
                                  Integer quantity, String note, LocalDateTime createdAt, String createdBy) {
+        this(id, productId, productName, type, quantity, note, createdAt, createdBy, null);
+    }
+
+    public StockMovementResponse(Long id, Long productId, String productName, MovementType type,
+                                 Integer quantity, String note, LocalDateTime createdAt, String createdBy,
+                                 Long batchId) {
         this.id = id;
         this.productId = productId;
         this.productName = productName;
@@ -27,6 +34,7 @@ public class StockMovementResponse {
         this.note = note;
         this.createdAt = createdAt;
         this.createdBy = createdBy;
+        this.batchId = batchId;
     }
 
     public Long getId() { return id; }
@@ -52,4 +60,7 @@ public class StockMovementResponse {
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+
+    public Long getBatchId() { return batchId; }
+    public void setBatchId(Long batchId) { this.batchId = batchId; }
 }

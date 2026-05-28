@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public class WarehouseDocumentItemRequest {
 
@@ -15,6 +16,12 @@ public class WarehouseDocumentItemRequest {
     private Integer quantity;
 
     private BigDecimal unitPrice;
+
+    private String lotNumber;
+
+    private LocalDate expiryDate;
+
+    private LocalDate manufacturingDate;
 
     public @NotNull(message = "ID produktu jest wymagane") Long getProductId() {
         return productId;
@@ -38,5 +45,29 @@ public class WarehouseDocumentItemRequest {
 
     public void setUnitPrice(BigDecimal unitPrice) {
         this.unitPrice = unitPrice;
+    }
+
+    public String getLotNumber() {
+        return lotNumber;
+    }
+
+    public void setLotNumber(String lotNumber) {
+        this.lotNumber = lotNumber;
+    }
+
+    public LocalDate getExpiryDate() {
+        return expiryDate;
+    }
+
+    public void setExpiryDate(LocalDate expiryDate) {
+        this.expiryDate = expiryDate;
+    }
+
+    public LocalDate getManufacturingDate() {
+        return manufacturingDate;
+    }
+
+    public void setManufacturingDate(LocalDate manufacturingDate) {
+        this.manufacturingDate = manufacturingDate;
     }
 }

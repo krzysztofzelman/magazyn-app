@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -34,4 +35,13 @@ public class WarehouseDocumentItem {
     @Column(nullable = false, precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal unitPrice = BigDecimal.ZERO;
+
+    @Column
+    private String lotNumber;
+
+    @Column
+    private LocalDate expiryDate;
+
+    @Column
+    private LocalDate manufacturingDate;
 }

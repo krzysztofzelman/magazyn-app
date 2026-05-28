@@ -1,10 +1,12 @@
 package com.example.magazyn.controller;
 
 import com.example.magazyn.dto.AssignLocationRequest;
+import com.example.magazyn.dto.BatchResponse;
 import com.example.magazyn.dto.CreateProductRequest;
 import com.example.magazyn.dto.ImportResult;
 import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
+import com.example.magazyn.service.BatchService;
 import com.example.magazyn.service.ImportService;
 import com.example.magazyn.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,11 +44,14 @@ public class ProductController {
 
     private final ProductService productService;
     private final ImportService importService;
+    private final BatchService batchService;
 
     @Autowired
-    public ProductController(ProductService productService, ImportService importService) {
+    public ProductController(ProductService productService, ImportService importService,
+                             BatchService batchService) {
         this.productService = productService;
         this.importService = importService;
+        this.batchService = batchService;
     }
 
     @GetMapping
@@ -133,5 +138,13 @@ public class ProductController {
                                                            @Valid @RequestBody AssignLocationRequest request) {
         ProductResponse updated = productService.assignLocation(id, request);
         return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{id}/batches")
+    @Operation(summary = "Pobierz partie produktu", description = "Zwraca list\u0119 partii dla danego produktu z ilo\u015bciami")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<java.util.List<BatchResponse>> getProductBatches(
+            @PathVariable @Parameter(description = "ID produktu") Long id) {
+        return ResponseEntity.ok(batchService.getBatchesByProduct(id));
     }
 }

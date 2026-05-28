@@ -10,6 +10,8 @@ public class StatsDashboardResponse {
     private List<TopSellingProduct> topSellingProducts;
     private List<ReorderAlert> reorderAlerts;
     private BigDecimal revenueLast30Days;
+    private long expiringBatchesCount;
+    private BigDecimal expiredBatchesValue;
 
     public StatsDashboardResponse() {}
 
@@ -17,11 +19,22 @@ public class StatsDashboardResponse {
                                   List<TopSellingProduct> topSellingProducts,
                                   List<ReorderAlert> reorderAlerts,
                                   BigDecimal revenueLast30Days) {
+        this(totalProducts, totalStockValue, topSellingProducts, reorderAlerts, revenueLast30Days, 0, BigDecimal.ZERO);
+    }
+
+    public StatsDashboardResponse(long totalProducts, BigDecimal totalStockValue,
+                                  List<TopSellingProduct> topSellingProducts,
+                                  List<ReorderAlert> reorderAlerts,
+                                  BigDecimal revenueLast30Days,
+                                  long expiringBatchesCount,
+                                  BigDecimal expiredBatchesValue) {
         this.totalProducts = totalProducts;
         this.totalStockValue = totalStockValue;
         this.topSellingProducts = topSellingProducts;
         this.reorderAlerts = reorderAlerts;
         this.revenueLast30Days = revenueLast30Days;
+        this.expiringBatchesCount = expiringBatchesCount;
+        this.expiredBatchesValue = expiredBatchesValue;
     }
 
     public long getTotalProducts() { return totalProducts; }
@@ -41,6 +54,16 @@ public class StatsDashboardResponse {
     public BigDecimal getRevenueLast30Days() { return revenueLast30Days; }
     public void setRevenueLast30Days(BigDecimal revenueLast30Days) {
         this.revenueLast30Days = revenueLast30Days;
+    }
+
+    public long getExpiringBatchesCount() { return expiringBatchesCount; }
+    public void setExpiringBatchesCount(long expiringBatchesCount) {
+        this.expiringBatchesCount = expiringBatchesCount;
+    }
+
+    public BigDecimal getExpiredBatchesValue() { return expiredBatchesValue; }
+    public void setExpiredBatchesValue(BigDecimal expiredBatchesValue) {
+        this.expiredBatchesValue = expiredBatchesValue;
     }
 
     // --- Inner classes ---

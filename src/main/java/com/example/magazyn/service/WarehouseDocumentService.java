@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
@@ -24,6 +25,8 @@ public class WarehouseDocumentService {
     private final ContractorRepository contractorRepository;
     private final ProductRepository productRepository;
     private final StockMovementRepository stockMovementRepository;
+    private final StockService stockService;
+    private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
 
     public WarehouseDocumentService(WarehouseDocumentRepository documentRepository,
@@ -31,12 +34,16 @@ public class WarehouseDocumentService {
                                     ContractorRepository contractorRepository,
                                     ProductRepository productRepository,
                                     StockMovementRepository stockMovementRepository,
+                                    StockService stockService,
+                                    BatchRepository batchRepository,
                                     AuditLogService auditLogService) {
         this.documentRepository = documentRepository;
         this.itemRepository = itemRepository;
         this.contractorRepository = contractorRepository;
         this.productRepository = productRepository;
         this.stockMovementRepository = stockMovementRepository;
+        this.stockService = stockService;
+        this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
     }
 
@@ -66,6 +73,9 @@ public class WarehouseDocumentService {
                     .product(product)
                     .quantity(itemReq.getQuantity())
                     .unitPrice(itemReq.getUnitPrice() != null ? itemReq.getUnitPrice() : BigDecimal.ZERO)
+                    .lotNumber(itemReq.getLotNumber())
+                    .expiryDate(itemReq.getExpiryDate())
+                    .manufacturingDate(itemReq.getManufacturingDate())
                     .build();
             items.add(item);
         }
@@ -149,12 +159,41 @@ public class WarehouseDocumentService {
             product.setQuantity(product.getQuantity() + item.getQuantity());
             productRepository.save(product);
 
+            Long batchId = null;
+
+            // If lot number is provided, create or update a batch
+            if (item.getLotNumber() != null && !item.getLotNumber().isBlank()) {
+                List<Batch> existingBatches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
+                Batch batch = existingBatches.stream()
+                        .filter(b -> b.getLotNumber().equals(item.getLotNumber()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (batch != null) {
+                    batch.setQuantity(batch.getQuantity() + item.getQuantity());
+                    if (item.getExpiryDate() != null) batch.setExpiryDate(item.getExpiryDate());
+                    if (item.getManufacturingDate() != null) batch.setManufacturingDate(item.getManufacturingDate());
+                } else {
+                    batch = Batch.builder()
+                            .product(product)
+                            .lotNumber(item.getLotNumber())
+                            .expiryDate(item.getExpiryDate())
+                            .manufacturingDate(item.getManufacturingDate())
+                            .quantity(item.getQuantity())
+                            .locationId(product.getLocationId())
+                            .build();
+                }
+                Batch savedBatch = batchRepository.save(batch);
+                batchId = savedBatch.getId();
+            }
+
             StockMovement movement = StockMovement.builder()
                     .product(product)
                     .type(MovementType.PRZYJECIE)
                     .quantity(item.getQuantity())
                     .note("PZ " + document.getNumber())
                     .createdBy(username)
+                    .batchId(batchId)
                     .build();
             stockMovementRepository.save(movement);
         }
@@ -178,13 +217,29 @@ public class WarehouseDocumentService {
             throw new RuntimeException("Insufficient stock for products: " + String.join(", ", insufficientProducts));
         }
 
-        // Phase 2: execute movements
+        // Phase 2: execute movements with FIFO batch deduction
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
                     .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() - item.getQuantity());
             productRepository.save(product);
+
+            // FIFO batch deduction: deduct from oldest batches first
+            List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
+            int remaining = item.getQuantity();
+
+            for (Batch batch : batches) {
+                if (remaining <= 0 || batch.getQuantity() <= 0) continue;
+
+                Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
+                        .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batch.getId()));
+
+                int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
+                lockedBatch.setQuantity(lockedBatch.getQuantity() - deductFromThis);
+                batchRepository.save(lockedBatch);
+                remaining -= deductFromThis;
+            }
 
             StockMovement movement = StockMovement.builder()
                     .product(product)
@@ -245,7 +300,10 @@ public class WarehouseDocumentService {
                 item.getProduct().getUnit(),
                 item.getQuantity(),
                 item.getUnitPrice(),
-                totalPrice
+                totalPrice,
+                item.getLotNumber(),
+                item.getExpiryDate(),
+                item.getManufacturingDate()
         );
     }
 }

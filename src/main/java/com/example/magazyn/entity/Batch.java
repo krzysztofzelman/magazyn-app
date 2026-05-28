@@ -2,12 +2,11 @@ package com.example.magazyn.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -17,6 +16,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -24,8 +24,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "stock_movements")
-public class StockMovement {
+@Table(name = "batches", indexes = {
+    @Index(name = "idx_batch_product_expiry", columnList = "product_id, expiry_date"),
+    @Index(name = "idx_batch_product_created", columnList = "product_id, created_at")
+})
+public class Batch {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,21 +38,21 @@ public class StockMovement {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private MovementType type;
+    private String lotNumber;
+
+    @Column
+    private LocalDate expiryDate;
+
+    @Column
+    private LocalDate manufacturingDate;
 
     @Column(nullable = false)
     private Integer quantity;
 
-    private String note;
+    @Column
+    private Long locationId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private String createdBy;
-
-    @Column
-    private Long batchId;
 }
