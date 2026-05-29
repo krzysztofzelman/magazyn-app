@@ -2,7 +2,11 @@ package com.example.magazyn.service;
 
 import com.example.magazyn.dto.*;
 import com.example.magazyn.entity.*;
+import com.example.magazyn.exception.InsufficientStockException;
+import com.example.magazyn.exception.InvalidOperationException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -52,8 +56,25 @@ public class WarehouseDocumentService {
 
     public WarehouseDocumentResponse createDocument(WarehouseDocumentRequest request, String username) {
         Contractor contractor = contractorRepository.findById(request.getContractorId())
-                .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + request.getContractorId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Contractor", request.getContractorId()));
 
+        // Retry up to 3 times in case of concurrent document number collision
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                return doCreateDocument(request, username, contractor);
+            } catch (DataIntegrityViolationException e) {
+                if (attempt == 2) {
+                    throw e;
+                }
+                // Retry with a fresh number — concurrent transaction likely took the same number
+            }
+        }
+        // Should never reach here
+        throw new RuntimeException("Failed to create document after retries");
+    }
+
+    private WarehouseDocumentResponse doCreateDocument(WarehouseDocumentRequest request, String username,
+                                                        Contractor contractor) {
         String number = generateDocumentNumber(request.getType());
 
         WarehouseDocument document = WarehouseDocument.builder()
@@ -69,7 +90,7 @@ public class WarehouseDocumentService {
         List<WarehouseDocumentItem> items = new ArrayList<>();
         for (WarehouseDocumentItemRequest itemReq : request.getItems()) {
             Product product = productRepository.findById(itemReq.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + itemReq.getProductId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", itemReq.getProductId()));
 
             WarehouseDocumentItem item = WarehouseDocumentItem.builder()
                     .document(document)
@@ -109,16 +130,16 @@ public class WarehouseDocumentService {
     @Transactional(readOnly = true)
     public WarehouseDocumentResponse getDocumentById(Long id) {
         WarehouseDocument document = documentRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse document not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
         return toResponse(document);
     }
 
     public WarehouseDocumentResponse confirmDocument(Long id, String username) {
         WarehouseDocument document = documentRepository.findByIdWithItemsLocked(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse document not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         if (document.getStatus() != DocumentStatus.DRAFT) {
-            throw new RuntimeException("Only DRAFT documents can be confirmed. Current status: " + document.getStatus());
+            throw new InvalidOperationException("Only DRAFT documents can be confirmed. Current status: " + document.getStatus());
         }
 
         if (document.getType() == DocumentType.PZ) {
@@ -139,10 +160,10 @@ public class WarehouseDocumentService {
 
     public WarehouseDocumentResponse cancelDocument(Long id, String username) {
         WarehouseDocument document = documentRepository.findByIdWithItems(id)
-                .orElseThrow(() -> new RuntimeException("Warehouse document not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         if (document.getStatus() != DocumentStatus.DRAFT) {
-            throw new RuntimeException("Only DRAFT documents can be cancelled. Current status: " + document.getStatus());
+            throw new InvalidOperationException("Only DRAFT documents can be cancelled. Current status: " + document.getStatus());
         }
 
         document.setStatus(DocumentStatus.CANCELLED);
@@ -157,7 +178,7 @@ public class WarehouseDocumentService {
     private void confirmPZ(WarehouseDocument document, String username) {
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() + item.getQuantity());
             productRepository.save(product);
@@ -208,7 +229,7 @@ public class WarehouseDocumentService {
         // Phase 1: check all products first against available stock (considering reservations)
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
             int availableQuantity = product.getQuantity() - reservedQuantity;
@@ -223,13 +244,13 @@ public class WarehouseDocumentService {
         }
 
         if (!insufficientProducts.isEmpty()) {
-            throw new RuntimeException("Insufficient stock for products: " + String.join(", ", insufficientProducts));
+            throw new InsufficientStockException("Insufficient stock for products: " + String.join(", ", insufficientProducts));
         }
 
         // Phase 2: execute movements with FIFO batch deduction and fulfill reservations
         for (WarehouseDocumentItem item : document.getItems()) {
             Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
-                    .orElseThrow(() -> new RuntimeException("Product not found with id: " + item.getProduct().getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() - item.getQuantity());
             productRepository.save(product);
@@ -245,7 +266,7 @@ public class WarehouseDocumentService {
                 if (remaining <= 0 || batch.getQuantity() <= 0) continue;
 
                 Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
-                        .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batch.getId()));
+                        .orElseThrow(() -> new ResourceNotFoundException("Batch", batch.getId()));
 
                 int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
                 lockedBatch.setQuantity(lockedBatch.getQuantity() - deductFromThis);

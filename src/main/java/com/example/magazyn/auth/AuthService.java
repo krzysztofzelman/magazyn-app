@@ -2,6 +2,8 @@ package com.example.magazyn.auth;
 
 import com.example.magazyn.entity.RefreshToken;
 import com.example.magazyn.entity.User;
+import com.example.magazyn.exception.DuplicateResourceException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.UserRepository;
 import com.example.magazyn.service.AuditLogService;
 import com.example.magazyn.util.JwtUtil;
@@ -43,7 +45,7 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already exists");
+            throw new DuplicateResourceException("Username already exists");
         }
 
         User user = User.builder()
@@ -72,7 +74,7 @@ public class AuthService {
             );
 
             User user = userRepository.findByUsername(request.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("User", request.getUsername()));
 
             String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
             RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);

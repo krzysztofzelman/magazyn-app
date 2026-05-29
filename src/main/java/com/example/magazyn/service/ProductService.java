@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.example.magazyn.exception.DuplicateResourceException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,7 +78,7 @@ public class ProductService {
     public ProductResponse createProduct(CreateProductRequest request) {
         meterRegistry.counter("products.created.count").increment();
         if (productRepository.findBySku(request.getSku()).isPresent()) {
-            throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
+            throw new DuplicateResourceException("Product with SKU '" + request.getSku() + "' already exists");
         }
 
         Product product = Product.builder()
@@ -97,7 +99,7 @@ public class ProductService {
 
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
         Product existing = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         if (request.getName() != null) {
             existing.setName(request.getName());
@@ -105,7 +107,7 @@ public class ProductService {
         if (request.getSku() != null) {
             if (!existing.getSku().equals(request.getSku())
                     && productRepository.findBySku(request.getSku()).isPresent()) {
-                throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
+                throw new DuplicateResourceException("Product with SKU '" + request.getSku() + "' already exists");
             }
             existing.setSku(request.getSku());
         }
@@ -132,7 +134,7 @@ public class ProductService {
     public void deleteProduct(Long id) {
         meterRegistry.counter("products.deleted.count").increment();
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         auditLogService.log(currentUsername(), "DELETE_PRODUCT", "Product", id,
                 "Deleted product: " + product.getName() + " (SKU: " + product.getSku() + ")");
         productRepository.deleteById(id);
@@ -148,7 +150,7 @@ public class ProductService {
 
     public ProductResponse assignLocation(Long productId, AssignLocationRequest request) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         product.setLocationId(request.getLocationId());
         Product saved = productRepository.save(product);
         auditLogService.log(currentUsername(), "ASSIGN_LOCATION", "Product", productId,

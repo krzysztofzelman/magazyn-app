@@ -4,6 +4,8 @@ import com.example.magazyn.dto.LocationResponse;
 import com.example.magazyn.dto.LocationTreeNode;
 import com.example.magazyn.entity.Location;
 import com.example.magazyn.entity.LocationType;
+import com.example.magazyn.exception.InvalidOperationException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.LocationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -96,7 +98,7 @@ public class LocationService {
 
     public LocationResponse updateLocation(Long id, com.example.magazyn.dto.LocationRequest request) {
         Location existing = locationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Location", id));
 
         validateParent(request.getParentId());
 
@@ -120,10 +122,10 @@ public class LocationService {
 
     public void deleteLocation(Long id) {
         Location location = locationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Location not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Location", id));
 
         if (locationRepository.existsByParentId(id)) {
-            throw new RuntimeException("Cannot delete location with children. Remove children first.");
+            throw new InvalidOperationException("Cannot delete location with children. Remove children first.");
         }
 
         locationRepository.deleteById(id);
@@ -131,7 +133,7 @@ public class LocationService {
 
     private void validateParent(Long parentId) {
         if (parentId != null && !locationRepository.existsById(parentId)) {
-            throw new RuntimeException("Parent location not found with id: " + parentId);
+            throw new ResourceNotFoundException("Parent location", parentId);
         }
     }
 

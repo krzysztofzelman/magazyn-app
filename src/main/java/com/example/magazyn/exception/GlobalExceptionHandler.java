@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
 
         ErrorResponse body = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                "Błąd walidacji",
+                "B\u0142\u0105d walidacji",
                 LocalDateTime.now(),
                 errors
         );
@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         ErrorResponse body = new ErrorResponse(
                 HttpStatus.FORBIDDEN.value(),
-                "Brak dostępu",
+                "Brak dost\u0119pu",
                 LocalDateTime.now(),
                 null
         );
@@ -57,29 +57,60 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex) {
-        String message = ex.getMessage();
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
 
-        if (message != null && message.toLowerCase().contains("not found")) {
-            ErrorResponse body = new ErrorResponse(
-                    HttpStatus.NOT_FOUND.value(),
-                    message,
-                    LocalDateTime.now(),
-                    null
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
-        }
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientStock(InsufficientStockException ex) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
 
-        log.error("RuntimeException (returning 400): {}", message != null ? message : "(null message)", ex);
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateResourceException ex) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
 
+    @ExceptionHandler(InvalidOperationException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidOperation(InvalidOperationException ex) {
         ErrorResponse body = new ErrorResponse(
                 HttpStatus.BAD_REQUEST.value(),
-                message != null ? message : "Nieprawidłowe żądanie",
+                ex.getMessage(),
                 LocalDateTime.now(),
                 null
         );
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(RuntimeException ex) {
+        log.error("Unexpected RuntimeException (returning 500): {}", ex.getMessage(), ex);
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Wewn\u0119trzny b\u0142\u0105d serwera",
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     @ExceptionHandler(Exception.class)
@@ -87,7 +118,7 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception", ex);
         ErrorResponse body = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Wewnętrzny błąd serwera",
+                "Wewn\u0119trzny b\u0142\u0105d serwera",
                 LocalDateTime.now(),
                 null
         );

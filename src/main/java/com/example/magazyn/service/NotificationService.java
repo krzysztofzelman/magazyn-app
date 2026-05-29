@@ -57,7 +57,7 @@ public class NotificationService {
                 expiringBatches.size(), expiryWarningDays);
 
         String text = expiringBatches.stream()
-                .map(b -> String.format("Produkt: %s | Partia: %s | Wa\u017Cna do: %s | Ilo\u015B\u0107: %.2f %s",
+                .map(b -> String.format("Produkt: %s | Partia: %s | Wa\u017Cna do: %s | Ilo\u015B\u0107: %d %s",
                         b.getProduct().getName(),
                         b.getLotNumber() != null ? b.getLotNumber() : "-",
                         b.getExpiryDate(),
@@ -79,7 +79,7 @@ public class NotificationService {
                 lowStockProducts.size());
 
         String text = lowStockProducts.stream()
-                .map(p -> String.format("Produkt: %s | SKU: %s | Stan: %.2f %s | Minimum: %.2f",
+                .map(p -> String.format("Produkt: %s | SKU: %s | Stan: %d %s | Minimum: %d",
                         p.getName(),
                         p.getSku(),
                         p.getQuantity(),

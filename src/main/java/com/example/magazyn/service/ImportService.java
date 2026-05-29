@@ -3,6 +3,7 @@ package com.example.magazyn.service;
 import com.example.magazyn.dto.ImportResult;
 import com.example.magazyn.dto.ImportResult.RowError;
 import com.example.magazyn.entity.Product;
+import com.example.magazyn.exception.InvalidOperationException;
 import com.example.magazyn.repository.ProductRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -37,7 +38,7 @@ public class ImportService {
     public ImportResult importProducts(MultipartFile file) {
         String filename = file.getOriginalFilename();
         if (filename == null) {
-            throw new RuntimeException("Nazwa pliku jest wymagana");
+            throw new InvalidOperationException("Nazwa pliku jest wymagana");
         }
 
         String lower = filename.toLowerCase();
@@ -49,16 +50,16 @@ public class ImportService {
             } else if (lower.endsWith(".csv")) {
                 rows = parseCsv(file);
             } else {
-                throw new RuntimeException("Nieobs\u0142ugiwany format pliku. U\u017Cyj .csv lub .xlsx");
+                throw new InvalidOperationException("Nieobs\u0142ugiwany format pliku. U\u017Cyj .csv lub .xlsx");
             }
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Nie uda\u0142o si\u0119 odczyta\u0107 pliku: " + e.getMessage());
+            throw new InvalidOperationException("Nie uda\u0142o si\u0119 odczyta\u0107 pliku: " + e.getMessage());
         }
 
         if (rows.size() < 2) {
-            throw new RuntimeException("Plik jest pusty lub zawiera tylko nag\u0142\u00f3wek");
+            throw new InvalidOperationException("Plik jest pusty lub zawiera tylko nag\u0142\u00f3wek");
         }
 
         // Parse header
@@ -73,7 +74,7 @@ public class ImportService {
             }
         }
         if (!missing.isEmpty()) {
-            throw new RuntimeException(
+            throw new InvalidOperationException(
                     "Brakuj\u0105ce kolumny: " + String.join(", ", missing)
                     + ". Wymagane: " + String.join(", ", REQUIRED_COLUMNS));
         }

@@ -7,6 +7,9 @@ import com.example.magazyn.entity.Product;
 import com.example.magazyn.entity.ReservationReferenceType;
 import com.example.magazyn.entity.ReservationStatus;
 import com.example.magazyn.entity.StockReservation;
+import com.example.magazyn.exception.InsufficientStockException;
+import com.example.magazyn.exception.InvalidOperationException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockReservationRepository;
 import org.slf4j.Logger;
@@ -42,17 +45,17 @@ public class ReservationService {
      */
     public ReservationResponse reserve(CreateReservationRequest request, String username) {
         Product product = productRepository.findByIdForUpdate(request.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + request.getProductId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", request.getProductId()));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
-            throw new RuntimeException("Quantity must be positive");
+            throw new InvalidOperationException("Quantity must be positive");
         }
 
         int reservedQuantity = getActiveReservedQuantity(product.getId());
         int availableQuantity = product.getQuantity() - reservedQuantity;
 
         if (availableQuantity < request.getQuantity()) {
-            throw new RuntimeException(
+            throw new InsufficientStockException(
                     "Insufficient available stock — available: " + availableQuantity
                             + " (total: " + product.getQuantity()
                             + ", reserved: " + reservedQuantity
@@ -85,10 +88,10 @@ public class ReservationService {
      */
     public ReservationResponse release(Long reservationId, String username) {
         StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reservation not found with id: " + reservationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Reservation", reservationId));
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
-            throw new RuntimeException("Only ACTIVE reservations can be released. Current status: " + reservation.getStatus());
+            throw new InvalidOperationException("Only ACTIVE reservations can be released. Current status: " + reservation.getStatus());
         }
 
         reservation.setStatus(ReservationStatus.RELEASED);
@@ -106,10 +109,10 @@ public class ReservationService {
      */
     public ReservationResponse fulfill(Long reservationId, String username) {
         StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reservation not found with id: " + reservationId));
+                .orElseThrow(() -> new ResourceNotFoundException("Reservation", reservationId));
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
-            throw new RuntimeException("Only ACTIVE reservations can be fulfilled. Current status: " + reservation.getStatus());
+            throw new InvalidOperationException("Only ACTIVE reservations can be fulfilled. Current status: " + reservation.getStatus());
         }
 
         reservation.setStatus(ReservationStatus.FULFILLED);
@@ -168,7 +171,7 @@ public class ReservationService {
     @Transactional(readOnly = true)
     public ProductAvailabilityResponse getProductAvailability(Long productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         int reservedQuantity = getActiveReservedQuantity(productId);
         int availableQuantity = product.getQuantity() - reservedQuantity;

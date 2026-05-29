@@ -7,6 +7,9 @@ import com.example.magazyn.entity.Batch;
 import com.example.magazyn.entity.MovementType;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.entity.StockMovement;
+import com.example.magazyn.exception.InsufficientStockException;
+import com.example.magazyn.exception.InvalidOperationException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.BatchRepository;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockMovementRepository;
@@ -41,13 +44,13 @@ public class StockService {
 
     public StockMovementResponse addMovement(Long productId, StockMovementRequest request, String username) {
         Product product = productRepository.findByIdForUpdate(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         if (request.getQuantity() == null) {
-            throw new RuntimeException("Quantity is required");
+            throw new InvalidOperationException("Quantity is required");
         }
         if (request.getType() == null) {
-            throw new RuntimeException("Movement type is required");
+            throw new InvalidOperationException("Movement type is required");
         }
 
         Long batchId = request.getBatchId();
@@ -67,16 +70,16 @@ public class StockService {
         switch (request.getType()) {
             case PRZYJECIE:
                 if (request.getQuantity() <= 0) {
-                    throw new RuntimeException("Quantity must be positive for PRZYJECIE");
+                    throw new InvalidOperationException("Quantity must be positive for PRZYJECIE");
                 }
                 product.setQuantity(product.getQuantity() + request.getQuantity());
 
                 if (batchId != null) {
                     // When batchId is explicitly provided for PRZYJECIE, add to that batch
                     Batch batch = batchRepository.findByIdForUpdate(batchId)
-                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + requestBatchId));
+                            .orElseThrow(() -> new ResourceNotFoundException("Batch", requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
-                        throw new RuntimeException("Batch does not belong to this product");
+                        throw new InvalidOperationException("Batch does not belong to this product");
                     }
                     batch.setQuantity(batch.getQuantity() + request.getQuantity());
                     batchRepository.save(batch);
@@ -95,10 +98,10 @@ public class StockService {
 
             case WYDANIE:
                 if (request.getQuantity() <= 0) {
-                    throw new RuntimeException("Quantity must be positive for WYDANIE");
+                    throw new InvalidOperationException("Quantity must be positive for WYDANIE");
                 }
                 if (product.getQuantity() < request.getQuantity()) {
-                    throw new RuntimeException("Insufficient stock — available: "
+                    throw new InsufficientStockException("Insufficient stock \u2014 available: "
                             + product.getQuantity() + ", requested: " + request.getQuantity());
                 }
                 product.setQuantity(product.getQuantity() - request.getQuantity());
@@ -106,12 +109,12 @@ public class StockService {
                 if (batchId != null) {
                     // Deduct from a specific batch
                     Batch batch = batchRepository.findByIdForUpdate(batchId)
-                            .orElseThrow(() -> new RuntimeException("Batch not found with id: " + requestBatchId));
+                            .orElseThrow(() -> new ResourceNotFoundException("Batch", requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
-                        throw new RuntimeException("Batch does not belong to this product");
+                        throw new InvalidOperationException("Batch does not belong to this product");
                     }
                     if (batch.getQuantity() < request.getQuantity()) {
-                        throw new RuntimeException("Insufficient batch quantity — available: "
+                        throw new InsufficientStockException("Insufficient batch quantity \u2014 available: "
                                 + batch.getQuantity() + ", requested: " + request.getQuantity());
                     }
                     batch.setQuantity(batch.getQuantity() - request.getQuantity());
@@ -121,7 +124,7 @@ public class StockService {
 
             case KOREKTA:
                 if (request.getQuantity() < 0) {
-                    throw new RuntimeException("Quantity must be non-negative for KOREKTA");
+                    throw new InvalidOperationException("Quantity must be non-negative for KOREKTA");
                 }
                 product.setQuantity(request.getQuantity());
                 break;
@@ -150,47 +153,45 @@ public class StockService {
     /**
      * FIFO stock deduction: consumes from the oldest batches (by createdAt) until the requested quantity is met.
      * Called when WYDANIE is performed without specifying a batchId.
+     * <p>
+     * Each batch is locked individually with PESSIMISTIC_WRITE immediately on access
+     * to prevent TOCTOU race conditions with concurrent transactions.
+     * If batch stock is insufficient, falls back to product-level un-tracked stock.
      */
     private StockMovementResponse addMovementFIFO(Product product, StockMovementRequest request, String username) {
         if (request.getQuantity() <= 0) {
-            throw new RuntimeException("Quantity must be positive for WYDANIE");
+            throw new InvalidOperationException("Quantity must be positive for WYDANIE");
+        }
+
+        if (product.getQuantity() < request.getQuantity()) {
+            throw new InsufficientStockException("Insufficient stock \u2014 available: "
+                    + product.getQuantity() + ", requested: " + request.getQuantity());
         }
 
         List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
-
-        // Filter to only batches with positive quantity
-        List<Batch> availableBatches = batches.stream()
-                .filter(b -> b.getQuantity() > 0)
-                .toList();
-
-        int totalAvailable = availableBatches.stream()
-                .mapToInt(Batch::getQuantity)
-                .sum();
-
-        if (totalAvailable < request.getQuantity()) {
-            // Fall back to product-level check — maybe there's stock without batch tracking
-            if (product.getQuantity() < request.getQuantity()) {
-                throw new RuntimeException("Insufficient stock — available: "
-                        + product.getQuantity() + ", requested: " + request.getQuantity()
-                        + " (batch total: " + totalAvailable + ")");
-            }
-            // Product has enough stock but batches don't cover it fully
-            // Deduct what we can from batches, rest from un-tracked stock
-            return addMovementFIFOPartial(product, request, username, availableBatches);
-        }
-
         int remaining = request.getQuantity();
 
-        for (Batch batch : availableBatches) {
+        // Phase 1: deduct from batches — lock each batch immediately as we access it
+        for (Batch batch : batches) {
             if (remaining <= 0) break;
+            if (batch.getQuantity() <= 0) continue;
 
             Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
-                    .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batch.getId()));
+                    .orElseThrow(() -> new ResourceNotFoundException("Batch", batch.getId()));
+
+            if (lockedBatch.getQuantity() <= 0) continue;
 
             int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
             lockedBatch.setQuantity(lockedBatch.getQuantity() - deductFromThis);
             batchRepository.save(lockedBatch);
             remaining -= deductFromThis;
+        }
+
+        // Phase 2: remaining quantity comes from un-tracked product stock
+        int deducted = request.getQuantity() - remaining;
+        if (deducted < request.getQuantity() && product.getQuantity() < request.getQuantity()) {
+            throw new InsufficientStockException("Insufficient stock \u2014 available: "
+                    + product.getQuantity() + ", requested: " + request.getQuantity());
         }
 
         product.setQuantity(product.getQuantity() - request.getQuantity());
@@ -202,50 +203,15 @@ public class StockService {
                 .quantity(request.getQuantity())
                 .note(request.getNote())
                 .createdBy(username)
-                .batchId(null) // generic FIFO — no single batch
+                .batchId(null)
                 .build();
 
+        String action = remaining == 0 ? "STOCK_WYDANIE_FIFO" : "STOCK_WYDANIE_FIFO_PARTIAL";
         StockMovement saved = stockMovementRepository.save(movement);
-        auditLogService.log(username, "STOCK_WYDANIE_FIFO", "StockMovement", saved.getId(),
+        auditLogService.log(username, action, "StockMovement", saved.getId(),
                 "WYDANIE FIFO productId=" + product.getId() + " qty=" + request.getQuantity()
-                        + " (note: " + (request.getNote() != null ? request.getNote() : "") + ")");
-        return toResponse(saved);
-    }
-
-    /**
-     * Partial FIFO: some batch stock + some un-tracked stock.
-     */
-    private StockMovementResponse addMovementFIFOPartial(Product product, StockMovementRequest request,
-                                                         String username, List<Batch> availableBatches) {
-        int remaining = request.getQuantity();
-
-        for (Batch batch : availableBatches) {
-            if (remaining <= 0) break;
-
-            Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
-                    .orElseThrow(() -> new RuntimeException("Batch not found with id: " + batch.getId()));
-
-            int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
-            lockedBatch.setQuantity(lockedBatch.getQuantity() - deductFromThis);
-            batchRepository.save(lockedBatch);
-            remaining -= deductFromThis;
-        }
-
-        product.setQuantity(product.getQuantity() - request.getQuantity());
-        productRepository.save(product);
-
-        StockMovement movement = StockMovement.builder()
-                .product(product)
-                .type(request.getType())
-                .quantity(request.getQuantity())
-                .note(request.getNote())
-                .createdBy(username)
-                .build();
-
-        StockMovement saved = stockMovementRepository.save(movement);
-        auditLogService.log(username, "STOCK_WYDANIE_FIFO_PARTIAL", "StockMovement", saved.getId(),
-                "WYDANIE FIFO partial productId=" + product.getId() + " qty=" + request.getQuantity()
-                        + " (note: " + (request.getNote() != null ? request.getNote() : "") + ")");
+                        + " batchDeducted=" + deducted + " (note: "
+                        + (request.getNote() != null ? request.getNote() : "") + ")");
         return toResponse(saved);
     }
 
@@ -259,13 +225,13 @@ public class StockService {
                                                          java.time.LocalDate expiryDate,
                                                          java.time.LocalDate manufacturingDate) {
         Product product = productRepository.findByIdForUpdate(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
-            throw new RuntimeException("Quantity must be positive for PRZYJECIE");
+            throw new InvalidOperationException("Quantity must be positive for PRZYJECIE");
         }
         if (request.getType() != MovementType.PRZYJECIE) {
-            throw new RuntimeException("Batch creation is only supported for PRZYJECIE");
+            throw new InvalidOperationException("Batch creation is only supported for PRZYJECIE");
         }
 
         product.setQuantity(product.getQuantity() + request.getQuantity());
@@ -313,7 +279,7 @@ public class StockService {
     @Transactional(readOnly = true)
     public Page<StockMovementResponse> getMovements(Long productId, Pageable pageable) {
         if (!productRepository.existsById(productId)) {
-            throw new RuntimeException("Product not found with id: " + productId);
+            throw new ResourceNotFoundException("Product", productId);
         }
         return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId, pageable)
                 .map(this::toResponse);
@@ -328,7 +294,7 @@ public class StockService {
     @Transactional(readOnly = true)
     public StockResponse getStock(Long productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         return new StockResponse(product.getId(), product.getName(), product.getSku(), product.getQuantity());
     }
 

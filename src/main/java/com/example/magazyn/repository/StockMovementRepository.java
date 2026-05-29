@@ -18,6 +18,7 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     @EntityGraph(attributePaths = "product")
     List<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId);
 
+    @EntityGraph(attributePaths = "product")
     Page<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId, Pageable pageable);
 
     @Query("SELECT sm.product.id as productId, sm.product.name as productName, " +

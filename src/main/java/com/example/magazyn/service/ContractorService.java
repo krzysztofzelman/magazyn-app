@@ -3,6 +3,8 @@ package com.example.magazyn.service;
 import com.example.magazyn.dto.ContractorRequest;
 import com.example.magazyn.dto.ContractorResponse;
 import com.example.magazyn.entity.Contractor;
+import com.example.magazyn.exception.DuplicateResourceException;
+import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.ContractorRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +32,7 @@ public class ContractorService {
     @Transactional(readOnly = true)
     public ContractorResponse getContractorById(Long id) {
         Contractor contractor = contractorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Contractor", id));
         return toResponse(contractor);
     }
 
@@ -40,7 +42,7 @@ public class ContractorService {
                     .filter(c -> c.getTaxId().equals(request.getTaxId()))
                     .findAny()
                     .ifPresent(c -> {
-                        throw new RuntimeException("Contractor with taxId " + request.getTaxId() + " already exists");
+                        throw new DuplicateResourceException("Contractor with taxId " + request.getTaxId() + " already exists");
                     });
         }
 
@@ -60,7 +62,7 @@ public class ContractorService {
 
     public ContractorResponse updateContractor(Long id, ContractorRequest request) {
         Contractor contractor = contractorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Contractor not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Contractor", id));
 
         if (request.getName() != null) contractor.setName(request.getName());
         if (request.getTaxId() != null) contractor.setTaxId(request.getTaxId());
@@ -76,7 +78,7 @@ public class ContractorService {
 
     public void deleteContractor(Long id) {
         if (!contractorRepository.existsById(id)) {
-            throw new RuntimeException("Contractor not found with id: " + id);
+            throw new ResourceNotFoundException("Contractor", id);
         }
         contractorRepository.deleteById(id);
     }
