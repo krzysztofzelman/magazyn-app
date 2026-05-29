@@ -2,7 +2,7 @@
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![JWT](https://img.shields.io/badge/JWT-jjwt%200.13.0-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
@@ -105,7 +105,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 | Spring Security | 7.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
 | Spring Validation | — | Walidacja adnotacjami (@NotBlank, @Size, @Positive) |
 | jjwt (io.jsonwebtoken) | 0.13.0 | Generowanie i weryfikacja tokenów JWT (HS512) |
-| PostgreSQL | 16 | Relacyjna baza danych |
+| PostgreSQL | 18 | Relacyjna baza danych |
 | Lombok | — | Redukcja boilerplate (@Data, @Builder, @NoArgsConstructor) |
 | Apache POI | 5.4.0 | Generowanie plików Excel (.xlsx) |
 | Apache PDFBox | 3.0.4 | Generowanie dokumentów PDF |
@@ -148,7 +148,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 └──────────────────────┬──────────────────────────────────┘
                        │ JDBC (port 5432)
 ┌──────────────────────▼──────────────────────────────────┐
-│              PostgreSQL 16 (Docker container)             │
+│              PostgreSQL 18 (Docker container)             │
 │              Volume: postgres_data                        │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -396,7 +396,7 @@ Plik `.env` znajduje się w `.gitignore`. W repozytorium dostępny jest szablon 
 
 - **Java 25 JDK (LTS)** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=25)
 - **Maven 3.8+** — lub użyj dołączonego `mvnw` (Maven Wrapper)
-- **Docker Desktop** — do PostgreSQL (lub lokalna instalacja PostgreSQL 16)
+- **Docker Desktop** — do PostgreSQL (lub lokalna instalacja PostgreSQL 18)
 
 ### Szybki start (Docker Compose)
 
@@ -459,9 +459,9 @@ curl -X POST http://localhost:8080/api/seed/locations -H "Authorization: Bearer 
 
 ```yaml
 services:
-  postgres:      # PostgreSQL 16, port 5432, volume postgres_data, healthcheck
+  postgres:      # PostgreSQL 18, port 5432, volume postgres_data, healthcheck
   app:           # Spring Boot, port 8080, zależny od postgres (healthy)
-  backup:        # PostgreSQL 16, uruchamia pg_dump w pętli 24h
+  backup:        # PostgreSQL 18, uruchamia pg_dump w pętli 24h
 ```
 
 ### Dockerfile (multi-stage)
