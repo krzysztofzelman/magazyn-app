@@ -57,4 +57,7 @@ public class WarehouseDocument {
     @Builder.Default
     @OrderBy("id ASC")
     private List<WarehouseDocumentItem> items = new ArrayList<>();
+
+    @Version
+    private Integer version;
 }

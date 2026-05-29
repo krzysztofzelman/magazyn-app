@@ -127,10 +127,11 @@ public class ReservationService {
 
     /**
      * Fulfills active reservations for a product up to the given quantity (FIFO by createdAt).
+     * Uses PESSIMISTIC_WRITE on the reservation list to prevent concurrent modification.
      * Returns the total quantity of reservations fulfilled.
      */
     public int fulfillActiveReservations(Long productId, int quantity, String username) {
-        List<StockReservation> active = reservationRepository.findByProductIdAndStatus(productId, ReservationStatus.ACTIVE);
+        List<StockReservation> active = reservationRepository.findByProductIdAndStatusForUpdate(productId, ReservationStatus.ACTIVE);
         int remaining = quantity;
         int fulfilled = 0;
 
@@ -145,7 +146,6 @@ public class ReservationService {
             if (reservation.getQuantity() == 0) {
                 reservation.setStatus(ReservationStatus.FULFILLED);
             }
-            reservationRepository.save(reservation);
         }
 
         if (fulfilled > 0) {
@@ -188,10 +188,11 @@ public class ReservationService {
 
     /**
      * Scheduled task: releases all expired ACTIVE reservations every hour.
+     * Uses PESSIMISTIC_WRITE to lock each expired reservation against concurrent fulfill/release.
      */
     @Scheduled(fixedRateString = "3600000") // 1 hour in ms
     public void releaseExpired() {
-        List<StockReservation> expired = reservationRepository.findByStatusAndExpiresAtBefore(
+        List<StockReservation> expired = reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(
                 ReservationStatus.ACTIVE, LocalDateTime.now());
 
         for (StockReservation reservation : expired) {
@@ -199,7 +200,6 @@ public class ReservationService {
             reservation.setNotes(reservation.getNotes() != null
                     ? reservation.getNotes() + " [auto-released at expiry]"
                     : "[auto-released at expiry]");
-            reservationRepository.save(reservation);
 
             log.info("Auto-released expired reservation id={} for productId={} qty={}",
                     reservation.getId(),

@@ -44,4 +44,7 @@ public class WarehouseDocumentItem {
 
     @Column
     private LocalDate manufacturingDate;
+
+    @Version
+    private Integer version;
 }

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -15,13 +16,23 @@ import java.util.Optional;
 @Repository
 public interface BatchRepository extends JpaRepository<Batch, Long> {
 
+    @EntityGraph(attributePaths = {"product"})
     List<Batch> findByProductIdOrderByExpiryDateAsc(Long productId);
 
+    @EntityGraph(attributePaths = {"product"})
     List<Batch> findByProductIdOrderByCreatedAtAsc(Long productId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Batch b WHERE b.id = :id")
     Optional<Batch> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId AND b.lotNumber = :lotNumber")
+    Optional<Batch> findByProductIdAndLotNumberForUpdate(@Param("productId") Long productId, @Param("lotNumber") String lotNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId ORDER BY b.createdAt ASC")
+    List<Batch> findByProductIdOrderByCreatedAtAscForUpdate(@Param("productId") Long productId);
 
     @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
     List<Batch> findExpiredBatches(@Param("date") LocalDate date);

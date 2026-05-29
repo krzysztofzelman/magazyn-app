@@ -10,6 +10,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -55,4 +56,7 @@ public class Batch {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @Version
+    private Integer version;
 }

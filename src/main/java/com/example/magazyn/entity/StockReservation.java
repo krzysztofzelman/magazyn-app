@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -62,4 +63,7 @@ public class StockReservation {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Version
+    private Integer version;
 }

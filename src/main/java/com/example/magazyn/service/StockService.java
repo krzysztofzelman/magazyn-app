@@ -155,9 +155,8 @@ public class StockService {
      * FIFO stock deduction: consumes from the oldest batches (by createdAt) until the requested quantity is met.
      * Called when WYDANIE is performed without specifying a batchId.
      * <p>
-     * Each batch is locked individually with PESSIMISTIC_WRITE immediately on access
+     * All batches for the product are locked with PESSIMISTIC_WRITE in one query
      * to prevent TOCTOU race conditions with concurrent transactions.
-     * If batch stock is insufficient, falls back to product-level un-tracked stock.
      */
     private StockMovementResponse addMovementFIFO(Product product, StockMovementRequest request, String username) {
         if (request.getQuantity() <= 0) {
@@ -169,32 +168,23 @@ public class StockService {
                     + product.getQuantity() + ", requested: " + request.getQuantity());
         }
 
-        List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
+        // Lock all batches at once to prevent TOCTOU — no concurrent transaction
+        // can modify batch quantities between the read and the deduction.
+        List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAscForUpdate(product.getId());
         int remaining = request.getQuantity();
 
-        // Phase 1: deduct from batches — lock each batch immediately as we access it
+        // Deduct from oldest batches first
         for (Batch batch : batches) {
             if (remaining <= 0) break;
             if (batch.getQuantity() <= 0) continue;
 
-            Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Batch", batch.getId()));
-
-            if (lockedBatch.getQuantity() <= 0) continue;
-
-            int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
-            lockedBatch.setQuantity(lockedBatch.getQuantity() - deductFromThis);
-            batchRepository.save(lockedBatch);
+            int deductFromThis = Math.min(remaining, batch.getQuantity());
+            batch.setQuantity(batch.getQuantity() - deductFromThis);
+            batchRepository.save(batch);
             remaining -= deductFromThis;
         }
 
-        // Phase 2: remaining quantity comes from un-tracked product stock
-        int deducted = request.getQuantity() - remaining;
-        if (deducted < request.getQuantity() && product.getQuantity() < request.getQuantity()) {
-            throw new InsufficientStockException("Insufficient stock \u2014 available: "
-                    + product.getQuantity() + ", requested: " + request.getQuantity());
-        }
-
+        // Remaining quantity (if any) comes from product-level stock
         product.setQuantity(product.getQuantity() - request.getQuantity());
         productRepository.save(product);
 
@@ -207,6 +197,7 @@ public class StockService {
                 .batchId(null)
                 .build();
 
+        int deducted = request.getQuantity() - remaining;
         String action = remaining == 0 ? "STOCK_WYDANIE_FIFO" : "STOCK_WYDANIE_FIFO_PARTIAL";
         StockMovement saved = stockMovementRepository.save(movement);
         auditLogService.log(username, action, "StockMovement", saved.getId(),
@@ -218,8 +209,7 @@ public class StockService {
 
     /**
      * Dedicated receipt method for PZ confirmations: creates or updates a batch for each item.
-     * When a batch with the same lotNumber exists for this product, adds to it.
-     * Otherwise creates a new batch.
+     * Uses PESSIMISTIC_WRITE on the lotNumber lookup to prevent concurrent batch duplication.
      */
     public StockMovementResponse addMovementWithBatchCreate(Long productId, StockMovementRequest request,
                                                              String username, String lotNumber,
@@ -238,11 +228,8 @@ public class StockService {
         product.setQuantity(product.getQuantity() + request.getQuantity());
         productRepository.save(product);
 
-        // Find or create batch
-        List<Batch> existingBatches = batchRepository.findByProductIdOrderByCreatedAtAsc(productId);
-        Batch batch = existingBatches.stream()
-                .filter(b -> b.getLotNumber().equals(lotNumber))
-                .findFirst()
+        // Find or create batch — locked lookup prevents duplicate batch creation
+        Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(productId, lotNumber)
                 .orElse(null);
 
         if (batch != null) {
@@ -286,10 +273,10 @@ public class StockService {
                 .map(this::toResponse);
     }
 
-    /** Backward-compatible wrapper — returns all movements for a product */
+    /** Backward-compatible wrapper — returns most recent movements for a product (capped at 10000) */
     @Transactional(readOnly = true)
     public List<StockMovementResponse> getMovements(Long productId) {
-        return getMovements(productId, PageRequest.of(0, Integer.MAX_VALUE)).getContent();
+        return getMovements(productId, PageRequest.of(0, Math.min(10000, Integer.MAX_VALUE))).getContent();
     }
 
     @Transactional(readOnly = true)

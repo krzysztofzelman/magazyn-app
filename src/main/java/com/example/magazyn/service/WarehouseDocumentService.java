@@ -58,7 +58,8 @@ public class WarehouseDocumentService {
         Contractor contractor = contractorRepository.findById(request.getContractorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contractor", request.getContractorId()));
 
-        // Retry up to 3 times in case of concurrent document number collision
+        // Retry up to 3 times in case of concurrent document number collision,
+        // with exponential backoff to reduce contention on retries.
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
                 return doCreateDocument(request, username, contractor);
@@ -66,7 +67,13 @@ public class WarehouseDocumentService {
                 if (attempt == 2) {
                     throw e;
                 }
-                // Retry with a fresh number — concurrent transaction likely took the same number
+                // Exponential backoff: 100ms, 200ms
+                try {
+                    Thread.sleep(100L * (1L << attempt));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
             }
         }
         // Should never reach here
@@ -185,13 +192,11 @@ public class WarehouseDocumentService {
 
             Long batchId = null;
 
-            // If lot number is provided and product tracks expiry, create or update a batch
+            // If lot number is provided and product tracks expiry, create or update a batch.
+            // Uses PESSIMISTIC_WRITE on lotNumber lookup to prevent concurrent batch duplication.
             if (item.getLotNumber() != null && !item.getLotNumber().isBlank()
                     && Boolean.TRUE.equals(product.getTrackExpiry())) {
-                List<Batch> existingBatches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
-                Batch batch = existingBatches.stream()
-                        .filter(b -> b.getLotNumber().equals(item.getLotNumber()))
-                        .findFirst()
+                Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(product.getId(), item.getLotNumber())
                         .orElse(null);
 
                 if (batch != null) {

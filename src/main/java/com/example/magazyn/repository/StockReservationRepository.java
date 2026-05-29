@@ -20,14 +20,19 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     @Query("SELECT r FROM StockReservation r WHERE r.id = :id")
     Optional<StockReservation> findByIdForUpdate(@Param("id") Long id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM StockReservation r WHERE r.product.id = :productId AND r.status = :status")
+    List<StockReservation> findByProductIdAndStatusForUpdate(@Param("productId") Long productId, @Param("status") ReservationStatus status);
+
     List<StockReservation> findByProductIdAndStatus(Long productId, ReservationStatus status);
 
     List<StockReservation> findByProductId(Long productId);
 
     List<StockReservation> findByStatus(ReservationStatus status);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM StockReservation r WHERE r.status = :status AND r.expiresAt IS NOT NULL AND r.expiresAt < :now")
-    List<StockReservation> findByStatusAndExpiresAtBefore(
+    List<StockReservation> findByStatusAndExpiresAtBeforeForUpdate(
             @Param("status") ReservationStatus status,
             @Param("now") LocalDateTime now);
 
