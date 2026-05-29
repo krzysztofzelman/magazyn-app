@@ -1,7 +1,7 @@
 # Magazyn — System Zarządzania Magazynem
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk)](https://adoptium.net/)
+[![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -99,7 +99,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 
 | Technologia | Wersja | Zastosowanie |
 |---|---|---|
-| Java | 21 | Język programowania |
+| Java | 25 (LTS) | Język programowania |
 | Spring Boot | 4.0.6 | Framework aplikacyjny, osadzony Tomcat |
 | Spring Data JPA / Hibernate | — | ORM, automatyczne DDL (ddl-auto=update) |
 | Spring Security | 7.x | Autoryzacja, uwierzytelnianie, BCrypt, @EnableMethodSecurity |
@@ -394,7 +394,7 @@ Plik `.env` znajduje się w `.gitignore`. W repozytorium dostępny jest szablon 
 
 ### Wymagania
 
-- **Java 21 JDK** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=21)
+- **Java 25 JDK (LTS)** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=25)
 - **Maven 3.8+** — lub użyj dołączonego `mvnw` (Maven Wrapper)
 - **Docker Desktop** — do PostgreSQL (lub lokalna instalacja PostgreSQL 16)
 
@@ -466,8 +466,8 @@ services:
 
 ### Dockerfile (multi-stage)
 
-- **Build:** `maven:3.9-eclipse-temurin-21` — kompiluje projekt
-- **Runtime:** `eclipse-temurin:21-jre` — uruchamia JAR
+- **Build:** `maven:3.9-eclipse-temurin-25` — kompiluje projekt
+- **Runtime:** `eclipse-temurin:25-jre` — uruchamia JAR
 
 ### Komendy
 
