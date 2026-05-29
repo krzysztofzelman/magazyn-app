@@ -57,6 +57,9 @@ public class Product {
     @Builder.Default
     private Boolean trackExpiry = false;
 
+    @Column(unique = true)
+    private String barcode;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

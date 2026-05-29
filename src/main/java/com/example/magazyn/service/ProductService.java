@@ -90,6 +90,7 @@ public class ProductService {
                 .price(request.getPrice() != null ? request.getPrice() : BigDecimal.ZERO)
                 .minQuantity(request.getMinQuantity() != null ? request.getMinQuantity() : 0)
                 .trackExpiry(request.getTrackExpiry() != null ? request.getTrackExpiry() : false)
+                .barcode(request.getBarcode())
                 .build();
 
         Product saved = productRepository.save(product);
@@ -126,6 +127,9 @@ public class ProductService {
         }
         if (request.getTrackExpiry() != null) {
             existing.setTrackExpiry(request.getTrackExpiry());
+        }
+        if (request.getBarcode() != null) {
+            existing.setBarcode(request.getBarcode());
         }
 
         Product saved = productRepository.save(existing);
@@ -172,6 +176,7 @@ public class ProductService {
                 product.getId(),
                 product.getName(),
                 product.getSku(),
+                product.getBarcode(),
                 product.getDescription(),
                 product.getUnit(),
                 product.getQuantity(),

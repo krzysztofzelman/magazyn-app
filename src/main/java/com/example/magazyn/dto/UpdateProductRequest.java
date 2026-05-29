@@ -18,6 +18,8 @@ public class UpdateProductRequest {
 
     private Boolean trackExpiry;
 
+    private String barcode;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -38,4 +40,7 @@ public class UpdateProductRequest {
 
     public Boolean getTrackExpiry() { return trackExpiry; }
     public void setTrackExpiry(Boolean trackExpiry) { this.trackExpiry = trackExpiry; }
+
+    public String getBarcode() { return barcode; }
+    public void setBarcode(String barcode) { this.barcode = barcode; }
 }
