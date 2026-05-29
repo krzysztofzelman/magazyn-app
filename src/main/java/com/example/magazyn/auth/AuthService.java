@@ -48,10 +48,16 @@ public class AuthService {
             throw new DuplicateResourceException("Username already exists");
         }
 
+        String role = request.getRole() != null && !request.getRole().isBlank()
+                ? normalizeRole(request.getRole())
+                : "ROLE_WAREHOUSE";
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role("ROLE_USER")
+                .email(request.getEmail())
+                .role(role)
+                .isActive(true)
                 .build();
 
         userRepository.save(user);
@@ -107,5 +113,14 @@ public class AuthService {
         } catch (RefreshTokenException e) {
             // If token is invalid/expired, still succeed — nothing to invalidate
         }
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null) return null;
+        String upper = role.toUpperCase().trim();
+        if (upper.startsWith("ROLE_")) {
+            return upper;
+        }
+        return "ROLE_" + upper;
     }
 }

@@ -52,18 +52,52 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
                 .requestMatchers("/api/auth/logout").authenticated()
-                .requestMatchers("/api/auth/register").authenticated()
+                .requestMatchers("/api/auth/register").hasRole("ADMIN")
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/swagger-ui/**", "/api-docs/**").hasRole("ADMIN")
-                .requestMatchers("/api/products/**").authenticated()
-                .requestMatchers("/api/stock/**").authenticated()
-                .requestMatchers("/api/stats/**").authenticated()
+
+                // User management — ADMIN only
+                .requestMatchers("/api/users/**").hasRole("ADMIN")
+
+                // Inventory — ADMIN and MANAGER
+                .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // Seed data — ADMIN only
                 .requestMatchers("/api/seed/**").hasRole("ADMIN")
+
+                // Audit — ADMIN only
                 .requestMatchers("/api/audit/**").hasRole("ADMIN")
-                .requestMatchers("/api/contractors/**").authenticated()
-                .requestMatchers("/api/documents/**").authenticated()
-                .requestMatchers("/api/batches/**").authenticated()
+
+                // PZ/WZ documents — ADMIN, MANAGER, WAREHOUSE
+                .requestMatchers("/api/pz-documents/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+                .requestMatchers("/api/wz-documents/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+                .requestMatchers("/api/documents/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+
+                // Locations — all roles including VIEWER (read-only)
+                .requestMatchers("/api/locations/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE", "VIEWER")
+
+                // Products — all roles including VIEWER (read-only)
+                .requestMatchers("/api/products/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE", "VIEWER")
+
+                // Stock — ADMIN, MANAGER, WAREHOUSE
+                .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+
+                // Stats/Reports — ADMIN, MANAGER, VIEWER
+                .requestMatchers("/api/stats/**").hasAnyRole("ADMIN", "MANAGER", "VIEWER")
+
+                // Batches — ADMIN, MANAGER, WAREHOUSE
+                .requestMatchers("/api/batches/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+
+                // Contractors — ADMIN, MANAGER, WAREHOUSE
+                .requestMatchers("/api/contractors/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+
+                // Reservations — ADMIN, MANAGER
+                .requestMatchers("/api/reservations/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // Scanner - ADMIN, MANAGER, WAREHOUSE
+                .requestMatchers("/api/scanner/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
+
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/icons.svg", "/assets/**").permitAll()
                 .anyRequest().authenticated()
             )

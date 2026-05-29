@@ -1,9 +1,9 @@
-package com.example.magazyn.auth;
+package com.example.magazyn.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-public class RegisterRequest {
+public class UserRequest {
 
     @NotBlank
     @Size(min = 3, max = 50)
@@ -15,16 +15,12 @@ public class RegisterRequest {
 
     private String email;
 
+    @NotBlank
     private String role;
 
-    public RegisterRequest() {}
+    public UserRequest() {}
 
-    public RegisterRequest(String username, String password) {
-        this.username = username;
-        this.password = password;
-    }
-
-    public RegisterRequest(String username, String password, String email, String role) {
+    public UserRequest(String username, String password, String email, String role) {
         this.username = username;
         this.password = password;
         this.email = email;
