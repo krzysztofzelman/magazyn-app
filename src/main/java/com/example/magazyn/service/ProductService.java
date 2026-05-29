@@ -89,6 +89,7 @@ public class ProductService {
                 .quantity(0)
                 .price(request.getPrice() != null ? request.getPrice() : BigDecimal.ZERO)
                 .minQuantity(request.getMinQuantity() != null ? request.getMinQuantity() : 0)
+                .trackExpiry(request.getTrackExpiry() != null ? request.getTrackExpiry() : false)
                 .build();
 
         Product saved = productRepository.save(product);
@@ -122,6 +123,9 @@ public class ProductService {
         }
         if (request.getMinQuantity() != null) {
             existing.setMinQuantity(request.getMinQuantity());
+        }
+        if (request.getTrackExpiry() != null) {
+            existing.setTrackExpiry(request.getTrackExpiry());
         }
 
         Product saved = productRepository.save(existing);
@@ -177,7 +181,8 @@ public class ProductService {
                 product.getCreatedAt(),
                 reservedQuantity,
                 availableQuantity,
-                nearestExpiry
+                nearestExpiry,
+                product.getTrackExpiry()
         );
     }
 }

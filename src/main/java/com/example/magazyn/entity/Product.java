@@ -53,6 +53,10 @@ public class Product {
     @Column
     private Long locationId;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean trackExpiry = false;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

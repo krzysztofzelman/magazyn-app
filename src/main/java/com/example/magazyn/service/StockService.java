@@ -83,7 +83,8 @@ public class StockService {
                     }
                     batch.setQuantity(batch.getQuantity() + request.getQuantity());
                     batchRepository.save(batch);
-                } else if (request.getLotNumber() != null && !request.getLotNumber().isBlank()) {
+                } else if (request.getLotNumber() != null && !request.getLotNumber().isBlank()
+                        && Boolean.TRUE.equals(product.getTrackExpiry())) {
                     // Create new batch when lotNumber is provided
                     Batch newBatch = new Batch();
                     newBatch.setProduct(product);

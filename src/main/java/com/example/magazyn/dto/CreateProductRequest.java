@@ -23,6 +23,8 @@ public class CreateProductRequest {
     @PositiveOrZero(message = "Minimalny stan musi być większy lub równy 0")
     private Integer minQuantity;
 
+    private Boolean trackExpiry;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -40,4 +42,7 @@ public class CreateProductRequest {
 
     public Integer getMinQuantity() { return minQuantity; }
     public void setMinQuantity(Integer minQuantity) { this.minQuantity = minQuantity; }
+
+    public Boolean getTrackExpiry() { return trackExpiry; }
+    public void setTrackExpiry(Boolean trackExpiry) { this.trackExpiry = trackExpiry; }
 }

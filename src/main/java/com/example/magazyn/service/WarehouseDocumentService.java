@@ -185,8 +185,9 @@ public class WarehouseDocumentService {
 
             Long batchId = null;
 
-            // If lot number is provided, create or update a batch
-            if (item.getLotNumber() != null && !item.getLotNumber().isBlank()) {
+            // If lot number is provided and product tracks expiry, create or update a batch
+            if (item.getLotNumber() != null && !item.getLotNumber().isBlank()
+                    && Boolean.TRUE.equals(product.getTrackExpiry())) {
                 List<Batch> existingBatches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
                 Batch batch = existingBatches.stream()
                         .filter(b -> b.getLotNumber().equals(item.getLotNumber()))

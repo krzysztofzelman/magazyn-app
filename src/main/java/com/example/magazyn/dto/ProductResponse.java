@@ -19,6 +19,7 @@ public class ProductResponse {
     private Integer reservedQuantity;
     private Integer availableQuantity;
     private LocalDate nearestExpiryDate;
+    private Boolean trackExpiry;
 
     public ProductResponse() {}
 
@@ -26,7 +27,7 @@ public class ProductResponse {
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt) {
         this(id, name, sku, description, unit, quantity, price, minQuantity,
-                locationId, createdAt, 0, quantity, null);
+                locationId, createdAt, 0, quantity, null, false);
     }
 
     public ProductResponse(Long id, String name, String sku, String description, String unit,
@@ -34,6 +35,15 @@ public class ProductResponse {
                            Long locationId, LocalDateTime createdAt,
                            Integer reservedQuantity, Integer availableQuantity,
                            LocalDate nearestExpiryDate) {
+        this(id, name, sku, description, unit, quantity, price, minQuantity,
+                locationId, createdAt, reservedQuantity, availableQuantity, nearestExpiryDate, false);
+    }
+
+    public ProductResponse(Long id, String name, String sku, String description, String unit,
+                           Integer quantity, BigDecimal price, Integer minQuantity,
+                           Long locationId, LocalDateTime createdAt,
+                           Integer reservedQuantity, Integer availableQuantity,
+                           LocalDate nearestExpiryDate, Boolean trackExpiry) {
         this.id = id;
         this.name = name;
         this.sku = sku;
@@ -47,6 +57,7 @@ public class ProductResponse {
         this.reservedQuantity = reservedQuantity;
         this.availableQuantity = availableQuantity;
         this.nearestExpiryDate = nearestExpiryDate;
+        this.trackExpiry = trackExpiry;
     }
 
     public Long getId() { return id; }
@@ -87,4 +98,7 @@ public class ProductResponse {
 
     public LocalDate getNearestExpiryDate() { return nearestExpiryDate; }
     public void setNearestExpiryDate(LocalDate nearestExpiryDate) { this.nearestExpiryDate = nearestExpiryDate; }
+
+    public Boolean getTrackExpiry() { return trackExpiry; }
+    public void setTrackExpiry(Boolean trackExpiry) { this.trackExpiry = trackExpiry; }
 }
