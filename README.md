@@ -45,7 +45,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 - **WZ (Wydanie Zewnętrzne)** — wydanie towaru do odbiorcy, FIFO odpis z partii, automatyczne zwalnianie rezerwacji
 - Cykl życia: **Szkic → Potwierdzony → Anulowany**
 - Automatyczna numeracja dokumentów: `PZ/2026/001`, `WZ/2026/001`
-- Eksport do PDF z użyciem Apache PDFBox
+- Eksport do PDF z użyciem iText7
 
 ### Śledzenie partii (Batch/Lot)
 - Każde przyjęcie tworzy partie z numerem lotu, datą ważności i datą produkcji
@@ -419,8 +419,12 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 | **Products** | `ProductTable` | Tabela produktów z paginacją, wyszukiwaniem, sortowaniem. Dla każdego produktu: stan, najbliższa data ważności partii, lokalizacja. Formularz dodawania/edycji. |
 | **Contractors** | `ContractorTable` | Lista kontrahentów z wyszukiwaniem. Formularz dodawania/edycji. |
 | **Documents (PZ/WZ)** | `DocumentList` | Lista dokumentów z filtrowaniem po typie i statusie. Formularz tworzenia z dynamicznymi pozycjami. Modal szczegółów dokumentu. |
-| **Locations** | `LocationPanel` + `LocationTree` | Drzewo lokalizacji. Formularz dodawania/edycji. |
+| **Locations** | `LocationPanel`, `LocationTree`, `LocationDetailDrawer` | Drzewo lokalizacji. Formularz dodawania/edycji. Szczegóły lokalizacji ze stanem magazynowym. |
 | **Reservations** | `ReservationPanel` | Lista rezerwacji z filtrami. Tworzenie i zwalnianie rezerwacji. |
+| **Scanner** | `ScannerPanel`, `ScannerTab` | Multi-mode skaner kodów kreskowych — szybkie przyjęcie (PZ), szybkie wydanie (WZ), transfer między lokalizacjami, inwentaryzacja. |
+| **Inventory** | (część `DocumentList`) | Sesje inwentaryzacyjne: raport różnic, zamykanie sesji. |
+| **Users** (tylko ADMIN) | `UserManagementPanel` | Zarządzanie użytkownikami — CRUD, role, dezaktywacja. |
+| **Profile** | `ProfilePanel` | Zmiana hasła, podgląd własnego profilu. |
 | **Audit** (tylko ADMIN) | `AuditLogPanel` | Dziennik audytu z filtrowaniem po użytkowniku i akcji. |
 
 ### Hooks (stan)
@@ -432,6 +436,8 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 | `useContractors` | Lista kontrahentów, wyszukiwanie, CRUD |
 | `useDocuments` | Lista dokumentów (filtry typ/status), paginacja, CRUD, potwierdzanie/anulowanie |
 | `useReservations` | Lista rezerwacji, filtry, tworzenie/zwalnianie |
+| `useBarcodeScanner` | Skaner kamery (ZXing + video stream), obsługa kodów kreskowych |
+| `useScannerInput` | Keyboard-wedge scanner (buforowanie znaków + debounce) |
 | `useNotification` | Komunikaty toast |
 
 ---
