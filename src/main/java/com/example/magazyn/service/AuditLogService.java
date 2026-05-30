@@ -6,9 +6,15 @@ import com.example.magazyn.util.AuditContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 @Service
 @Transactional
@@ -58,5 +64,33 @@ public class AuditLogService {
         } else {
             return auditLogRepository.findAll(pageable);
         }
+    }
+
+    public byte[] exportAuditLogsCsv(String username, String action) {
+        Pageable all = PageRequest.of(0, Integer.MAX_VALUE, Sort.by(Sort.Direction.DESC, "timestamp"));
+        Page<AuditLog> logs = getAuditLogs(username, action, all);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("ID,Username,Action,EntityType,EntityId,Details,IP,Timestamp\n");
+        for (AuditLog log : logs.getContent()) {
+            sb.append(log.getId()).append(",");
+            sb.append(escapeCsv(log.getUsername())).append(",");
+            sb.append(escapeCsv(log.getAction())).append(",");
+            sb.append(escapeCsv(log.getEntityType())).append(",");
+            sb.append(log.getEntityId() != null ? log.getEntityId() : "").append(",");
+            sb.append(escapeCsv(log.getDetails())).append(",");
+            sb.append(escapeCsv(log.getIpAddress())).append(",");
+            sb.append(log.getTimestamp() != null ? log.getTimestamp().toString() : "").append("\n");
+        }
+
+        return sb.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }

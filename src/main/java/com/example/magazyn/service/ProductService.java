@@ -75,6 +75,7 @@ public class ProductService {
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
+    @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
         meterRegistry.counter("products.created.count").increment();
         if (productRepository.findBySku(request.getSku()).isPresent()) {
@@ -99,6 +100,7 @@ public class ProductService {
         return toResponse(saved, Map.of());
     }
 
+    @Transactional
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
         Product existing = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));

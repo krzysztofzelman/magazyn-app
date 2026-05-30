@@ -75,18 +75,34 @@ public class SeedService {
                         .password(passwordEncoder.encode("REMOVED"))
                         .role("ROLE_ADMIN")
                         .email("admin@magazyn.local")
+                        .isActive(true)
                         .build(),
                 User.builder()
-                        .username("magazynier")
-                        .password(passwordEncoder.encode("magazyn123"))
-                        .role("ROLE_USER")
-                        .email("magazynier@magazyn.local")
+                        .username("manager")
+                        .password(passwordEncoder.encode("manager123"))
+                        .role("ROLE_MANAGER")
+                        .email("manager@magazyn.local")
+                        .isActive(true)
+                        .build(),
+                User.builder()
+                        .username("warehouse")
+                        .password(passwordEncoder.encode("warehouse123"))
+                        .role("ROLE_WAREHOUSE")
+                        .email("warehouse@magazyn.local")
+                        .isActive(true)
+                        .build(),
+                User.builder()
+                        .username("viewer")
+                        .password(passwordEncoder.encode("viewer123"))
+                        .role("ROLE_VIEWER")
+                        .email("viewer@magazyn.local")
+                        .isActive(true)
                         .build()
         );
         userRepository.saveAll(users);
 
         result.put("success", true);
-        result.put("usersCreated", 2);
+        result.put("usersCreated", users.size());
         return result;
     }
 

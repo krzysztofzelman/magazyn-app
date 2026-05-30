@@ -9,6 +9,7 @@ import com.example.magazyn.service.AuditLogService;
 import com.example.magazyn.util.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,7 @@ public class AuthService {
         return auth != null ? auth.getName() : "anonymous";
     }
 
+    @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateResourceException("Username already exists");
@@ -88,7 +90,7 @@ public class AuthService {
             auditLogService.log(user.getUsername(), "LOGIN_SUCCESS", "User", user.getId(),
                     "Login successful for user: " + user.getUsername());
             return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
-        } catch (RuntimeException e) {
+        } catch (AuthenticationException e) {
             auditLogService.log("anonymous", "LOGIN_FAILURE", "User", null,
                     "Login failed for username=" + request.getUsername() + " reason=" + e.getMessage());
             throw e;

@@ -3,27 +3,47 @@ package com.example.magazyn.service;
 import com.example.magazyn.dto.LocationRequest;
 import com.example.magazyn.dto.LocationResponse;
 import com.example.magazyn.dto.LocationTreeNode;
+import com.example.magazyn.dto.TransferRequest;
+import com.example.magazyn.dto.TransferResponse;
 import com.example.magazyn.entity.Location;
+import com.example.magazyn.entity.LocationStock;
 import com.example.magazyn.entity.LocationType;
+import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.LocationRepository;
+import com.example.magazyn.repository.LocationStockRepository;
+import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.service.BarcodeService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
 class LocationServiceTest {
 
     @Mock
     private LocationRepository locationRepository;
+
+    @Mock
+    private LocationStockRepository locationStockRepository;
+
+    @Mock
+    private ProductRepository productRepository;
+
+    @Mock
+    private BarcodeService barcodeService;
+
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private LocationService locationService;
@@ -319,5 +339,145 @@ class LocationServiceTest {
         assertEquals("NEW-CODE", response.getCode());
         assertEquals("Name", response.getName()); // unchanged
         assertEquals("WAREHOUSE", response.getType()); // unchanged
+    }
+
+    // ──────────────────────────────────────────────
+    // transferStock
+    // ──────────────────────────────────────────────
+
+    @Test
+    void transferStock_success() {
+        Location fromLoc = createLocation(1L, "MG-01-R01", "Regal 1", LocationType.SHELF, 10L);
+        fromLoc.setBarcode("LOC-MG01-R01");
+        Location toLoc = createLocation(2L, "MG-01-R02", "Regal 2", LocationType.SHELF, 10L);
+        toLoc.setBarcode("LOC-MG01-R02");
+
+        Product product = Product.builder().id(5L).name("Test Product").sku("SKU-TEST").unit("szt.").build();
+
+        LocationStock fromStock = LocationStock.builder()
+                .id(1L).locationId(1L).productId(5L)
+                .quantity(BigDecimal.valueOf(50))
+                .reservedQuantity(BigDecimal.valueOf(10))
+                .updatedAt(LocalDateTime.now()).build();
+
+        TransferRequest request = new TransferRequest();
+        request.setFromBarcode("LOC-MG01-R01");
+        request.setToBarcode("LOC-MG01-R02");
+        request.setProductId(5L);
+        request.setQuantity(20.0);
+
+        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductId(2L, 5L)).thenReturn(Optional.empty());
+        when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
+        when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
+        when(locationRepository.findById(1L)).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findById(2L)).thenReturn(Optional.of(toLoc));
+
+        TransferResponse response = locationService.transferStock(request, "testuser");
+
+        assertNotNull(response);
+        assertEquals("MG-01-R01", response.getFromLocationCode());
+        assertEquals("MG-01-R02", response.getToLocationCode());
+        assertEquals("Test Product", response.getProductName());
+        assertEquals(Double.valueOf(20.0), response.getQuantityMoved());
+        assertEquals(BigDecimal.valueOf(30), fromStock.getQuantity()); // 50 - 20
+        verify(locationStockRepository).save(fromStock);
+        verify(locationStockRepository).save(any(LocationStock.class));
+        verify(auditLogService).log(eq("testuser"), eq("STOCK_TRANSFER"), eq("LocationStock"), isNull(), anyString());
+    }
+
+    @Test
+    void transferStock_insufficientStock_throwsException() {
+        Location fromLoc = createLocation(1L, "MG-01-R01", "Regal 1", LocationType.SHELF, 10L);
+        fromLoc.setBarcode("LOC-MG01-R01");
+        Location toLoc = createLocation(2L, "MG-01-R02", "Regal 2", LocationType.SHELF, 10L);
+        toLoc.setBarcode("LOC-MG01-R02");
+
+        Product product = Product.builder().id(5L).name("Test Product").sku("SKU-TEST").build();
+
+        LocationStock fromStock = LocationStock.builder()
+                .id(1L).locationId(1L).productId(5L)
+                .quantity(BigDecimal.valueOf(10))
+                .reservedQuantity(BigDecimal.valueOf(5))
+                .updatedAt(LocalDateTime.now()).build();
+
+        TransferRequest request = new TransferRequest();
+        request.setFromBarcode("LOC-MG01-R01");
+        request.setToBarcode("LOC-MG01-R02");
+        request.setProductId(5L);
+        request.setQuantity(20.0);
+
+        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
+
+        assertThrows(RuntimeException.class,
+                () -> locationService.transferStock(request, "testuser"));
+    }
+
+    @Test
+    void transferStock_productNotInSource_throwsException() {
+        Location fromLoc = createLocation(1L, "MG-01-R01", "Regal 1", LocationType.SHELF, 10L);
+        fromLoc.setBarcode("LOC-MG01-R01");
+        Location toLoc = createLocation(2L, "MG-01-R02", "Regal 2", LocationType.SHELF, 10L);
+        toLoc.setBarcode("LOC-MG01-R02");
+
+        Product product = Product.builder().id(5L).name("Test Product").build();
+
+        TransferRequest request = new TransferRequest();
+        request.setFromBarcode("LOC-MG01-R01");
+        request.setToBarcode("LOC-MG01-R02");
+        request.setProductId(5L);
+        request.setQuantity(5.0);
+
+        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> locationService.transferStock(request, "testuser"));
+    }
+
+    @Test
+    void transferStock_deleteFromStockWhenZero() {
+        Location fromLoc = createLocation(1L, "MG-01-R01", "Regal 1", LocationType.SHELF, 10L);
+        fromLoc.setBarcode("LOC-MG01-R01");
+        Location toLoc = createLocation(2L, "MG-01-R02", "Regal 2", LocationType.SHELF, 10L);
+        toLoc.setBarcode("LOC-MG01-R02");
+
+        Product product = Product.builder().id(5L).name("Test Product").sku("SKU-TEST").build();
+
+        LocationStock fromStock = LocationStock.builder()
+                .id(1L).locationId(1L).productId(5L)
+                .quantity(BigDecimal.valueOf(20))
+                .reservedQuantity(BigDecimal.ZERO)
+                .updatedAt(LocalDateTime.now()).build();
+
+        TransferRequest request = new TransferRequest();
+        request.setFromBarcode("LOC-MG01-R01");
+        request.setToBarcode("LOC-MG01-R02");
+        request.setProductId(5L);
+        request.setQuantity(20.0);
+
+        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductId(2L, 5L)).thenReturn(Optional.empty());
+        when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
+        when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
+        when(locationRepository.findById(1L)).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findById(2L)).thenReturn(Optional.of(toLoc));
+
+        TransferResponse response = locationService.transferStock(request, "testuser");
+
+        assertEquals(Double.valueOf(20.0), response.getQuantityMoved());
+        verify(locationStockRepository).delete(fromStock);
+        verify(locationStockRepository, never()).save(fromStock);
     }
 }

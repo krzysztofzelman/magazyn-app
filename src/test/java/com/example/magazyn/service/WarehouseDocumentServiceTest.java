@@ -3,6 +3,7 @@ package com.example.magazyn.service;
 import com.example.magazyn.dto.WarehouseDocumentItemRequest;
 import com.example.magazyn.dto.WarehouseDocumentRequest;
 import com.example.magazyn.dto.WarehouseDocumentResponse;
+import com.example.magazyn.dto.WzScanResponse;
 import com.example.magazyn.entity.*;
 import com.example.magazyn.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +53,12 @@ class WarehouseDocumentServiceTest {
 
     @Mock
     private ReservationService reservationService;
+
+    @Mock
+    private LocationRepository locationRepository;
+
+    @Mock
+    private LocationStockRepository locationStockRepository;
 
     @InjectMocks
     private WarehouseDocumentService documentService;
@@ -345,5 +352,163 @@ class WarehouseDocumentServiceTest {
         when(documentRepository.findByIdWithItems(99L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> documentService.getDocumentById(99L));
+    }
+
+    // ──────────────────────────────────────────────
+    // WZ scan-location
+    // ──────────────────────────────────────────────
+
+    @Test
+    void scanLocationForWzItem_assignsLocationAndReturnsStockInfo() {
+        Product tracked = Product.builder()
+                .id(3L).name("Tracked Product").sku("SKU-C").unit("szt.")
+                .quantity(100).price(BigDecimal.valueOf(10)).trackExpiry(true).build();
+        WarehouseDocumentItem item = WarehouseDocumentItem.builder()
+                .id(20L).product(tracked).quantity(10).unitPrice(BigDecimal.TEN).build();
+        WarehouseDocument doc = createDocument(5L, DocumentType.WZ, DocumentStatus.DRAFT, List.of(item));
+
+        Location location = Location.builder()
+                .id(10L).code("MG-01-R01-S1").name("Regal 1")
+                .barcode("LOC-MG01-R01-S1").build();
+
+        LocationStock lStock = LocationStock.builder()
+                .id(1L).locationId(10L).productId(3L)
+                .quantity(BigDecimal.valueOf(50))
+                .reservedQuantity(BigDecimal.valueOf(5))
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+        when(locationRepository.findByBarcode("LOC-MG01-R01-S1")).thenReturn(Optional.of(location));
+        when(locationStockRepository.findByLocationIdAndProductId(10L, 3L)).thenReturn(Optional.of(lStock));
+        when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
+
+        WzScanResponse response = documentService.scanLocationForWzItem(5L, 20L, "LOC-MG01-R01-S1", USERNAME);
+
+        assertNotNull(response);
+        assertEquals(20L, response.getItemId().longValue());
+        assertEquals(3L, response.getProductId().longValue());
+        assertEquals("Tracked Product", response.getProductName());
+        assertEquals("MG-01-R01-S1", response.getLocationCode());
+        assertEquals(BigDecimal.valueOf(45), response.getAvailableQuantity()); // 50 - 5 reserved
+        assertEquals(Integer.valueOf(10), response.getRequestedQuantity());
+        assertTrue(response.isSufficientStock());
+        assertEquals(Long.valueOf(10L), item.getLocationId());
+        verify(itemRepository).save(any(WarehouseDocumentItem.class));
+        verify(auditLogService).log(eq(USERNAME), eq("LOCATION_SCAN_WZ_ITEM"), eq("WarehouseDocumentItem"), eq(20L), anyString());
+    }
+
+    @Test
+    void scanLocationForWzItem_productNotAtLocation_returnsZeroAvailable() {
+        WarehouseDocumentItem item = createItem(20L, null, productA, 10);
+        WarehouseDocument doc = createDocument(5L, DocumentType.WZ, DocumentStatus.DRAFT, List.of(item));
+
+        Location location = Location.builder()
+                .id(10L).code("MG-01-R01-S1").name("Regal 1")
+                .barcode("LOC-MG01-R01-S1").build();
+
+        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+        when(locationRepository.findByBarcode("LOC-MG01-R01-S1")).thenReturn(Optional.of(location));
+        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.empty());
+        when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
+
+        WzScanResponse response = documentService.scanLocationForWzItem(5L, 20L, "LOC-MG01-R01-S1", USERNAME);
+
+        assertEquals(BigDecimal.ZERO, response.getAvailableQuantity());
+        assertFalse(response.isSufficientStock());
+        verify(itemRepository).save(any(WarehouseDocumentItem.class));
+    }
+
+    @Test
+    void scanLocationForWzItem_wrongDocType_throwsException() {
+        WarehouseDocumentItem item = createItem(20L, null, productA, 10);
+        WarehouseDocument doc = createDocument(5L, DocumentType.PZ, DocumentStatus.DRAFT, List.of(item));
+
+        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+
+        assertThrows(RuntimeException.class,
+                () -> documentService.scanLocationForWzItem(5L, 20L, "LOC-TEST", USERNAME));
+    }
+
+    // ──────────────────────────────────────────────
+    // confirmDocument — WZ with location stock
+    // ──────────────────────────────────────────────
+
+    @Test
+    void confirmDocument_WZ_withLocationStock_decreasesAndDeletesStock() {
+        List<WarehouseDocumentItem> items = Arrays.asList(
+                WarehouseDocumentItem.builder()
+                        .id(10L).product(productA).quantity(5).unitPrice(productA.getPrice())
+                        .locationId(10L).build(),
+                WarehouseDocumentItem.builder()
+                        .id(11L).product(productB).quantity(3).unitPrice(productB.getPrice())
+                        .locationId(10L).build()
+        );
+        WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, items);
+
+        LocationStock stockA = LocationStock.builder()
+                .id(1L).locationId(10L).productId(1L)
+                .quantity(BigDecimal.valueOf(10)).reservedQuantity(BigDecimal.ZERO)
+                .updatedAt(LocalDateTime.now()).build();
+        LocationStock stockB = LocationStock.builder()
+                .id(2L).locationId(10L).productId(2L)
+                .quantity(BigDecimal.valueOf(5)).reservedQuantity(BigDecimal.ZERO)
+                .updatedAt(LocalDateTime.now()).build();
+
+        when(documentRepository.findByIdWithItemsLocked(1L)).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
+        when(reservationService.getActiveReservedQuantity(2L)).thenReturn(0);
+        when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
+        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.of(stockA));
+        when(locationStockRepository.findByLocationIdAndProductId(10L, 2L)).thenReturn(Optional.of(stockB));
+        when(batchRepository.findByProductIdOrderByCreatedAtAsc(anyLong())).thenReturn(List.of());
+        when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
+
+        WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
+
+        assertEquals(DocumentStatus.CONFIRMED, response.getStatus());
+
+        // stockA: 10 - 5 = 5 (saved)
+        assertEquals(BigDecimal.valueOf(5), stockA.getQuantity());
+        verify(locationStockRepository).save(stockA);
+
+        // stockB: 5 - 3 = 2 (saved)
+        assertEquals(BigDecimal.valueOf(2), stockB.getQuantity());
+        verify(locationStockRepository).save(stockB);
+
+        verify(locationStockRepository, never()).delete(any());
+        verify(locationRepository, atLeastOnce()).findById(10L);
+    }
+
+    @Test
+    void confirmDocument_WZ_withLocationStock_removesZeroQuantityStock() {
+        WarehouseDocumentItem item = WarehouseDocumentItem.builder()
+                .id(10L).product(productA).quantity(10).unitPrice(productA.getPrice())
+                .locationId(10L).build();
+        WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, List.of(item));
+
+        LocationStock stockA = LocationStock.builder()
+                .id(1L).locationId(10L).productId(1L)
+                .quantity(BigDecimal.valueOf(10)).reservedQuantity(BigDecimal.ZERO)
+                .updatedAt(LocalDateTime.now()).build();
+
+        when(documentRepository.findByIdWithItemsLocked(1L)).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
+        when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
+        when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
+        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.of(stockA));
+        when(batchRepository.findByProductIdOrderByCreatedAtAsc(anyLong())).thenReturn(List.of());
+        when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
+
+        WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
+
+        assertEquals(DocumentStatus.CONFIRMED, response.getStatus());
+
+        // 10 - 10 = 0 → should delete
+        verify(locationStockRepository).delete(stockA);
+        verify(locationStockRepository, never()).save(stockA);
+        verify(locationRepository, atLeastOnce()).findById(10L);
     }
 }

@@ -14,4 +14,6 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
     List<Location> findByParentIdIsNull();
 
     boolean existsByParentId(Long parentId);
+
+    java.util.Optional<Location> findByBarcode(String barcode);
 }

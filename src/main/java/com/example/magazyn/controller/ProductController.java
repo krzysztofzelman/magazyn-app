@@ -9,6 +9,7 @@ import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.service.BatchService;
 import com.example.magazyn.service.ImportService;
+import com.example.magazyn.service.LabelService;
 import com.example.magazyn.service.ProductService;
 import com.example.magazyn.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,14 +49,17 @@ public class ProductController {
     private final ImportService importService;
     private final BatchService batchService;
     private final ReservationService reservationService;
+    private final LabelService labelService;
 
     @Autowired
     public ProductController(ProductService productService, ImportService importService,
-                             BatchService batchService, ReservationService reservationService) {
+                             BatchService batchService, ReservationService reservationService,
+                             LabelService labelService) {
         this.productService = productService;
         this.importService = importService;
         this.batchService = batchService;
         this.reservationService = reservationService;
+        this.labelService = labelService;
     }
 
     @GetMapping
@@ -158,5 +162,18 @@ public class ProductController {
     public ResponseEntity<ProductAvailabilityResponse> getProductAvailability(
             @PathVariable @Parameter(description = "ID produktu") Long id) {
         return ResponseEntity.ok(reservationService.getProductAvailability(id));
+    }
+
+    @GetMapping("/{id}/label-pdf")
+    @Operation(summary = "Pobierz etykiet\u0119 PDF produktu (A6)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> getProductLabelPdf(
+            @PathVariable @Parameter(description = "ID produktu") Long id) {
+        byte[] pdf = labelService.generateProductLabel(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"product-" + id + "-label.pdf\"")
+                .body(pdf);
     }
 }

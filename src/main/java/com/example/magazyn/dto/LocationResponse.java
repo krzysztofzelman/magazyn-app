@@ -8,17 +8,31 @@ public class LocationResponse {
     private String type;
     private Long parentId;
     private String description;
+    private String barcode;
+    private String qrData;
+    private Integer capacity;
+    private Integer occupied;
+    private String zone;
+    private Boolean isActive;
 
     public LocationResponse() {}
 
     public LocationResponse(Long id, String code, String name, String type,
-                            Long parentId, String description) {
+                            Long parentId, String description, String barcode,
+                            String qrData, Integer capacity, Integer occupied,
+                            String zone, Boolean isActive) {
         this.id = id;
         this.code = code;
         this.name = name;
         this.type = type;
         this.parentId = parentId;
         this.description = description;
+        this.barcode = barcode;
+        this.qrData = qrData;
+        this.capacity = capacity;
+        this.occupied = occupied;
+        this.zone = zone;
+        this.isActive = isActive;
     }
 
     public Long getId() { return id; }
@@ -38,4 +52,22 @@ public class LocationResponse {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getBarcode() { return barcode; }
+    public void setBarcode(String barcode) { this.barcode = barcode; }
+
+    public String getQrData() { return qrData; }
+    public void setQrData(String qrData) { this.qrData = qrData; }
+
+    public Integer getCapacity() { return capacity; }
+    public void setCapacity(Integer capacity) { this.capacity = capacity; }
+
+    public Integer getOccupied() { return occupied; }
+    public void setOccupied(Integer occupied) { this.occupied = occupied; }
+
+    public String getZone() { return zone; }
+    public void setZone(String zone) { this.zone = zone; }
+
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
 }

@@ -16,7 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,9 +42,9 @@ public class StockController {
     @PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #request.type.name() == 'PRZYJECIE')")
     public ResponseEntity<StockMovementResponse> addMovement(
             @PathVariable @Parameter(description = "ID produktu") Long productId,
-            @Valid @RequestBody StockMovementRequest request) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        StockMovementResponse response = stockService.addMovement(productId, request, username);
+            @Valid @RequestBody StockMovementRequest request,
+            Authentication authentication) {
+        StockMovementResponse response = stockService.addMovement(productId, request, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

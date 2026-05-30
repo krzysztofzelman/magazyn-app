@@ -40,4 +40,24 @@ public class Location {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Column(unique = true)
+    private String barcode;
+
+    @Column(columnDefinition = "TEXT")
+    private String qrData;
+
+    @Column
+    private Integer capacity;
+
+    @Column
+    @Builder.Default
+    private Integer occupied = 0;
+
+    @Column
+    private String zone;
+
+    @Column
+    @Builder.Default
+    private Boolean isActive = true;
 }

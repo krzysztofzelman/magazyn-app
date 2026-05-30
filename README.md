@@ -8,6 +8,7 @@
 [![JWT](https://img.shields.io/badge/JWT-jjwt%200.13.0-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
 [![Docker](https://img.shields.io/badge/Docker-29.5.2-2496ED?logo=docker)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
+[![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
 
 Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. System obsługuje pełny cykl dokumentów magazynowych (PZ, WZ), śledzenie partii (batch/lot), rezerwacje stanów, lokalizacje produktów, FIFO przy wydaniach oraz eksport danych.
 
@@ -71,9 +72,38 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 ### Eksport i import
 - Eksport produktów do CSV / XLSX z wyborem pól
 - Eksport stanów magazynowych do CSV / XLSX z wyborem pól
-- Eksport dokumentów do PDF
+- Eksport dokumentów do PDF z użyciem iText7
 - Import produktów z CSV / XLSX z upsert po SKU i walidacją
 - Eksport dziennika audytu do CSV
+
+### Skaner kodów kreskowych i QR
+- Szybkie przyjęcie (Quick Receive) — skanuj kod, podaj ilość, system automatycznie tworzy przyjęcie na magazyn główny
+- Szybkie wydanie (Quick Issue) — skanuj kod, podaj ilość, FIFO odpis z partii
+- Podgląd produktu po zeskanowaniu — batch'e, lokalizacja, ostatni ruch
+
+### Skanowanie lokalizacji w dokumentach PZ/WZ
+- Skanowanie kodu kreskowego lokalizacji i przypisanie do pozycji dokumentu
+- Dla PZ: skanowanie lokalizacji przypisuje ją do wszystkich pozycji bez lokalizacji
+- Dla WZ: skanowanie lokalizacji sprawdza dostępność towaru w danej lokalizacji
+- Obsługa przez dedykowane endpointy `/pz-documents/` i `/wz-documents/`
+
+### Etykiety
+- Generowanie etykiet A6 z kodem kreskowym CODE128 i QR dla lokalizacji
+- Generowanie etykiet dla produktów
+- Obsługa drukowania wielu etykiet jednocześnie (A4 layout)
+
+### Sesje inwentaryzacyjne
+- Tworzenie sesji inwentaryzacyjnych dla wybranego magazynu
+- Automatyczne wypełnianie oczekiwanymi stanami z `location_stock`
+- Skanowanie produktów w sesji — porównanie stanu oczekiwanego z rzeczywistym
+- Raport różnic inwentaryzacyjnych (expected vs counted)
+- Zamknięcie sesji aktualizuje `location_stock` na podstawie zliczonych wartości
+
+### Zarządzanie użytkownikami i rolami
+- Rejestracja użytkowników przez ADMIN
+- Role: ADMIN (pełny dostęp), MANAGER/WAREHOUSE (operacje magazynowe), USER (podgląd + przyjęcia)
+- Zmiana hasła przez każdego użytkownika dla siebie
+- Dezaktywacja konta przez ADMIN
 
 ### Dashboard
 - Liczba produktów i łączna wartość stanu
@@ -108,7 +138,8 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 | PostgreSQL | 18 | Relacyjna baza danych |
 | Lombok | — | Redukcja boilerplate (@Data, @Builder, @NoArgsConstructor) |
 | Apache POI | 5.4.0 | Generowanie plików Excel (.xlsx) |
-| Apache PDFBox | 3.0.4 | Generowanie dokumentów PDF |
+| iText7 | 9.2.0 | Generowanie dokumentów PDF dla etykiet i dokumentów |
+| ZXing | 3.5.3 | Generowanie kodów kreskowych CODE128 i QR |
 | Bucket4j | 8.19.0 | Rate limiting (20 żądań/min na endpoint logowania) |
 | Springdoc OpenAPI | 2.7.0 | Swagger UI / OpenAPI docs |
 | Testcontainers | 1.21.4 | Testy integracyjne z bazą PostgreSQL |
@@ -169,10 +200,18 @@ WarehouseDocument *──1──> Contractor
 WarehouseDocumentItem *──1──> Product
 
 Location (self-referencing ── parentId)
+Location ──1:N──> LocationStock
+
+LocationStock *──1──> Location (via locationId)
+LocationStock *──1──> Product (via productId)
+LocationStock: quantity, reservedQuantity, @Version (optimistic locking)
+
 Batch *──1──> Location
 
 User ──1:N──> RefreshToken
 User ──1:N──> AuditLog
+
+InventorySession ──1:N──> InventoryItem
 ```
 
 | Encja | Tabela | Kluczowe pola |
@@ -181,10 +220,13 @@ User ──1:N──> AuditLog
 | `StockMovement` | `stock_movements` | id, type (PRZYJECIE/WYDANIE/KOREKTA), quantity, note, createdBy, batchId, product_id |
 | `Batch` | `batches` | id, lotNumber, expiryDate, manufacturingDate, quantity, product_id, locationId |
 | `Location` | `locations` | id, code, name, type (WAREHOUSE/RACK/SHELF/BIN), parentId |
+| `LocationStock` | `location_stock` | id, locationId, productId, quantity, reservedQuantity, updatedAt, @Version |
 | `Contractor` | `contractors` | id, name, taxId (unique), type (SUPPLIER/CUSTOMER), active |
 | `WarehouseDocument` | `warehouse_documents` | id, number (unique), type (PZ/WZ), status (DRAFT/CONFIRMED/CANCELLED), contractor_id |
 | `WarehouseDocumentItem` | `warehouse_document_items` | id, quantity, unitPrice, lotNumber, expiryDate, product_id, document_id |
 | `StockReservation` | `stock_reservations` | id, quantity, status (ACTIVE/RELEASED/FULFILLED), expiresAt, product_id |
+| `InventorySession` | `inventory_sessions` | id, name, status (OPEN/CLOSED), warehouseId, createdBy |
+| `InventoryItem` | `inventory_items` | id, sessionId, locationId, productId, expectedQuantity, countedQuantity |
 | `AuditLog` | `audit_logs` | id, username, action, entityType, entityId, details, ipAddress, timestamp |
 | `User` | `users` | id, username (unique), password (BCrypt), role, email |
 | `RefreshToken` | `refresh_tokens` | id, token (UUID, unique), expiresAt, user_id |
@@ -272,9 +314,53 @@ User ──1:N──> AuditLog
 | GET | `/api/locations/tree` | Drzewo lokalizacji (hierarchiczne) | Zalogowany |
 | GET | `/api/locations/{id}` | Lokalizacja po ID | Zalogowany |
 | GET | `/api/locations/{id}/products` | Produkty w lokalizacji | Zalogowany |
+| GET | `/api/locations/{id}/stock` | Stan magazynowy w lokalizacji | Zalogowany |
 | POST | `/api/locations` | Utworzenie lokalizacji | ADMIN |
 | PUT | `/api/locations/{id}` | Aktualizacja lokalizacji | ADMIN |
 | DELETE | `/api/locations/{id}` | Usunięcie lokalizacji (sprawdza dzieci) | ADMIN |
+| GET | `/api/locations/{id}/barcode-image` | Obraz kodu kreskowego lokalizacji (PNG) | Zalogowany |
+| GET | `/api/locations/{id}/qr-image` | Obraz kodu QR lokalizacji (PNG) | Zalogowany |
+| GET | `/api/locations/{id}/label-pdf` | Etykieta A6 dla lokalizacji (PDF) | Zalogowany |
+| POST | `/api/locations/transfer` | Przeniesienie towaru między lokalizacjami | MANAGER/WAREHOUSE |
+
+### Skaner — `/api/scanner`
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/scanner/lookup?code=` | Podgląd produktu po kodzie (wraz z partiami, lokalizacją, ostatnim ruchem) | Zalogowany |
+| POST | `/api/scanner/quick-receive` | Szybkie przyjęcie na magazyn główny | MANAGER/WAREHOUSE |
+| POST | `/api/scanner/quick-issue` | Szybkie wydanie z FIFO | MANAGER/WAREHOUSE |
+
+### Dokumenty PZ/WZ — skanowanie lokalizacji
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| POST | `/api/pz-documents/{id}/scan-location` | Przypisz lokalizację do wszystkich pozycji PZ | MANAGER/WAREHOUSE |
+| POST | `/api/pz-documents/{id}/items/{itemId}/scan-location` | Przypisz lokalizację do konkretnej pozycji PZ | MANAGER/WAREHOUSE |
+| POST | `/api/wz-documents/{id}/items/{itemId}/scan-location` | Skanuj lokalizację dla pozycji WZ (sprawdza dostępność) | MANAGER/WAREHOUSE |
+
+### Sesje inwentaryzacyjne — `/api/inventory`
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| POST | `/api/inventory/sessions` | Utwórz sesję inwentaryzacyjną | ADMIN |
+| GET | `/api/inventory/sessions` | Lista sesji | Zalogowany |
+| GET | `/api/inventory/sessions/{id}` | Szczegóły sesji | Zalogowany |
+| POST | `/api/inventory/sessions/{id}/scan` | Zeskanuj produkt w sesji | MANAGER/WAREHOUSE |
+| GET | `/api/inventory/sessions/{id}/report` | Raport różnic inwentaryzacyjnych | Zalogowany |
+| POST | `/api/inventory/sessions/{id}/close` | Zamknij sesję (aktualizuje stany) | ADMIN |
+
+### Zarządzanie użytkownikami — `/api/users`
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/users` | Lista użytkowników | ADMIN |
+| GET | `/api/users/{id}` | Szczegóły użytkownika | ADMIN lub sam użytkownik |
+| GET | `/api/users/me` | Szczegóły zalogowanego użytkownika | Zalogowany |
+| POST | `/api/users` | Utwórz użytkownika | ADMIN |
+| PUT | `/api/users/{id}` | Aktualizacja użytkownika | ADMIN |
+| DELETE | `/api/users/{id}` | Dezaktywacja użytkownika | ADMIN |
+| POST | `/api/users/change-password` | Zmiana hasła | Zalogowany |
 
 ### Kontrahenci — `/api/contractors`
 
@@ -354,10 +440,11 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 
 | Rola | Uprawnienia |
 |---|---|
-| `ROLE_ADMIN` | Pełny dostęp: CRUD produktów, dokumenty PZ/WZ (tworzenie, potwierdzanie, anulowanie), rezerwacje, kontrahenci, lokalizacje, import/eksport, dziennik audytu, seed danych, zarządzanie użytkownikami (rejestracja) |
+| `ROLE_ADMIN` | Pełny dostęp: CRUD produktów, dokumenty PZ/WZ (tworzenie, potwierdzanie, anulowanie), rezerwacje, kontrahenci, lokalizacje, import/eksport, dziennik audytu, seed danych, zarządzanie użytkownikami, sesje inwentaryzacyjne |
+| `ROLE_MANAGER` / `ROLE_WAREHOUSE` | Operacje magazynowe: tworzenie i potwierdzanie dokumentów PZ/WZ, skanowanie lokalizacji, szybkie przyjęcia/wydania, skanowanie w sesjach inwentaryzacyjnych, przenoszenie towaru między lokalizacjami |
 | `ROLE_USER` | Podgląd: produkty, stany magazynowe, dokumenty, kontrahenci, lokalizacje, rezerwacje, statystyki, eksport. Może dodawać tylko ruchy PRZYJECIE. |
 
-Nowi użytkownicy rejestrowani są z rolą `ROLE_USER`. Nadanie roli `ROLE_ADMIN` wymaga ręcznej zmiany w bazie danych.
+Nowi użytkownicy rejestrowani są z rolą `ROLE_USER`. Nadanie roli `ROLE_ADMIN`/`ROLE_MANAGER`/`ROLE_WAREHOUSE` wymaga ręcznej zmiany w bazie danych lub użycia panelu zarządzania użytkownikami przez ADMIN.
 
 ---
 
@@ -550,10 +637,10 @@ magazyn-app/
 │   ├── MagazynApplication.java        # @SpringBootApplication + @EnableScheduling
 │   ├── auth/                          # Autoryzacja (kontroler, serwis, DTO)
 │   ├── config/                        # Security, filtry JWT/RateLimit/AuditLog, OpenAPI
-│   ├── controller/                    # REST API (12 kontrolerów)
-│   ├── dto/                           # Data Transfer Objects
-│   ├── entity/                        # Encje JPA + enums
-│   ├── exception/                     # GlobalExceptionHandler + custom exceptions
+│   ├── controller/                    # REST API (16 kontrolerów)
+│   ├── dto/                           # Data Transfer Objects (ponad 40 klas)
+│   ├── entity/                        # Encje JPA + enums (14 encji)
+│   ├── exception/                     # GlobalExceptionHandler + 6 custom exceptions
 │   ├── repository/                    # Spring Data JPA (14 repozytoriów)
 │   ├── service/                       # Logika biznesowa (16 serwisów)
 │   └── util/                          # JwtUtil, AuditContext

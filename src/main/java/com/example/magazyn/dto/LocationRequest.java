@@ -15,6 +15,9 @@ public class LocationRequest {
     private String type;
     private Long parentId;
     private String description;
+    private Integer capacity;
+    private String zone;
+    private Boolean isActive;
 
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
@@ -30,4 +33,13 @@ public class LocationRequest {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public Integer getCapacity() { return capacity; }
+    public void setCapacity(Integer capacity) { this.capacity = capacity; }
+
+    public String getZone() { return zone; }
+    public void setZone(String zone) { this.zone = zone; }
+
+    public Boolean getIsActive() { return isActive; }
+    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
 }

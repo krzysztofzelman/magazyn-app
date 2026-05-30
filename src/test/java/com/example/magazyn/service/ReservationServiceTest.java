@@ -361,7 +361,7 @@ class ReservationServiceTest {
         StockReservation expired1 = createReservation(1L, product, 5, ReservationStatus.ACTIVE);
         expired1.setExpiresAt(LocalDateTime.of(2025, 1, 1, 12, 0));
 
-        when(reservationRepository.findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
+        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
                 .thenReturn(List.of(expired1));
         when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -370,18 +370,18 @@ class ReservationServiceTest {
         assertEquals(ReservationStatus.RELEASED, expired1.getStatus());
         assertTrue(expired1.getNotes().contains("auto-released"));
 
-        verify(reservationRepository).findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
+        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
         verify(reservationRepository).save(expired1);
     }
 
     @Test
     void releaseExpired_noExpiredReservations_doesNothing() {
-        when(reservationRepository.findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
+        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
                 .thenReturn(List.of());
 
         reservationService.releaseExpired();
 
-        verify(reservationRepository).findByStatusAndExpiresAtBefore(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
+        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
         verify(reservationRepository, never()).save(any());
     }
 

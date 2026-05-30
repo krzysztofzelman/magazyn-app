@@ -16,19 +16,22 @@ public class WarehouseDocumentItemResponse {
     private String lotNumber;
     private LocalDate expiryDate;
     private LocalDate manufacturingDate;
+    private Long locationId;
+    private String locationCode;
 
     public WarehouseDocumentItemResponse() {}
 
     public WarehouseDocumentItemResponse(Long id, Long productId, String productName, String productSku,
                                          String productUnit, Integer quantity, BigDecimal unitPrice,
                                          BigDecimal totalPrice) {
-        this(id, productId, productName, productSku, productUnit, quantity, unitPrice, totalPrice, null, null, null);
+        this(id, productId, productName, productSku, productUnit, quantity, unitPrice, totalPrice, null, null, null, null, null);
     }
 
     public WarehouseDocumentItemResponse(Long id, Long productId, String productName, String productSku,
                                          String productUnit, Integer quantity, BigDecimal unitPrice,
                                          BigDecimal totalPrice, String lotNumber,
-                                         LocalDate expiryDate, LocalDate manufacturingDate) {
+                                         LocalDate expiryDate, LocalDate manufacturingDate,
+                                         Long locationId, String locationCode) {
         this.id = id;
         this.productId = productId;
         this.productName = productName;
@@ -40,6 +43,8 @@ public class WarehouseDocumentItemResponse {
         this.lotNumber = lotNumber;
         this.expiryDate = expiryDate;
         this.manufacturingDate = manufacturingDate;
+        this.locationId = locationId;
+        this.locationCode = locationCode;
     }
 
     public Long getId() { return id; }
@@ -64,4 +69,8 @@ public class WarehouseDocumentItemResponse {
     public void setExpiryDate(LocalDate expiryDate) { this.expiryDate = expiryDate; }
     public LocalDate getManufacturingDate() { return manufacturingDate; }
     public void setManufacturingDate(LocalDate manufacturingDate) { this.manufacturingDate = manufacturingDate; }
+    public Long getLocationId() { return locationId; }
+    public void setLocationId(Long locationId) { this.locationId = locationId; }
+    public String getLocationCode() { return locationCode; }
+    public void setLocationCode(String locationCode) { this.locationCode = locationCode; }
 }

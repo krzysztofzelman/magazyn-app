@@ -5,19 +5,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Extracts the client IP address from X-Forwarded-For or remoteAddr
- * and stores it in AuditContext (ThreadLocal) for AuditLogService to consume.
- */
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE + 10)
 public class AuditLogFilter extends OncePerRequestFilter {
 
     @Override

@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     networks:
@@ -37,6 +37,7 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: false
       NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
     networks:
       - magazyn-net

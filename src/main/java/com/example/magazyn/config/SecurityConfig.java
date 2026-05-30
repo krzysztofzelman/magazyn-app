@@ -15,7 +15,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.config.Customizer;
 
 @Configuration
 @EnableWebSecurity
@@ -24,13 +23,15 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
-    private final AuditLogFilter auditLogFilter;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil,
-                          AuditLogFilter auditLogFilter) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
-        this.auditLogFilter = auditLogFilter;
+    }
+
+    @Bean
+    public AuditLogFilter auditLogFilter() {
+        return new AuditLogFilter();
     }
 
     @Bean
@@ -47,7 +48,6 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
@@ -102,7 +102,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(auditLogFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(auditLogFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex

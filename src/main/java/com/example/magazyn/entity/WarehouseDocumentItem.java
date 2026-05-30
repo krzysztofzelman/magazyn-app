@@ -45,6 +45,9 @@ public class WarehouseDocumentItem {
     @Column
     private LocalDate manufacturingDate;
 
+    @Column(name = "location_id")
+    private Long locationId;
+
     @Version
     private Integer version;
 }

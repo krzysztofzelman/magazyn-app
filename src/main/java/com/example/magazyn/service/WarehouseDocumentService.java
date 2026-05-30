@@ -12,12 +12,25 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.properties.UnitValue;
+
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +46,8 @@ public class WarehouseDocumentService {
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
     private final ReservationService reservationService;
+    private final LocationRepository locationRepository;
+    private final LocationStockRepository locationStockRepository;
 
     public WarehouseDocumentService(WarehouseDocumentRepository documentRepository,
                                     WarehouseDocumentItemRepository itemRepository,
@@ -42,7 +57,9 @@ public class WarehouseDocumentService {
                                     StockService stockService,
                                     BatchRepository batchRepository,
                                     AuditLogService auditLogService,
-                                    ReservationService reservationService) {
+                                    ReservationService reservationService,
+                                    LocationRepository locationRepository,
+                                    LocationStockRepository locationStockRepository) {
         this.documentRepository = documentRepository;
         this.itemRepository = itemRepository;
         this.contractorRepository = contractorRepository;
@@ -52,6 +69,8 @@ public class WarehouseDocumentService {
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
         this.reservationService = reservationService;
+        this.locationRepository = locationRepository;
+        this.locationStockRepository = locationStockRepository;
     }
 
     public WarehouseDocumentResponse createDocument(WarehouseDocumentRequest request, String username) {
@@ -141,6 +160,112 @@ public class WarehouseDocumentService {
         return toResponse(document);
     }
 
+    public LocationResponse scanLocationForDocument(Long docId, String barcode) {
+        WarehouseDocument document = documentRepository.findById(docId)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
+
+        if (document.getType() != DocumentType.PZ) {
+            throw new InvalidOperationException("Scan-location is only supported for PZ documents");
+        }
+
+        if (document.getStatus() != DocumentStatus.DRAFT) {
+            throw new InvalidOperationException("Only DRAFT documents can be updated");
+        }
+
+        Location location = locationRepository.findByBarcode(barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
+
+        // Assign this location to all items that don't have a location yet
+        for (WarehouseDocumentItem item : document.getItems()) {
+            if (item.getLocationId() == null) {
+                item.setLocationId(location.getId());
+            }
+        }
+        documentRepository.save(document);
+
+        return toLocationResponse(location);
+    }
+
+    public WarehouseDocumentItemResponse scanLocationForItem(Long docId, Long itemId, String barcode, String username) {
+        WarehouseDocument document = documentRepository.findById(docId)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
+
+        if (document.getType() != DocumentType.PZ) {
+            throw new InvalidOperationException("Scan-location is only supported for PZ documents");
+        }
+
+        if (document.getStatus() != DocumentStatus.DRAFT) {
+            throw new InvalidOperationException("Only DRAFT documents can be updated");
+        }
+
+        WarehouseDocumentItem item = document.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocumentItem", itemId));
+
+        Location location = locationRepository.findByBarcode(barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
+
+        item.setLocationId(location.getId());
+        itemRepository.save(item);
+
+        auditLogService.log(username, "LOCATION_SCAN_ITEM", "WarehouseDocumentItem", itemId,
+                "locationId=" + location.getId() + " barcode=" + barcode + " doc=" + document.getNumber());
+
+        BigDecimal totalPrice = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+        return new WarehouseDocumentItemResponse(
+                item.getId(),
+                item.getProduct().getId(),
+                item.getProduct().getName(),
+                item.getProduct().getSku(),
+                item.getProduct().getUnit(),
+                item.getQuantity(),
+                item.getUnitPrice(),
+                totalPrice,
+                item.getLotNumber(),
+                item.getExpiryDate(),
+                item.getManufacturingDate(),
+                location.getId(),
+                location.getCode()
+        );
+    }
+
+    private void updateLocationStock(Long locationId, Long productId, Integer quantity) {
+        LocationStock stock = locationStockRepository.findByLocationIdAndProductId(locationId, productId)
+                .orElse(null);
+
+        if (stock != null) {
+            stock.setQuantity(stock.getQuantity().add(BigDecimal.valueOf(quantity)));
+            stock.setUpdatedAt(LocalDateTime.now());
+        } else {
+            stock = LocationStock.builder()
+                    .locationId(locationId)
+                    .productId(productId)
+                    .quantity(BigDecimal.valueOf(quantity))
+                    .reservedQuantity(BigDecimal.ZERO)
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+        locationStockRepository.save(stock);
+    }
+
+    private LocationResponse toLocationResponse(Location location) {
+        return new LocationResponse(
+                location.getId(),
+                location.getCode(),
+                location.getName(),
+                location.getType().name(),
+                location.getParentId(),
+                location.getDescription(),
+                location.getBarcode(),
+                location.getQrData(),
+                location.getCapacity(),
+                location.getOccupied(),
+                location.getZone(),
+                location.getIsActive()
+        );
+    }
+
     public WarehouseDocumentResponse confirmDocument(Long id, String username) {
         WarehouseDocument document = documentRepository.findByIdWithItemsLocked(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
@@ -226,6 +351,92 @@ public class WarehouseDocumentService {
                     .batchId(batchId)
                     .build();
             stockMovementRepository.save(movement);
+
+            // Update location_stock and location.occupied if item has a location assigned
+            if (item.getLocationId() != null) {
+                LocationStock stock = locationStockRepository
+                        .findByLocationIdAndProductIdForUpdate(item.getLocationId(), item.getProduct().getId())
+                        .orElse(null);
+
+                if (stock != null) {
+                    stock.setQuantity(stock.getQuantity().add(BigDecimal.valueOf(item.getQuantity())));
+                    stock.setUpdatedAt(LocalDateTime.now());
+                } else {
+                    stock = LocationStock.builder()
+                            .locationId(item.getLocationId())
+                            .productId(item.getProduct().getId())
+                            .quantity(BigDecimal.valueOf(item.getQuantity()))
+                            .reservedQuantity(BigDecimal.ZERO)
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+                }
+                locationStockRepository.save(stock);
+
+                // Update location.occupied
+                updateLocationOccupied(item.getLocationId());
+            }
+        }
+    }
+
+    public WzScanResponse scanLocationForWzItem(Long docId, Long itemId, String barcode, String username) {
+        WarehouseDocument document = documentRepository.findById(docId)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
+
+        if (document.getType() != DocumentType.WZ) {
+            throw new InvalidOperationException("Scan-location is only supported for WZ documents");
+        }
+
+        if (document.getStatus() != DocumentStatus.DRAFT) {
+            throw new InvalidOperationException("Only DRAFT documents can be updated");
+        }
+
+        WarehouseDocumentItem item = document.getItems().stream()
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocumentItem", itemId));
+
+        Location location = locationRepository.findByBarcode(barcode)
+                .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
+
+        LocationStock stock = locationStockRepository
+                .findByLocationIdAndProductId(location.getId(), item.getProduct().getId())
+                .orElse(null);
+
+        BigDecimal available = (stock != null)
+                ? stock.getQuantity().subtract(stock.getReservedQuantity())
+                : BigDecimal.ZERO;
+
+        item.setLocationId(location.getId());
+        itemRepository.save(item);
+
+        auditLogService.log(username, "LOCATION_SCAN_WZ_ITEM", "WarehouseDocumentItem", itemId,
+                "locationId=" + location.getId() + " barcode=" + barcode
+                + " product=" + item.getProduct().getName() + " available=" + available);
+
+        return new WzScanResponse(
+                item.getId(),
+                item.getProduct().getId(),
+                item.getProduct().getName(),
+                item.getProduct().getSku(),
+                item.getProduct().getUnit(),
+                item.getQuantity(),
+                location.getId(),
+                location.getCode(),
+                available,
+                available.compareTo(BigDecimal.valueOf(item.getQuantity())) >= 0
+        );
+    }
+
+    private void updateLocationOccupied(Long locationId) {
+        List<LocationStock> stocks = locationStockRepository.findByLocationId(locationId);
+        int totalOccupied = stocks.stream()
+                .map(s -> s.getQuantity().setScale(0, RoundingMode.UP).intValue())
+                .reduce(0, Integer::sum);
+
+        Location location = locationRepository.findById(locationId).orElse(null);
+        if (location != null) {
+            location.setOccupied(totalOccupied);
+            locationRepository.save(location);
         }
     }
 
@@ -288,6 +499,27 @@ public class WarehouseDocumentService {
                     .createdBy(username)
                     .build();
             stockMovementRepository.save(movement);
+
+            // Decrease location_stock if item has a location assigned
+            if (item.getLocationId() != null) {
+                LocationStock stock = locationStockRepository
+                        .findByLocationIdAndProductIdForUpdate(item.getLocationId(), item.getProduct().getId())
+                        .orElse(null);
+
+                if (stock != null) {
+                    BigDecimal newQuantity = stock.getQuantity().subtract(BigDecimal.valueOf(item.getQuantity()));
+                    if (newQuantity.compareTo(BigDecimal.ZERO) <= 0) {
+                        locationStockRepository.delete(stock);
+                    } else {
+                        stock.setQuantity(newQuantity);
+                        stock.setUpdatedAt(LocalDateTime.now());
+                        locationStockRepository.save(stock);
+                    }
+
+                    // Update location.occupied
+                    updateLocationOccupied(item.getLocationId());
+                }
+            }
         }
     }
 
@@ -308,9 +540,64 @@ public class WarehouseDocumentService {
         return prefix + String.format("%03d", nextSeq);
     }
 
+    public byte[] exportDocumentPdf(Long id) {
+        WarehouseDocument doc = documentRepository.findByIdWithItems(id)
+                .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(baos);
+        PdfDocument pdf = new PdfDocument(writer);
+        Document document = new Document(pdf);
+        document.setMargins(20, 20, 20, 20);
+
+        document.add(new Paragraph("Warehouse Document").setFontSize(18).setBold());
+        document.add(new Paragraph("Number: " + doc.getNumber()));
+        document.add(new Paragraph("Type: " + doc.getType()));
+        document.add(new Paragraph("Status: " + doc.getStatus()));
+        document.add(new Paragraph("Contractor: " + doc.getContractor().getName()));
+        document.add(new Paragraph("Date: " + doc.getCreatedAt().toLocalDate().toString()));
+        document.add(new Paragraph("Created by: " + doc.getCreatedBy()));
+        if (doc.getNotes() != null && !doc.getNotes().isBlank()) {
+            document.add(new Paragraph("Notes: " + doc.getNotes()));
+        }
+        document.add(new Paragraph(" "));
+
+        // Items table
+        Table table = new Table(UnitValue.createPercentArray(new float[]{3, 1, 1, 2}));
+        table.setWidth(UnitValue.createPercentValue(100));
+        table.addHeaderCell(new Cell().add(new Paragraph("Product").setBold()));
+        table.addHeaderCell(new Cell().add(new Paragraph("Quantity").setBold()));
+        table.addHeaderCell(new Cell().add(new Paragraph("Unit Price").setBold()));
+        table.addHeaderCell(new Cell().add(new Paragraph("Total").setBold()));
+
+        for (WarehouseDocumentItem item : doc.getItems()) {
+            BigDecimal totalPrice = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            table.addCell(new Cell().add(new Paragraph(item.getProduct().getName())));
+            table.addCell(new Cell().add(new Paragraph(String.valueOf(item.getQuantity()))));
+            table.addCell(new Cell().add(new Paragraph(item.getUnitPrice().toString())));
+            table.addCell(new Cell().add(new Paragraph(totalPrice.toString())));
+        }
+        document.add(table);
+
+        document.close();
+        return baos.toByteArray();
+    }
+
     private WarehouseDocumentResponse toResponse(WarehouseDocument doc) {
+        // Batch-load location codes to avoid N+1 in toItemResponse
+        Map<Long, String> locationCodeMap = new HashMap<>();
+        List<Long> locationIds = doc.getItems().stream()
+                .map(WarehouseDocumentItem::getLocationId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (!locationIds.isEmpty()) {
+            locationRepository.findAllById(locationIds).forEach(
+                    loc -> locationCodeMap.put(loc.getId(), loc.getCode()));
+        }
+
         List<WarehouseDocumentItemResponse> itemResponses = doc.getItems().stream()
-                .map(this::toItemResponse)
+                .map(item -> toItemResponse(item, locationCodeMap))
                 .collect(Collectors.toList());
 
         return new WarehouseDocumentResponse(
@@ -329,8 +616,14 @@ public class WarehouseDocumentService {
         );
     }
 
-    private WarehouseDocumentItemResponse toItemResponse(WarehouseDocumentItem item) {
+    private WarehouseDocumentItemResponse toItemResponse(WarehouseDocumentItem item,
+                                                          Map<Long, String> locationCodeMap) {
         BigDecimal totalPrice = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+
+        String locationCode = item.getLocationId() != null
+                ? locationCodeMap.get(item.getLocationId())
+                : null;
+
         return new WarehouseDocumentItemResponse(
                 item.getId(),
                 item.getProduct().getId(),
@@ -342,7 +635,9 @@ public class WarehouseDocumentService {
                 totalPrice,
                 item.getLotNumber(),
                 item.getExpiryDate(),
-                item.getManufacturingDate()
+                item.getManufacturingDate(),
+                item.getLocationId(),
+                locationCode
         );
     }
 }

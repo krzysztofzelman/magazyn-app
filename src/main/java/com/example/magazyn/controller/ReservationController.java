@@ -59,11 +59,11 @@ public class ReservationController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Zwolnij rezerwację", description = "Zwalnia (anuluje) aktywną rezerwację. Wymaga roli ADMIN.")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ReservationResponse> releaseReservation(
+    public ResponseEntity<Void> releaseReservation(
             @PathVariable @Parameter(description = "ID rezerwacji") Long id,
             Authentication authentication) {
         String username = authentication != null ? authentication.getName() : "anonymous";
-        ReservationResponse response = reservationService.release(id, username);
-        return ResponseEntity.ok(response);
+        reservationService.release(id, username);
+        return ResponseEntity.noContent().build();
     }
 }
