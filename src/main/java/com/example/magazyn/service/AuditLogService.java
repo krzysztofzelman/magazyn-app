@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ public class AuditLogService {
      * Persists an audit log entry. Never throws — failures are logged and swallowed
      * so they never block the calling business operation.
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void log(String username, String action, String entityType, Long entityId, String details) {
         try {
             AuditLog auditLog = AuditLog.builder()
