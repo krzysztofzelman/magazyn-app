@@ -132,7 +132,7 @@ public class LocationService {
         Location location = Location.builder()
                 .code(request.getCode())
                 .name(request.getName())
-                .type(LocationType.valueOf(request.getType()))
+                .type(request.getType())
                 .parentId(request.getParentId())
                 .description(request.getDescription())
                 .capacity(request.getCapacity())
@@ -158,7 +158,7 @@ public class LocationService {
             existing.setName(request.getName());
         }
         if (request.getType() != null) {
-            existing.setType(LocationType.valueOf(request.getType()));
+            existing.setType(request.getType());
         }
         existing.setParentId(request.getParentId());
         if (request.getDescription() != null) {

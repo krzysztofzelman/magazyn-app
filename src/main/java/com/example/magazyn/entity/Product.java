@@ -52,6 +52,12 @@ public class Product {
     private Integer minQuantity = 0;
 
     @Column
+    private Long categoryId;
+
+    @Column
+    private Long defaultLocationId;
+
+    @Column
     private Long locationId;
 
     @Column(nullable = false)

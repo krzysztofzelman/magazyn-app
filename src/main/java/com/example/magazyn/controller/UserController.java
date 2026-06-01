@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,10 +42,17 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or @userService.getUser(#id).username == authentication.name")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Szczegóły użytkownika (ADMIN lub sam użytkownik)")
-    public ResponseEntity<UserResponse> getUser(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUser(id));
+    public ResponseEntity<UserResponse> getUser(@PathVariable Long id, Authentication authentication) {
+        UserResponse user = userService.getUser(id);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isSelf = user.getUsername().equals(authentication.getName());
+        if (!isAdmin && !isSelf) {
+            throw new AccessDeniedException("Access denied");
+        }
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping("/me")

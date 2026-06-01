@@ -34,9 +34,11 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     @Query("SELECT b FROM Batch b WHERE b.product.id = :productId ORDER BY b.createdAt ASC")
     List<Batch> findByProductIdOrderByCreatedAtAscForUpdate(@Param("productId") Long productId);
 
+    @EntityGraph(attributePaths = {"product"})
     @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
     List<Batch> findExpiredBatches(@Param("date") LocalDate date);
 
+    @EntityGraph(attributePaths = {"product"})
     @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate > :today AND b.expiryDate <= :threshold AND b.quantity > 0")
     List<Batch> findExpiringBatches(@Param("today") LocalDate today, @Param("threshold") LocalDate threshold);
 
@@ -46,6 +48,11 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     @Query("SELECT COALESCE(SUM(p.price * b.quantity), 0) FROM Batch b JOIN b.product p WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
     java.math.BigDecimal totalValueOfExpiredBatches(@Param("date") LocalDate date);
 
-    @Query("SELECT b.product.id, MIN(b.expiryDate) FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.quantity > 0 GROUP BY b.product.id")
-    List<Object[]> findNearestExpiryDateByProduct();
+    @Query("SELECT b.product.id AS productId, MIN(b.expiryDate) AS nearestExpiryDate FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.quantity > 0 GROUP BY b.product.id")
+    List<NearestExpiryProjection> findNearestExpiryDateByProduct();
+
+    interface NearestExpiryProjection {
+        Long getProductId();
+        LocalDate getNearestExpiryDate();
+    }
 }

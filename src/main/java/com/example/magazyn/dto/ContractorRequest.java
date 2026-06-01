@@ -2,6 +2,7 @@ package com.example.magazyn.dto;
 
 import com.example.magazyn.entity.ContractorType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 public class ContractorRequest {
@@ -18,8 +19,10 @@ public class ContractorRequest {
 
     private String phone;
 
+    @NotNull(message = "Typ kontrahenta jest wymagany")
     private ContractorType type;
 
+    @NotNull(message = "Status aktywności jest wymagany")
     private Boolean active;
 
     public @NotBlank(message = "Nazwa kontrahenta jest wymagana") String getName() {

@@ -3,6 +3,7 @@ package com.example.magazyn.exception;
 import com.example.magazyn.auth.RefreshTokenException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -124,6 +125,34 @@ public class GlobalExceptionHandler {
                 null
         );
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+        log.warn("Malformed JSON request: {}", ex.getMessage());
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Nieprawid\u0142owy format \u017c\u0105dania (JSON)",
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        String message = "Naruszenie integralno\u015Bci danych. Sprawd\u017A, czy rekord nie istnieje lub nie jest powi\u0105zany.";
+        if (ex.getMessage() != null && ex.getMessage().contains("unique")) {
+            message = "Rekord o podanej warto\u015Bci ju\u017C istnieje (naruszenie unikalno\u015Bci).";
+        }
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.CONFLICT.value(),
+                message,
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(RuntimeException.class)

@@ -15,6 +15,7 @@ public class WarehouseDocumentItemRequest {
     @Positive(message = "Ilość musi być dodatnia")
     private Integer quantity;
 
+    @NotNull(message = "Cena jednostkowa jest wymagana")
     private BigDecimal unitPrice;
 
     private String lotNumber;

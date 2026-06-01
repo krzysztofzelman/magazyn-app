@@ -1,8 +1,16 @@
 package com.example.magazyn.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public class QuickIssueRequest {
+    @NotNull(message = "ID produktu jest wymagane")
     private Long productId;
+
+    @NotNull(message = "Ilość jest wymagana")
+    @Positive(message = "Ilość musi być dodatnia")
     private Integer quantity;
+
     private Long batchId;
     private String note;
 

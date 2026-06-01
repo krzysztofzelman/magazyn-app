@@ -570,8 +570,6 @@ public class SeedService {
         result.putAll(seedDocuments(systemUser));
         result.putAll(seedReservations(systemUser));
 
-        assignProductLocations();
-
         return result;
     }
 

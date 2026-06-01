@@ -21,31 +21,33 @@ public class ProductResponse {
     private LocalDate nearestExpiryDate;
     private Boolean trackExpiry;
     private String barcode;
+    private Long categoryId;
+    private Long defaultLocationId;
 
     public ProductResponse() {}
 
-    public ProductResponse(Long id, String name, String sku, String description, String unit,
+    public ProductResponse(Long id, String name, String sku, String barcode, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt) {
-        this(id, name, sku, null, description, unit, quantity, price, minQuantity,
+        this(id, name, sku, barcode, description, unit, quantity, price, minQuantity,
                 locationId, createdAt, 0, quantity, null, false);
     }
 
-    public ProductResponse(Long id, String name, String sku, String description, String unit,
+    public ProductResponse(Long id, String name, String sku, String barcode, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt,
                            Integer reservedQuantity, Integer availableQuantity,
                            LocalDate nearestExpiryDate) {
-        this(id, name, sku, null, description, unit, quantity, price, minQuantity,
+        this(id, name, sku, barcode, description, unit, quantity, price, minQuantity,
                 locationId, createdAt, reservedQuantity, availableQuantity, nearestExpiryDate, false);
     }
 
-    public ProductResponse(Long id, String name, String sku, String description, String unit,
+    public ProductResponse(Long id, String name, String sku, String barcode, String description, String unit,
                            Integer quantity, BigDecimal price, Integer minQuantity,
                            Long locationId, LocalDateTime createdAt,
                            Integer reservedQuantity, Integer availableQuantity,
                            LocalDate nearestExpiryDate, Boolean trackExpiry) {
-        this(id, name, sku, null, description, unit, quantity, price, minQuantity,
+        this(id, name, sku, barcode, description, unit, quantity, price, minQuantity,
                 locationId, createdAt, reservedQuantity, availableQuantity, nearestExpiryDate, trackExpiry);
     }
 
@@ -115,4 +117,10 @@ public class ProductResponse {
 
     public String getBarcode() { return barcode; }
     public void setBarcode(String barcode) { this.barcode = barcode; }
+
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+
+    public Long getDefaultLocationId() { return defaultLocationId; }
+    public void setDefaultLocationId(Long defaultLocationId) { this.defaultLocationId = defaultLocationId; }
 }

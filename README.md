@@ -138,8 +138,8 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 | PostgreSQL | 18 | Relacyjna baza danych |
 | Lombok | — | Redukcja boilerplate (@Data, @Builder, @NoArgsConstructor) |
 | Apache POI | 5.4.0 | Generowanie plików Excel (.xlsx) |
-| iText7 | 9.2.0 | Generowanie dokumentów PDF dla etykiet i dokumentów |
-| ZXing | 3.5.3 | Generowanie kodów kreskowych CODE128 i QR |
+| iText7 | 7.2.5 | Generowanie dokumentów PDF dla etykiet i dokumentów |
+| ZXing | 3.5.2 | Generowanie kodów kreskowych CODE128 i QR |
 | Bucket4j | 8.19.0 | Rate limiting (20 żądań/min na endpoint logowania) |
 | Springdoc OpenAPI | 2.7.0 | Swagger UI / OpenAPI docs |
 | Testcontainers | 1.21.4 | Testy integracyjne z bazą PostgreSQL |
@@ -216,7 +216,7 @@ InventorySession ──1:N──> InventoryItem
 
 | Encja | Tabela | Kluczowe pola |
 |---|---|---|
-| `Product` | `products` | id, name, sku (unique), description, unit, quantity, price, minQuantity, locationId |
+| `Product` | `products` | id, name, sku (unique), description, unit, quantity, price, minQuantity, locationId, categoryId, defaultLocationId, barcode, trackExpiry |
 | `StockMovement` | `stock_movements` | id, type (PRZYJECIE/WYDANIE/KOREKTA), quantity, note, createdBy, batchId, product_id |
 | `Batch` | `batches` | id, lotNumber, expiryDate, manufacturingDate, quantity, product_id, locationId |
 | `Location` | `locations` | id, code, name, type (WAREHOUSE/RACK/SHELF/BIN), parentId |
@@ -463,7 +463,7 @@ Nowi użytkownicy rejestrowani są z rolą `ROLE_USER`. Nadanie roli `ROLE_ADMIN
 | `DB_PASSWORD` | Hasło użytkownika bazy | Tak |
 | `JWT_SECRET` | Klucz do podpisu JWT (min. 32 znaki, Base64) | Tak |
 | `JWT_EXPIRATION` | Czas ważności tokena (ms, domyślnie 86400000 = 24h) | Nie |
-| `APP_NOTIFICATIONS_ENABLED` | Włączenie powiadomień e-mail (domyślnie true) | Nie |
+| `NOTIFICATIONS_ENABLED` | Włączenie powiadomień e-mail (domyślnie false) | Nie |
 | `SPRING_MAIL_HOST` | Host SMTP | Gdy notifications włączone |
 | `SPRING_MAIL_PORT` | Port SMTP (587) | Gdy notifications włączone |
 | `SPRING_MAIL_USERNAME` | Użytkownik SMTP | Gdy notifications włączone |

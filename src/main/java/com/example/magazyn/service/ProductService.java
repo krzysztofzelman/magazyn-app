@@ -92,6 +92,8 @@ public class ProductService {
                 .minQuantity(request.getMinQuantity() != null ? request.getMinQuantity() : 0)
                 .trackExpiry(request.getTrackExpiry() != null ? request.getTrackExpiry() : false)
                 .barcode(request.getBarcode())
+                .categoryId(request.getCategoryId())
+                .defaultLocationId(request.getDefaultLocationId())
                 .build();
 
         Product saved = productRepository.save(product);
@@ -174,7 +176,7 @@ public class ProductService {
         int availableQuantity = Math.max(product.getQuantity() - reservedQuantity, 0);
         LocalDate nearestExpiry = nearestExpiryMap.get(product.getId());
 
-        return new ProductResponse(
+        ProductResponse response = new ProductResponse(
                 product.getId(),
                 product.getName(),
                 product.getSku(),
@@ -191,5 +193,8 @@ public class ProductService {
                 nearestExpiry,
                 product.getTrackExpiry()
         );
+        response.setCategoryId(product.getCategoryId());
+        response.setDefaultLocationId(product.getDefaultLocationId());
+        return response;
     }
 }

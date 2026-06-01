@@ -27,8 +27,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Public endpoint — always let through without token
-        if (path.equals("/api/auth/login")) {
+        // Public endpoints — always let through without token
+        if (path.equals("/api/auth/login") || path.equals("/api/auth/refresh")
+                || path.equals("/actuator/health") || path.equals("/actuator/info")
+                || path.equals("/") || path.equals("/index.html") || path.equals("/favicon.svg")
+                || path.equals("/icons.svg") || path.startsWith("/assets/")) {
             filterChain.doFilter(request, response);
             return;
         }

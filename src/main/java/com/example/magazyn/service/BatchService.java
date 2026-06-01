@@ -41,8 +41,8 @@ public class BatchService {
         return batchRepository.findNearestExpiryDateByProduct()
                 .stream()
                 .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (LocalDate) row[1]
+                        BatchRepository.NearestExpiryProjection::getProductId,
+                        BatchRepository.NearestExpiryProjection::getNearestExpiryDate
                 ));
     }
 

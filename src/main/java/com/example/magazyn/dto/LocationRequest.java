@@ -1,5 +1,6 @@
 package com.example.magazyn.dto;
 
+import com.example.magazyn.entity.LocationType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -12,7 +13,7 @@ public class LocationRequest {
     private String name;
 
     @NotNull(message = "Typ lokalizacji jest wymagany")
-    private String type;
+    private LocationType type;
     private Long parentId;
     private String description;
     private Integer capacity;
@@ -25,8 +26,8 @@ public class LocationRequest {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public LocationType getType() { return type; }
+    public void setType(LocationType type) { this.type = type; }
 
     public Long getParentId() { return parentId; }
     public void setParentId(Long parentId) { this.parentId = parentId; }

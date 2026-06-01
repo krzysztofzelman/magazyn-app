@@ -1,6 +1,7 @@
 package com.example.magazyn.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 
@@ -27,6 +28,10 @@ public class CreateProductRequest {
 
     private String barcode;
 
+    private Long categoryId;
+
+    private Long defaultLocationId;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -50,4 +55,10 @@ public class CreateProductRequest {
 
     public String getBarcode() { return barcode; }
     public void setBarcode(String barcode) { this.barcode = barcode; }
+
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+
+    public Long getDefaultLocationId() { return defaultLocationId; }
+    public void setDefaultLocationId(Long defaultLocationId) { this.defaultLocationId = defaultLocationId; }
 }

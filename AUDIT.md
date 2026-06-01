@@ -169,7 +169,7 @@ Endpointy jak `GET /api/products/{id}`, `GET /api/stats/dashboard` używają num
 .allowedOrigins(
     "http://localhost:5173",
     "http://REMOVED:5180",
-    "https://magazyn-frontend.vercel.app"
+    "https://magazyn.kzelman.pl"
 )
 ```
 Lista dozwolonych originów jest precyzyjna i ograniczona do faktycznie używanych domen. Brak `allowCredentials(true)` w połączeniu z wildcard — dobrze.

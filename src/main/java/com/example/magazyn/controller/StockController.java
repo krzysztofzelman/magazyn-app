@@ -39,7 +39,7 @@ public class StockController {
 
     @PostMapping("/{productId}/movement")
     @Operation(summary = "Dodaj ruch magazynowy", description = "Przyj\u0119cie lub wydanie towaru. USER mo\u017ce tylko przyj\u0119cia, ADMIN oba typy.")
-    @PreAuthorize("hasRole('ADMIN') or (hasRole('USER') and #request.type.name() == 'PRZYJECIE')")
+    @PreAuthorize("hasRole('ADMIN') or (hasRole('VIEWER') and #request.type.name() == 'PRZYJECIE')")
     public ResponseEntity<StockMovementResponse> addMovement(
             @PathVariable @Parameter(description = "ID produktu") Long productId,
             @Valid @RequestBody StockMovementRequest request,

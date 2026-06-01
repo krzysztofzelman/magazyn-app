@@ -1,10 +1,17 @@
 package com.example.magazyn.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDate;
 
 public class QuickReceiveRequest {
+    @NotNull(message = "ID produktu jest wymagane")
     private Long productId;
+
+    @NotNull(message = "Ilość jest wymagana")
+    @Positive(message = "Ilość musi być dodatnia")
     private Integer quantity;
+
     private String lotNumber;
     private LocalDate expiryDate;
     private LocalDate manufacturingDate;
