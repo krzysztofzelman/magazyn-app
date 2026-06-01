@@ -227,7 +227,7 @@ public class LocationService {
 
         // Check source stock sufficiency (available = quantity - reserved)
         LocationStock fromStock = locationStockRepository
-                .findByLocationIdAndProductIdForUpdate(fromLocation.getId(), product.getId())
+                .findByLocationIdAndProductIdWithLock(fromLocation.getId(), product.getId())
                 .orElseThrow(() -> new InvalidOperationException(
                         "Product " + product.getName() + " is not stored in source location " + fromLocation.getCode()));
 
@@ -250,7 +250,7 @@ public class LocationService {
 
         // Increase to-stock (create if not exists)
         LocationStock toStock = locationStockRepository
-                .findByLocationIdAndProductIdForUpdate(toLocation.getId(), product.getId())
+                .findByLocationIdAndProductIdWithLock(toLocation.getId(), product.getId())
                 .orElse(LocationStock.builder()
                         .locationId(toLocation.getId())
                         .productId(product.getId())

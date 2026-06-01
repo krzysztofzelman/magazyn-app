@@ -355,7 +355,7 @@ public class WarehouseDocumentService {
             // Update location_stock and location.occupied if item has a location assigned
             if (item.getLocationId() != null) {
                 LocationStock stock = locationStockRepository
-                        .findByLocationIdAndProductIdForUpdate(item.getLocationId(), item.getProduct().getId())
+                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId())
                         .orElse(null);
 
                 if (stock != null) {
@@ -503,7 +503,7 @@ public class WarehouseDocumentService {
             // Decrease location_stock if item has a location assigned
             if (item.getLocationId() != null) {
                 LocationStock stock = locationStockRepository
-                        .findByLocationIdAndProductIdForUpdate(item.getLocationId(), item.getProduct().getId())
+                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId())
                         .orElse(null);
 
                 if (stock != null) {
