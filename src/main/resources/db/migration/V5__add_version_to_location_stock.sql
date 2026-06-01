@@ -1,0 +1,2 @@
+ALTER TABLE location_stock
+    ADD COLUMN version INTEGER NOT NULL DEFAULT 0;
