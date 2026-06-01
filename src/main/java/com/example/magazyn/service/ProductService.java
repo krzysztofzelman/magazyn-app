@@ -75,6 +75,13 @@ public class ProductService {
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
+    @Transactional(readOnly = true)
+    public Optional<ProductResponse> getProductByBarcode(String barcode) {
+        Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
+        return productRepository.findByBarcode(barcode)
+                .map(product -> toResponse(product, nearestExpiryMap));
+    }
+
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
         meterRegistry.counter("products.created.count").increment();

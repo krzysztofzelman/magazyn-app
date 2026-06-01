@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class LocationServiceTest {
@@ -59,7 +60,7 @@ class LocationServiceTest {
                 .build();
     }
 
-    private LocationRequest createRequest(String code, String name, String type, Long parentId) {
+    private LocationRequest createRequest(String code, String name, LocationType type, Long parentId) {
         LocationRequest request = new LocationRequest();
         request.setCode(code);
         request.setName(name);
@@ -75,7 +76,7 @@ class LocationServiceTest {
 
     @Test
     void createLocation_withoutParent_success() {
-        LocationRequest request = createRequest("WH-01", "Main Warehouse", "WAREHOUSE", null);
+        LocationRequest request = createRequest("WH-01", "Main Warehouse", LocationType.WAREHOUSE, null);
         Location saved = createLocation(1L, "WH-01", "Main Warehouse", LocationType.WAREHOUSE, null);
 
         when(locationRepository.save(any(Location.class))).thenReturn(saved);
@@ -95,7 +96,7 @@ class LocationServiceTest {
 
     @Test
     void createLocation_withValidParent_success() {
-        LocationRequest request = createRequest("RACK-01", "Rack 1", "RACK", 1L);
+        LocationRequest request = createRequest("RACK-01", "Rack 1", LocationType.RACK, 1L);
 
         when(locationRepository.existsById(1L)).thenReturn(true);
 
@@ -112,7 +113,7 @@ class LocationServiceTest {
 
     @Test
     void createLocation_withInvalidParent_throws() {
-        LocationRequest request = createRequest("RACK-01", "Rack 1", "RACK", 999L);
+        LocationRequest request = createRequest("RACK-01", "Rack 1", LocationType.RACK, 999L);
 
         when(locationRepository.existsById(999L)).thenReturn(false);
 
@@ -126,7 +127,7 @@ class LocationServiceTest {
 
     @Test
     void createLocation_parentIdNull_noValidation() {
-        LocationRequest request = createRequest("BIN-01", "Bin 1", "BIN", null);
+        LocationRequest request = createRequest("BIN-01", "Bin 1", LocationType.BIN, null);
         Location saved = createLocation(1L, "BIN-01", "Bin 1", LocationType.BIN, null);
 
         when(locationRepository.save(any(Location.class))).thenReturn(saved);
@@ -288,7 +289,7 @@ class LocationServiceTest {
     @Test
     void updateLocation_success() {
         Location existing = createLocation(1L, "OLD-CODE", "Old Name", LocationType.WAREHOUSE, null);
-        LocationRequest request = createRequest("NEW-CODE", "New Name", "RACK", null);
+        LocationRequest request = createRequest("NEW-CODE", "New Name", LocationType.RACK, null);
 
         when(locationRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(locationRepository.save(any(Location.class))).thenAnswer(i -> i.getArgument(0));
@@ -304,7 +305,7 @@ class LocationServiceTest {
     @Test
     void updateLocation_withNewParent_validates() {
         Location existing = createLocation(2L, "RACK-01", "Rack", LocationType.RACK, 1L);
-        LocationRequest request = createRequest("RACK-01", "Rack", "RACK", 999L);
+        LocationRequest request = createRequest("RACK-01", "Rack", LocationType.RACK, 999L);
 
         when(locationRepository.findById(2L)).thenReturn(Optional.of(existing));
         when(locationRepository.existsById(999L)).thenReturn(false);
@@ -317,7 +318,7 @@ class LocationServiceTest {
 
     @Test
     void updateLocation_notFound_throws() {
-        LocationRequest request = createRequest("CODE", "Name", "WAREHOUSE", null);
+        LocationRequest request = createRequest("CODE", "Name", LocationType.WAREHOUSE, null);
         when(locationRepository.findById(999L)).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,

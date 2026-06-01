@@ -93,6 +93,15 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/barcode/{barcode}")
+    @Operation(summary = "Pobierz produkt po kodzie kreskowym", description = "Wyszukuje produkt po kodzie kreskowym (CODE128, EAN13, QR)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProductResponse> getProductByBarcode(@PathVariable @Parameter(description = "Kod kreskowy") String barcode) {
+        return productService.getProductByBarcode(barcode)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PostMapping
     @Operation(summary = "Utw\u00f3rz nowy produkt", description = "Wymaga roli ADMIN")
     @PreAuthorize("hasRole('ADMIN')")

@@ -47,15 +47,6 @@ public class ProductResponse {
                            Long locationId, LocalDateTime createdAt,
                            Integer reservedQuantity, Integer availableQuantity,
                            LocalDate nearestExpiryDate, Boolean trackExpiry) {
-        this(id, name, sku, barcode, description, unit, quantity, price, minQuantity,
-                locationId, createdAt, reservedQuantity, availableQuantity, nearestExpiryDate, trackExpiry);
-    }
-
-    public ProductResponse(Long id, String name, String sku, String barcode, String description, String unit,
-                           Integer quantity, BigDecimal price, Integer minQuantity,
-                           Long locationId, LocalDateTime createdAt,
-                           Integer reservedQuantity, Integer availableQuantity,
-                           LocalDate nearestExpiryDate, Boolean trackExpiry) {
         this.id = id;
         this.name = name;
         this.sku = sku;

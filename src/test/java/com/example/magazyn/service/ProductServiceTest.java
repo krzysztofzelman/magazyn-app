@@ -6,6 +6,7 @@ import com.example.magazyn.dto.ProductResponse;
 import com.example.magazyn.dto.UpdateProductRequest;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.service.BatchService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,9 @@ class ProductServiceTest {
     @Mock
     private ReservationService reservationService;
 
+    @Mock
+    private BatchService batchService;
+
     @InjectMocks
     private ProductService productService;
 
@@ -55,6 +59,7 @@ class ProductServiceTest {
     void setUp() {
         lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
         lenient().when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
+        lenient().when(batchService.getNearestExpiryDateByProduct()).thenReturn(java.util.Map.of());
     }
 
     private Product createProductEntity(Long id, String name, String sku, int quantity) {
@@ -385,6 +390,32 @@ class ProductServiceTest {
 
         assertTrue(result.isPresent());
         assertEquals("PRD-001", result.get().getSku());
+    }
+
+    // ──────────────────────────────────────────────
+    // getProductByBarcode
+    // ──────────────────────────────────────────────
+
+    @Test
+    void getProductByBarcode_found() {
+        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
+        product.setBarcode("5901234567890");
+        when(productRepository.findByBarcode("5901234567890")).thenReturn(Optional.of(product));
+
+        Optional<ProductResponse> result = productService.getProductByBarcode("5901234567890");
+
+        assertTrue(result.isPresent());
+        assertEquals("5901234567890", result.get().getBarcode());
+        assertEquals("Product", result.get().getName());
+    }
+
+    @Test
+    void getProductByBarcode_notFound() {
+        when(productRepository.findByBarcode("INVALID-BARCODE")).thenReturn(Optional.empty());
+
+        Optional<ProductResponse> result = productService.getProductByBarcode("INVALID-BARCODE");
+
+        assertTrue(result.isEmpty());
     }
 
     // ──────────────────────────────────────────────
