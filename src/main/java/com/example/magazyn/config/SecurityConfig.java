@@ -16,8 +16,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.util.List;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -47,22 +45,19 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsFilter corsFilter() {
-        return new CorsFilter();
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(request -> {
-                var source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
-                org.springframework.web.cors.CorsConfiguration config = new org.springframework.web.cors.CorsConfiguration();
+                var config = new org.springframework.web.cors.CorsConfiguration();
                 config.setAllowCredentials(true);
-                config.setAllowedOriginPatterns(List.of("*"));
-                config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                config.setAllowedHeaders(List.of("*"));
+                config.setAllowedOrigins(java.util.Arrays.asList(
+                        "http://localhost:5173",
+                        "http://localhost:3000",
+                        "https://magazyn.kzelman.pl"
+                ));
+                config.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type"));
                 config.setMaxAge(3600L);
-                source.registerCorsConfiguration("/**", config);
                 return config;
             }))
             .csrf(csrf -> csrf.disable())
