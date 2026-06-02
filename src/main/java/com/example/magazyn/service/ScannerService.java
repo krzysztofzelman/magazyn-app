@@ -17,6 +17,8 @@ import com.example.magazyn.repository.BatchRepository;
 import com.example.magazyn.repository.LocationRepository;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockMovementRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,8 @@ import java.util.Optional;
 @Service
 @Transactional
 public class ScannerService {
+
+    private static final Logger log = LoggerFactory.getLogger(ScannerService.class);
 
     private final ProductRepository productRepository;
     private final BatchRepository batchRepository;
@@ -57,9 +61,16 @@ public class ScannerService {
 
     @Transactional(readOnly = true)
     public ScannerResultResponse lookupByCode(String code, String username) {
+        log.info("lookupByCode: code={}, user={}", code, username);
+
         Product product = productRepository.findBySku(code)
                 .orElseGet(() -> productRepository.findByBarcode(code)
-                        .orElseThrow(() -> new ResourceNotFoundException("Product with code: " + code)));
+                        .orElseThrow(() -> {
+                            log.warn("lookupByCode: no product found for code={}", code);
+                            return new ResourceNotFoundException("Product with code: " + code);
+                        }));
+
+        log.debug("lookupByCode: found productId={}, sku={}, name={}", product.getId(), product.getSku(), product.getName());
 
         auditLogService.log(username, "SCAN_LOOKUP", "Product", product.getId(),
                 "Scanned code=" + code + " matched product=" + product.getSku());
@@ -71,10 +82,16 @@ public class ScannerService {
                                                String lotNumber, LocalDate expiryDate,
                                                LocalDate manufacturingDate, Long locationId,
                                                String username) {
+        log.info("quickReceive: productId={}, qty={}, lot={}, user={}", productId, quantity, lotNumber, username);
+
         Product product = productRepository.findByIdForUpdate(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+                .orElseThrow(() -> {
+                    log.warn("quickReceive: product not found id={}", productId);
+                    return new ResourceNotFoundException("Product", productId);
+                });
 
         if (quantity == null || quantity <= 0) {
+            log.warn("quickReceive: invalid quantity {} for productId={}", quantity, productId);
             throw new InvalidOperationException("Quantity must be positive for quick receive");
         }
 
@@ -111,10 +128,16 @@ public class ScannerService {
 
     public ScannerResultResponse quickIssue(Long productId, Integer quantity,
                                              Long batchId, String note, String username) {
+        log.info("quickIssue: productId={}, qty={}, batchId={}, user={}", productId, quantity, batchId, username);
+
         Product product = productRepository.findByIdForUpdate(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+                .orElseThrow(() -> {
+                    log.warn("quickIssue: product not found id={}", productId);
+                    return new ResourceNotFoundException("Product", productId);
+                });
 
         if (quantity == null || quantity <= 0) {
+            log.warn("quickIssue: invalid quantity {} for productId={}", quantity, productId);
             throw new InvalidOperationException("Quantity must be positive for quick issue");
         }
 

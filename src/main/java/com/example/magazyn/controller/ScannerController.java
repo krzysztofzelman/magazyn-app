@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 @SecurityRequirement(name = "bearerAuth")
 public class ScannerController {
 
+    private static final Logger log = LoggerFactory.getLogger(ScannerController.class);
+
     private final ScannerService scannerService;
 
     public ScannerController(ScannerService scannerService) {
@@ -37,6 +41,7 @@ public class ScannerController {
     public ResponseEntity<ScannerResultResponse> lookupByCode(
             @RequestParam @Parameter(description = "SKU lub kod kreskowy") String code,
             Authentication authentication) {
+        log.info("GET /api/scanner/lookup?code={} by user={}", code, authentication.getName());
         ScannerResultResponse result = scannerService.lookupByCode(code, authentication.getName());
         return ResponseEntity.ok(result);
     }
@@ -47,6 +52,8 @@ public class ScannerController {
     public ResponseEntity<ScannerResultResponse> quickReceive(
             @RequestBody QuickReceiveRequest request,
             Authentication authentication) {
+        log.info("POST /api/scanner/quick-receive productId={}, qty={} by user={}",
+                request.getProductId(), request.getQuantity(), authentication.getName());
         ScannerResultResponse result = scannerService.quickReceive(
                 request.getProductId(), request.getQuantity(), request.getLotNumber(),
                 request.getExpiryDate(), request.getManufacturingDate(), request.getLocationId(),
@@ -60,6 +67,8 @@ public class ScannerController {
     public ResponseEntity<ScannerResultResponse> quickIssue(
             @RequestBody QuickIssueRequest request,
             Authentication authentication) {
+        log.info("POST /api/scanner/quick-issue productId={}, qty={} by user={}",
+                request.getProductId(), request.getQuantity(), authentication.getName());
         ScannerResultResponse result = scannerService.quickIssue(
                 request.getProductId(), request.getQuantity(), request.getBatchId(),
                 request.getNote(), authentication.getName());
