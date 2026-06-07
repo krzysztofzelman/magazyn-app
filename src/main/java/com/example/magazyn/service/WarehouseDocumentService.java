@@ -18,6 +18,7 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -560,8 +561,8 @@ public class WarehouseDocumentService {
                 float[] colStarts = {col0, col1, col2, col3};
                 float[] colWidths = {pageW * 2 / 10, pageW * 3 / 10, pageW * 2.5f / 10, pageW * 2.5f / 10};
 
-                PDFont fontBold = PDType1Font.HELVETICA_BOLD;
-                PDFont fontReg = PDType1Font.HELVETICA;
+                PDFont fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+                PDFont fontReg = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
                 int titleSize = 18;
                 int normalSize = 10;
                 int tableHeaderSize = 9;

@@ -11,6 +11,7 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +28,8 @@ public class LabelService {
     private static final float A4_W = PDRectangle.A4.getWidth();
     private static final float A4_H = PDRectangle.A4.getHeight();
 
-    private static final PDFont FONT_REG = PDType1Font.HELVETICA;
-    private static final PDFont FONT_BOLD = PDType1Font.HELVETICA_BOLD;
+    private static final PDFont FONT_REG = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+    private static final PDFont FONT_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
 
     private final LocationRepository locationRepository;
     private final ProductRepository productRepository;
