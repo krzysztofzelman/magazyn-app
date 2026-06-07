@@ -5,27 +5,30 @@ import com.example.magazyn.entity.Product;
 import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.LocationRepository;
 import com.example.magazyn.repository.ProductRepository;
-import com.itextpdf.io.image.ImageDataFactory;
-import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Image;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.properties.TextAlignment;
-import com.itextpdf.layout.properties.UnitValue;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 
 @Service
 public class LabelService {
 
     private static final float MARGIN = 14f;
+    private static final float A6_W = 297.64f;   // 105mm
+    private static final float A6_H = 419.53f;   // 148mm
+    private static final float A4_W = PDRectangle.A4.getWidth();
+    private static final float A4_H = PDRectangle.A4.getHeight();
+
+    private static final PDFont FONT_REG = PDType1Font.HELVETICA;
+    private static final PDFont FONT_BOLD = PDType1Font.HELVETICA_BOLD;
 
     private final LocationRepository locationRepository;
     private final ProductRepository productRepository;
@@ -44,14 +47,16 @@ public class LabelService {
                 .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(baos);
-        PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf, PageSize.A6);
-        document.setMargins(MARGIN, MARGIN, MARGIN, MARGIN);
-
-        addLocationLabelContent(document, location);
-
-        document.close();
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage(new PDRectangle(A6_W, A6_H));
+            doc.addPage(page);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                addLocationLabelContent(cs, doc, location, A6_W, A6_H);
+            }
+            doc.save(baos);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to generate location label PDF", e);
+        }
         return baos.toByteArray();
     }
 
@@ -62,38 +67,66 @@ public class LabelService {
         }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(baos);
-        PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf, PageSize.A4);
-        document.setMargins(MARGIN, MARGIN, MARGIN, MARGIN);
+        try (PDDocument doc = new PDDocument()) {
+            float cellW = (A4_W - 2 * MARGIN) / 2;
+            float cellH = (A4_H - 2 * MARGIN) / 2;
 
-        Table table = new Table(UnitValue.createPercentArray(new float[]{50, 50}));
-        table.setWidth(UnitValue.createPercentValue(100));
+            for (int i = 0; i < locations.size(); i++) {
+                if (i % 4 == 0) {
+                    doc.addPage(new PDPage(PDRectangle.A4));
+                }
+                Location location = locations.get(i);
+                int posOnPage = i % 4;
+                // rows: pos 0,1 = top row; pos 2,3 = bottom row
+                // cols: even = left, odd = right
+                int row = posOnPage / 2;
+                int col = posOnPage % 2;
+                float cellX = MARGIN + col * cellW;
+                float cellY = MARGIN + (1 - row) * cellH;
 
-        boolean hasCells = false;
-        int count = 0;
-        for (Location location : locations) {
-            if (count > 0 && count % 4 == 0) {
-                document.add(table);
-                table = new Table(UnitValue.createPercentArray(new float[]{50, 50}));
-                table.setWidth(UnitValue.createPercentValue(100));
-                hasCells = false;
+                PDPage page = doc.getPage(doc.getNumberOfPages() - 1);
+                try (PDPageContentStream cs = new PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true)) {
+                    // Save and clip to cell
+                    cs.saveGraphicsState();
+                    // Draw cell border (light gray) — optional debugging aid
+                    cs.setStrokingColor(0.85f);
+                    cs.addRect(cellX, cellY, cellW, cellH);
+                    cs.stroke();
+                    // Clip to cell
+                    cs.addRect(cellX, cellY, cellW, cellH);
+                    cs.clip();
+
+                    // Draw content inside cell
+                    float centerX = cellX + cellW / 2;
+                    float topY = cellY + cellH - 6f;
+                    float y = topY;
+
+                    y = drawCenteredText(cs, FONT_BOLD, 11, "LOKALIZACJA", centerX, y, cellW - 8);
+                    y = drawCenteredText(cs, FONT_BOLD, 10, location.getName(), centerX, y, cellW - 8);
+                    y = drawCenteredText(cs, FONT_REG, 8, "Kod: " + location.getCode(), centerX, y, cellW - 8);
+
+                    if (location.getZone() != null && !location.getZone().isBlank()) {
+                        y = drawCenteredText(cs, FONT_REG, 8, "Strefa: " + location.getZone(), centerX, y, cellW - 8);
+                    }
+                    y = drawCenteredText(cs, FONT_REG, 8, "Typ: " + location.getType().name(), centerX, y, cellW - 8);
+
+                    float imgY = y - 6;
+                    if (location.getBarcode() != null) {
+                        byte[] barcodePng = barcodeService.generateBarcodeImage(location.getBarcode());
+                        imgY = drawImageCentered(cs, doc, barcodePng, centerX, imgY, 140);
+                    }
+                    if (location.getQrData() != null) {
+                        byte[] qrPng = barcodeService.generateQrImage(location.getQrData());
+                        imgY = drawImageCentered(cs, doc, qrPng, centerX, imgY, 55);
+                    }
+
+                    cs.restoreGraphicsState();
+                }
             }
-
-            Cell cell = new Cell();
-            cell.setPadding(8);
-            cell.setBorder(Border.NO_BORDER);
-            addLocationCellContent(cell, location);
-            table.addCell(cell);
-            hasCells = true;
-            count++;
+            doc.save(baos);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to generate multi-location label PDF", e);
         }
-
-        if (hasCells) {
-            document.add(table);
-        }
-
-        document.close();
         return baos.toByteArray();
     }
 
@@ -102,130 +135,99 @@ public class LabelService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(baos);
-        PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf, PageSize.A6);
-        document.setMargins(MARGIN, MARGIN, MARGIN, MARGIN);
-
-        addProductLabelContent(document, product);
-
-        document.close();
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage(new PDRectangle(A6_W, A6_H));
+            doc.addPage(page);
+            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                addProductLabelContent(cs, doc, product, A6_W, A6_H);
+            }
+            doc.save(baos);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to generate product label PDF", e);
+        }
         return baos.toByteArray();
     }
 
-    private void addLocationLabelContent(Document document, Location location) {
-        document.add(new Paragraph("LOKALIZACJA")
-                .setBold()
-                .setFontSize(16)
-                .setTextAlignment(TextAlignment.CENTER));
+    // ---- A6 label helpers ----
 
-        document.add(new Paragraph(location.getName())
-                .setBold()
-                .setFontSize(14)
-                .setTextAlignment(TextAlignment.CENTER));
+    private void addLocationLabelContent(PDPageContentStream cs, PDDocument doc,
+                                          Location location, float pageW, float pageH) throws IOException {
+        float centerX = pageW / 2;
+        float y = pageH - MARGIN;
 
-        document.add(new Paragraph("Kod: " + location.getCode())
-                .setFontSize(10)
-                .setTextAlignment(TextAlignment.CENTER));
+        y = drawCenteredText(cs, FONT_BOLD, 16, "LOKALIZACJA", centerX, y, pageW - 2 * MARGIN);
+        y = drawCenteredText(cs, FONT_BOLD, 14, location.getName(), centerX, y, pageW - 2 * MARGIN);
+        y = drawCenteredText(cs, FONT_REG, 10, "Kod: " + location.getCode(), centerX, y, pageW - 2 * MARGIN);
 
         if (location.getZone() != null && !location.getZone().isBlank()) {
-            document.add(new Paragraph("Strefa: " + location.getZone())
-                    .setFontSize(10)
-                    .setTextAlignment(TextAlignment.CENTER));
+            y = drawCenteredText(cs, FONT_REG, 10, "Strefa: " + location.getZone(), centerX, y, pageW - 2 * MARGIN);
         }
+        y = drawCenteredText(cs, FONT_REG, 10, "Typ: " + location.getType().name(), centerX, y, pageW - 2 * MARGIN);
 
-        document.add(new Paragraph("Typ: " + location.getType().name())
-                .setFontSize(10)
-                .setTextAlignment(TextAlignment.CENTER));
-
+        y -= 8;
         if (location.getBarcode() != null) {
             byte[] barcodePng = barcodeService.generateBarcodeImage(location.getBarcode());
-            Image barcodeImg = new Image(ImageDataFactory.create(barcodePng));
-            barcodeImg.setMaxWidth(200);
-            barcodeImg.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
-            document.add(barcodeImg);
+            y = drawImageCentered(cs, doc, barcodePng, centerX, y, 200);
         }
-
         if (location.getQrData() != null) {
             byte[] qrPng = barcodeService.generateQrImage(location.getQrData());
-            Image qrImg = new Image(ImageDataFactory.create(qrPng));
-            qrImg.setMaxWidth(80);
-            qrImg.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
-            document.add(qrImg);
+            drawImageCentered(cs, doc, qrPng, centerX, y, 80);
         }
     }
 
-    private void addLocationCellContent(Cell cell, Location location) {
-        cell.add(new Paragraph("LOKALIZACJA")
-                .setBold()
-                .setFontSize(12)
-                .setTextAlignment(TextAlignment.CENTER));
+    private void addProductLabelContent(PDPageContentStream cs, PDDocument doc,
+                                         Product product, float pageW, float pageH) throws IOException {
+        float centerX = pageW / 2;
+        float y = pageH - MARGIN;
 
-        cell.add(new Paragraph(location.getName())
-                .setBold()
-                .setFontSize(11)
-                .setTextAlignment(TextAlignment.CENTER));
-
-        cell.add(new Paragraph("Kod: " + location.getCode())
-                .setFontSize(8)
-                .setTextAlignment(TextAlignment.CENTER));
-
-        if (location.getZone() != null && !location.getZone().isBlank()) {
-            cell.add(new Paragraph("Strefa: " + location.getZone())
-                    .setFontSize(8)
-                    .setTextAlignment(TextAlignment.CENTER));
-        }
-
-        cell.add(new Paragraph("Typ: " + location.getType().name())
-                .setFontSize(8)
-                .setTextAlignment(TextAlignment.CENTER));
-
-        if (location.getBarcode() != null) {
-            byte[] barcodePng = barcodeService.generateBarcodeImage(location.getBarcode());
-            Image barcodeImg = new Image(ImageDataFactory.create(barcodePng));
-            barcodeImg.setMaxWidth(160);
-            barcodeImg.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
-            cell.add(barcodeImg);
-        }
-
-        if (location.getQrData() != null) {
-            byte[] qrPng = barcodeService.generateQrImage(location.getQrData());
-            Image qrImg = new Image(ImageDataFactory.create(qrPng));
-            qrImg.setMaxWidth(60);
-            qrImg.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
-            cell.add(qrImg);
-        }
-    }
-
-    private void addProductLabelContent(Document document, Product product) {
-        document.add(new Paragraph("PRODUKT")
-                .setBold()
-                .setFontSize(16)
-                .setTextAlignment(TextAlignment.CENTER));
-
-        document.add(new Paragraph(product.getName())
-                .setBold()
-                .setFontSize(14)
-                .setTextAlignment(TextAlignment.CENTER));
-
-        document.add(new Paragraph("SKU: " + product.getSku())
-                .setFontSize(10)
-                .setTextAlignment(TextAlignment.CENTER));
+        y = drawCenteredText(cs, FONT_BOLD, 16, "PRODUKT", centerX, y, pageW - 2 * MARGIN);
+        y = drawCenteredText(cs, FONT_BOLD, 14, product.getName(), centerX, y, pageW - 2 * MARGIN);
+        y = drawCenteredText(cs, FONT_REG, 10, "SKU: " + product.getSku(), centerX, y, pageW - 2 * MARGIN);
 
         String barcodeText = product.getBarcode() != null
                 ? product.getBarcode()
                 : "PROD-" + product.getId();
 
+        y -= 8;
         byte[] barcodePng;
         if (product.getBarcode() != null) {
             barcodePng = barcodeService.generateBarcodeImage(product.getBarcode());
         } else {
             barcodePng = barcodeService.generateBarcodeImage(barcodeText);
         }
+        drawImageCentered(cs, doc, barcodePng, centerX, y, 200);
+    }
 
-        Image barcodeImg = new Image(ImageDataFactory.create(barcodePng));
-        barcodeImg.setMaxWidth(200);
-        barcodeImg.setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER);
-        document.add(barcodeImg);
+    // ---- PDFBox drawing utilities ----
+
+    private float drawCenteredText(PDPageContentStream cs, PDFont font, int fontSize,
+                                    String text, float centerX, float y, float maxWidth) throws IOException {
+        float textWidth = font.getStringWidth(text) / 1000f * fontSize;
+        if (textWidth > maxWidth) {
+            float scale = maxWidth / textWidth;
+            cs.setFont(font, fontSize * scale);
+            textWidth = maxWidth;
+        } else {
+            cs.setFont(font, fontSize);
+        }
+        float x = centerX - textWidth / 2;
+        cs.beginText();
+        cs.newLineAtOffset(x, y - fontSize);
+        cs.showText(text);
+        cs.endText();
+        return y - fontSize - 4f;
+    }
+
+    private float drawImageCentered(PDPageContentStream cs, PDDocument doc, byte[] imageBytes,
+                                     float centerX, float y, float maxWidth) throws IOException {
+        PDImageXObject img = PDImageXObject.createFromByteArray(doc, imageBytes, null);
+        float imgW = img.getWidth();
+        float imgH = img.getHeight();
+        float scale = Math.min(maxWidth / imgW, 1f);
+        float drawW = imgW * scale;
+        float drawH = imgH * scale;
+        float x = centerX - drawW / 2;
+        cs.drawImage(img, x, y - drawH, drawW, drawH);
+        return y - drawH - 6f;
     }
 }

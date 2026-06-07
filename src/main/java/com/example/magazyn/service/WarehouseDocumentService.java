@@ -12,15 +12,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.properties.UnitValue;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -545,41 +545,121 @@ public class WarehouseDocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(baos);
-        PdfDocument pdf = new PdfDocument(writer);
-        Document document = new Document(pdf);
-        document.setMargins(20, 20, 20, 20);
+        try (PDDocument pdfDoc = new PDDocument()) {
+            PDPage page = new PDPage(PDRectangle.A4);
+            pdfDoc.addPage(page);
 
-        document.add(new Paragraph("Warehouse Document").setFontSize(18).setBold());
-        document.add(new Paragraph("Number: " + doc.getNumber()));
-        document.add(new Paragraph("Type: " + doc.getType()));
-        document.add(new Paragraph("Status: " + doc.getStatus()));
-        document.add(new Paragraph("Contractor: " + doc.getContractor().getName()));
-        document.add(new Paragraph("Date: " + doc.getCreatedAt().toLocalDate().toString()));
-        document.add(new Paragraph("Created by: " + doc.getCreatedBy()));
-        if (doc.getNotes() != null && !doc.getNotes().isBlank()) {
-            document.add(new Paragraph("Notes: " + doc.getNotes()));
+            try (PDPageContentStream cs = new PDPageContentStream(pdfDoc, page)) {
+                float margin = 40f;
+                float y = page.getMediaBox().getHeight() - margin;
+                float pageW = page.getMediaBox().getWidth() - 2 * margin;
+                float col0 = margin;
+                float col1 = margin + pageW * 2 / 10; // label column
+                float col2 = margin + pageW * 5 / 10;
+                float col3 = margin + pageW * 7.5f / 10;
+                float[] colStarts = {col0, col1, col2, col3};
+                float[] colWidths = {pageW * 2 / 10, pageW * 3 / 10, pageW * 2.5f / 10, pageW * 2.5f / 10};
+
+                PDFont fontBold = PDType1Font.HELVETICA_BOLD;
+                PDFont fontReg = PDType1Font.HELVETICA;
+                int titleSize = 18;
+                int normalSize = 10;
+                int tableHeaderSize = 9;
+                int tableRowSize = 8;
+
+                // Title
+                float tw = fontBold.getStringWidth("Warehouse Document") / 1000f * titleSize;
+                cs.setFont(fontBold, titleSize);
+                cs.beginText();
+                cs.newLineAtOffset(margin + (pageW - tw) / 2, y - titleSize);
+                cs.showText("Warehouse Document");
+                cs.endText();
+                y -= titleSize + 8;
+
+                // Document info
+                String[] infoLines = {
+                    "Number: " + doc.getNumber(),
+                    "Type: " + doc.getType(),
+                    "Status: " + doc.getStatus(),
+                    "Contractor: " + doc.getContractor().getName(),
+                    "Date: " + doc.getCreatedAt().toLocalDate().toString(),
+                    "Created by: " + doc.getCreatedBy()
+                };
+                if (doc.getNotes() != null && !doc.getNotes().isBlank()) {
+                    infoLines = java.util.Arrays.copyOf(infoLines, infoLines.length + 1);
+                    infoLines[infoLines.length - 1] = "Notes: " + doc.getNotes();
+                }
+
+                cs.setFont(fontReg, normalSize);
+                for (String line : infoLines) {
+                    cs.beginText();
+                    cs.newLineAtOffset(margin, y - normalSize);
+                    cs.showText(line);
+                    cs.endText();
+                    y -= normalSize + 2;
+                }
+
+                y -= 8;
+
+                // Table header
+                float headerH = tableHeaderSize + 6;
+                float rowH = tableRowSize + 6;
+                String[] headers = {"Product", "Quantity", "Unit Price", "Total"};
+
+                cs.setFont(fontBold, tableHeaderSize);
+                for (int i = 0; i < headers.length; i++) {
+                    cs.beginText();
+                    cs.newLineAtOffset(colStarts[i] + 2, y - headerH + 2);
+                    cs.showText(headers[i]);
+                    cs.endText();
+                }
+                // Draw header rect
+                cs.setLineWidth(0.5f);
+                for (int i = 0; i < colStarts.length; i++) {
+                    cs.addRect(colStarts[i], y - headerH, colWidths[i], headerH);
+                }
+                cs.stroke();
+                y -= headerH;
+
+                // Table rows
+                cs.setFont(fontReg, tableRowSize);
+                for (WarehouseDocumentItem item : doc.getItems()) {
+                    BigDecimal totalPrice = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+                    String[] rowData = {
+                        item.getProduct().getName(),
+                        String.valueOf(item.getQuantity()),
+                        item.getUnitPrice().toString(),
+                        totalPrice.toString()
+                    };
+
+                    for (int i = 0; i < rowData.length; i++) {
+                        cs.beginText();
+                        cs.newLineAtOffset(colStarts[i] + 2, y - rowH + 2);
+                        // Truncate long text
+                        String txt = rowData[i];
+                        float txtW = fontReg.getStringWidth(txt) / 1000f * tableRowSize;
+                        if (txtW > colWidths[i] - 4) {
+                            // Approximate truncation
+                            int maxChars = (int) ((colWidths[i] - 4) / (fontReg.getStringWidth("W") / 1000f * tableRowSize));
+                            if (maxChars > 3 && txt.length() > maxChars) {
+                                txt = txt.substring(0, maxChars - 3) + "...";
+                            }
+                        }
+                        cs.showText(txt);
+                        cs.endText();
+                    }
+                    // Draw cell rects
+                    for (int i = 0; i < colStarts.length; i++) {
+                        cs.addRect(colStarts[i], y - rowH, colWidths[i], rowH);
+                    }
+                    cs.stroke();
+                    y -= rowH;
+                }
+            }
+            pdfDoc.save(baos);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to export document PDF", e);
         }
-        document.add(new Paragraph(" "));
-
-        // Items table
-        Table table = new Table(UnitValue.createPercentArray(new float[]{3, 1, 1, 2}));
-        table.setWidth(UnitValue.createPercentValue(100));
-        table.addHeaderCell(new Cell().add(new Paragraph("Product").setBold()));
-        table.addHeaderCell(new Cell().add(new Paragraph("Quantity").setBold()));
-        table.addHeaderCell(new Cell().add(new Paragraph("Unit Price").setBold()));
-        table.addHeaderCell(new Cell().add(new Paragraph("Total").setBold()));
-
-        for (WarehouseDocumentItem item : doc.getItems()) {
-            BigDecimal totalPrice = item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
-            table.addCell(new Cell().add(new Paragraph(item.getProduct().getName())));
-            table.addCell(new Cell().add(new Paragraph(String.valueOf(item.getQuantity()))));
-            table.addCell(new Cell().add(new Paragraph(item.getUnitPrice().toString())));
-            table.addCell(new Cell().add(new Paragraph(totalPrice.toString())));
-        }
-        document.add(table);
-
-        document.close();
         return baos.toByteArray();
     }
 
