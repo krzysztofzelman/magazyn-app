@@ -97,6 +97,8 @@ public class LocationService {
         node.setCapacity(location.getCapacity());
         node.setOccupied(location.getOccupied());
         node.setZone(location.getZone());
+        node.setRack(location.getRack());
+        node.setShelf(location.getShelf());
         node.setIsActive(location.getIsActive());
 
         List<Location> children = new ArrayList<>(childrenByParent.getOrDefault(location.getId(), List.of()));
@@ -129,14 +131,24 @@ public class LocationService {
     public LocationResponse createLocation(com.example.magazyn.dto.LocationRequest request) {
         validateParent(request.getParentId());
 
+        // Auto-generate code from zone/rack/shelf if code not provided
+        String code = request.getCode();
+        if ((code == null || code.isBlank()) && request.getZone() != null && request.getRack() != null && request.getShelf() != null) {
+            code = request.getZone() + "-" + request.getRack() + "-" + request.getShelf();
+        } else if (code == null || code.isBlank()) {
+            throw new InvalidOperationException("Kod lokalizacji jest wymagany, gdy nie podano strefy/regału/półki");
+        }
+
         Location location = Location.builder()
-                .code(request.getCode())
+                .code(code)
                 .name(request.getName())
                 .type(request.getType())
                 .parentId(request.getParentId())
                 .description(request.getDescription())
                 .capacity(request.getCapacity())
                 .zone(request.getZone())
+                .rack(request.getRack())
+                .shelf(request.getShelf())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .occupied(0)
                 .build();
@@ -151,9 +163,14 @@ public class LocationService {
 
         validateParent(request.getParentId());
 
-        if (request.getCode() != null) {
+        // Auto-generate code from zone/rack/shelf if code not provided and all parts are present
+        if (request.getCode() != null && !request.getCode().isBlank()) {
             existing.setCode(request.getCode());
+        } else if (request.getZone() != null && request.getRack() != null && request.getShelf() != null) {
+            existing.setCode(request.getZone() + "-" + request.getRack() + "-" + request.getShelf());
         }
+        // If neither code nor structured parts provided, keep existing code
+
         if (request.getName() != null) {
             existing.setName(request.getName());
         }
@@ -169,6 +186,12 @@ public class LocationService {
         }
         if (request.getZone() != null) {
             existing.setZone(request.getZone());
+        }
+        if (request.getRack() != null) {
+            existing.setRack(request.getRack());
+        }
+        if (request.getShelf() != null) {
+            existing.setShelf(request.getShelf());
         }
         if (request.getIsActive() != null) {
             existing.setIsActive(request.getIsActive());
@@ -308,6 +331,8 @@ public class LocationService {
                 location.getCapacity(),
                 location.getOccupied(),
                 location.getZone(),
+                location.getRack(),
+                location.getShelf(),
                 location.getIsActive()
         );
     }

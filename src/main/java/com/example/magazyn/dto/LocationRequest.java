@@ -6,7 +6,6 @@ import jakarta.validation.constraints.NotNull;
 
 public class LocationRequest {
 
-    @NotBlank(message = "Kod lokalizacji jest wymagany")
     private String code;
 
     @NotBlank(message = "Nazwa lokalizacji jest wymagana")
@@ -18,6 +17,8 @@ public class LocationRequest {
     private String description;
     private Integer capacity;
     private String zone;
+    private String rack;
+    private String shelf;
     private Boolean isActive;
 
     public String getCode() { return code; }
@@ -40,6 +41,12 @@ public class LocationRequest {
 
     public String getZone() { return zone; }
     public void setZone(String zone) { this.zone = zone; }
+
+    public String getRack() { return rack; }
+    public void setRack(String rack) { this.rack = rack; }
+
+    public String getShelf() { return shelf; }
+    public void setShelf(String shelf) { this.shelf = shelf; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }

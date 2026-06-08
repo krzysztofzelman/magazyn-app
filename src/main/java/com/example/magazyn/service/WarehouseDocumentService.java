@@ -263,6 +263,8 @@ public class WarehouseDocumentService {
                 location.getCapacity(),
                 location.getOccupied(),
                 location.getZone(),
+                location.getRack(),
+                location.getShelf(),
                 location.getIsActive()
         );
     }

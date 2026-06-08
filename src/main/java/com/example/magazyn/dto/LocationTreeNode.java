@@ -14,6 +14,8 @@ public class LocationTreeNode {
     private Integer capacity;
     private Integer occupied;
     private String zone;
+    private String rack;
+    private String shelf;
     private Boolean isActive;
     private List<LocationTreeNode> children;
 
@@ -23,8 +25,8 @@ public class LocationTreeNode {
 
     public LocationTreeNode(Long id, String code, String name, String type,
                             String description, String barcode, Integer capacity,
-                            Integer occupied, String zone, Boolean isActive,
-                            List<LocationTreeNode> children) {
+                            Integer occupied, String zone, String rack, String shelf,
+                            Boolean isActive, List<LocationTreeNode> children) {
         this.id = id;
         this.code = code;
         this.name = name;
@@ -34,6 +36,8 @@ public class LocationTreeNode {
         this.capacity = capacity;
         this.occupied = occupied;
         this.zone = zone;
+        this.rack = rack;
+        this.shelf = shelf;
         this.isActive = isActive;
         this.children = children;
     }
@@ -64,6 +68,12 @@ public class LocationTreeNode {
 
     public String getZone() { return zone; }
     public void setZone(String zone) { this.zone = zone; }
+
+    public String getRack() { return rack; }
+    public void setRack(String rack) { this.rack = rack; }
+
+    public String getShelf() { return shelf; }
+    public void setShelf(String shelf) { this.shelf = shelf; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }

@@ -41,6 +41,12 @@ public class Location {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column
+    private String rack;
+
+    @Column
+    private String shelf;
+
     @Column(unique = true)
     private String barcode;
 

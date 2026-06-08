@@ -13,6 +13,8 @@ public class LocationResponse {
     private Integer capacity;
     private Integer occupied;
     private String zone;
+    private String rack;
+    private String shelf;
     private Boolean isActive;
 
     public LocationResponse() {}
@@ -20,7 +22,7 @@ public class LocationResponse {
     public LocationResponse(Long id, String code, String name, String type,
                             Long parentId, String description, String barcode,
                             String qrData, Integer capacity, Integer occupied,
-                            String zone, Boolean isActive) {
+                            String zone, String rack, String shelf, Boolean isActive) {
         this.id = id;
         this.code = code;
         this.name = name;
@@ -32,6 +34,8 @@ public class LocationResponse {
         this.capacity = capacity;
         this.occupied = occupied;
         this.zone = zone;
+        this.rack = rack;
+        this.shelf = shelf;
         this.isActive = isActive;
     }
 
@@ -67,6 +71,12 @@ public class LocationResponse {
 
     public String getZone() { return zone; }
     public void setZone(String zone) { this.zone = zone; }
+
+    public String getRack() { return rack; }
+    public void setRack(String rack) { this.rack = rack; }
+
+    public String getShelf() { return shelf; }
+    public void setShelf(String shelf) { this.shelf = shelf; }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
