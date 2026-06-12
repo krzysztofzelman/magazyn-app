@@ -7,6 +7,7 @@ import jakarta.persistence.PrePersist;
 import lombok.Data;
 import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.FilterDefs;
 import org.hibernate.annotations.ParamDef;
 
 /**
