@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
 
 @Data
 @NoArgsConstructor
@@ -19,7 +20,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @Entity
 @Table(name = "locations")
-public class Location {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Location extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

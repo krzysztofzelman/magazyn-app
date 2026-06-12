@@ -16,6 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,11 +26,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "batches", indexes = {
+@Table(name = "batches",
+    indexes = {
     @Index(name = "idx_batch_product_expiry", columnList = "product_id, expiry_date"),
     @Index(name = "idx_batch_product_created", columnList = "product_id, created_at")
 })
-public class Batch {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class Batch extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,7 +16,8 @@ import java.time.LocalDate;
 @Builder
 @Entity
 @Table(name = "warehouse_document_items")
-public class WarehouseDocumentItem {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class WarehouseDocumentItem extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

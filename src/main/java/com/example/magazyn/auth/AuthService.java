@@ -64,7 +64,7 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
         RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
 
         auditLogService.log(currentUsername(), "REGISTER", "User", user.getId(),
@@ -84,7 +84,7 @@ public class AuthService {
             User user = userRepository.findByUsername(request.getUsername())
                     .orElseThrow(() -> new ResourceNotFoundException("User", request.getUsername()));
 
-            String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+            String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
             RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
 
             auditLogService.log(user.getUsername(), "LOGIN_SUCCESS", "User", user.getId(),
@@ -102,7 +102,7 @@ public class AuthService {
         User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
         refreshTokenService.deleteByUser(user);
 
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
         RefreshToken newRefreshToken = refreshTokenService.generateRefreshToken(user);
         return new AuthResponse(token, newRefreshToken.getToken().toString(), user.getUsername(), user.getRole());
     }

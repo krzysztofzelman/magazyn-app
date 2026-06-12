@@ -17,6 +17,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDateTime;
 
@@ -26,7 +27,8 @@ import java.time.LocalDateTime;
 @Builder
 @Entity
 @Table(name = "stock_reservations")
-public class StockReservation {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class StockReservation extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

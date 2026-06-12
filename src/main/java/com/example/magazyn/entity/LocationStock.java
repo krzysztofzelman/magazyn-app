@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Filter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -24,7 +25,8 @@ import java.time.LocalDateTime;
 @Table(name = "location_stock", uniqueConstraints = {
     @UniqueConstraint(columnNames = {"location_id", "product_id"})
 })
-public class LocationStock {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class LocationStock extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

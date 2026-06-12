@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,7 +20,8 @@ import java.util.List;
 @Table(name = "warehouse_documents", uniqueConstraints = {
         @UniqueConstraint(columnNames = "number")
 })
-public class WarehouseDocument {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class WarehouseDocument extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

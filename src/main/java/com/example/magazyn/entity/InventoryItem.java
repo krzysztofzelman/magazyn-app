@@ -11,6 +11,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.Filter;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -20,7 +22,8 @@ import java.time.LocalDateTime;
 @Builder
 @Entity
 @Table(name = "inventory_items")
-public class InventoryItem {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class InventoryItem extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -14,6 +14,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.Filter;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -23,7 +25,8 @@ import java.util.UUID;
 @Builder
 @Entity
 @Table(name = "refresh_tokens")
-public class RefreshToken {
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+public class RefreshToken extends TenantAware {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

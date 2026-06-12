@@ -2,6 +2,7 @@ package com.example.magazyn.config;
 
 import com.example.magazyn.service.CustomUserDetailsService;
 import com.example.magazyn.util.JwtUtil;
+import jakarta.persistence.EntityManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,10 +24,12 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
+    private final EntityManager entityManager;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil, EntityManager entityManager) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
+        this.entityManager = entityManager;
     }
 
     @Bean
@@ -45,14 +48,20 @@ public class SecurityConfig {
     }
 
     @Bean
+    public TenantSessionFilter tenantSessionFilter() {
+        return new TenantSessionFilter(entityManager);
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(request -> {
                 var config = new org.springframework.web.cors.CorsConfiguration();
                 config.setAllowCredentials(true);
-                config.setAllowedOrigins(java.util.Arrays.asList(
+                config.setAllowedOriginPatterns(java.util.Arrays.asList(
                         "http://localhost:5173",
                         "http://localhost:3000",
+                        "https://*.magazyn.kzelman.pl",
                         "https://magazyn.kzelman.pl"
                 ));
                 config.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -118,6 +127,7 @@ public class SecurityConfig {
             .addFilterBefore(auditLogFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(tenantSessionFilter(), JwtAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     byte[] body = ("{\"status\":401,\"message\":\"Token niewa\u017cny lub wygas\u0142\",\"timestamp\":\""
