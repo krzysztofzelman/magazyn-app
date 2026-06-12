@@ -15,11 +15,15 @@ public class ContractorResponse {
     private ContractorType type;
     private Boolean active;
     private LocalDateTime createdAt;
+    private String bankAccount;
+    private Integer paymentDays;
+    private String paymentMethod;
 
     public ContractorResponse() {}
 
     public ContractorResponse(Long id, String name, String taxId, String address, String email,
-                              String phone, ContractorType type, Boolean active, LocalDateTime createdAt) {
+                              String phone, ContractorType type, Boolean active, LocalDateTime createdAt,
+                              String bankAccount, Integer paymentDays, String paymentMethod) {
         this.id = id;
         this.name = name;
         this.taxId = taxId;
@@ -29,6 +33,9 @@ public class ContractorResponse {
         this.type = type;
         this.active = active;
         this.createdAt = createdAt;
+        this.bankAccount = bankAccount;
+        this.paymentDays = paymentDays;
+        this.paymentMethod = paymentMethod;
     }
 
     public Long getId() { return id; }
@@ -49,4 +56,10 @@ public class ContractorResponse {
     public void setActive(Boolean active) { this.active = active; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getBankAccount() { return bankAccount; }
+    public void setBankAccount(String bankAccount) { this.bankAccount = bankAccount; }
+    public Integer getPaymentDays() { return paymentDays; }
+    public void setPaymentDays(Integer paymentDays) { this.paymentDays = paymentDays; }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
 }

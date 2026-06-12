@@ -43,6 +43,15 @@ public class Contractor extends TenantAware {
     @Column(nullable = false)
     private Boolean active = true;
 
+    private String bankAccount;
+
+    @Builder.Default
+    private Integer paymentDays = 14;
+
+    @Builder.Default
+    @Column(length = 20)
+    private String paymentMethod = "PRZELEW";
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

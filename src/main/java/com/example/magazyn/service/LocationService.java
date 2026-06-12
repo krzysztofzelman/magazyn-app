@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.LocationResponse;
 import com.example.magazyn.dto.LocationStockResponse;
 import com.example.magazyn.dto.LocationTreeNode;
@@ -62,7 +63,7 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public Optional<LocationResponse> getLocationById(Long id) {
-        return locationRepository.findById(id)
+        return locationRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .map(this::toResponse);
     }
 
@@ -119,7 +120,7 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public List<LocationStockResponse> getLocationStock(Long locationId) {
-        if (!locationRepository.existsById(locationId)) {
+        if (!locationRepository.existsByIdAndTenantId(locationId, TenantContext.getTenantId())) {
             throw new ResourceNotFoundException("Location", locationId);
         }
 
@@ -158,7 +159,7 @@ public class LocationService {
     }
 
     public LocationResponse updateLocation(Long id, com.example.magazyn.dto.LocationRequest request) {
-        Location existing = locationRepository.findById(id)
+        Location existing = locationRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", id));
 
         validateParent(request.getParentId());
@@ -202,18 +203,18 @@ public class LocationService {
     }
 
     public void deleteLocation(Long id) {
-        Location location = locationRepository.findById(id)
+        Location location = locationRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", id));
 
         if (locationRepository.existsByParentId(id)) {
             throw new InvalidOperationException("Cannot delete location with children. Remove children first.");
         }
 
-        locationRepository.deleteById(id);
+        locationRepository.delete(location);
     }
 
     public byte[] getBarcodeImage(Long locationId) {
-        Location location = locationRepository.findById(locationId)
+        Location location = locationRepository.findByIdAndTenantId(locationId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
 
         String barcodeText = location.getBarcode();
@@ -225,7 +226,7 @@ public class LocationService {
     }
 
     public byte[] getQrImage(Long locationId) {
-        Location location = locationRepository.findById(locationId)
+        Location location = locationRepository.findByIdAndTenantId(locationId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
 
         String qrData = location.getQrData();
@@ -243,7 +244,7 @@ public class LocationService {
         Location toLocation = locationRepository.findByBarcode(request.getToBarcode())
                 .orElseThrow(() -> new ResourceNotFoundException("Destination location with barcode " + request.getToBarcode()));
 
-        Product product = productRepository.findById(request.getProductId())
+        Product product = productRepository.findByIdAndTenantId(request.getProductId(), TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", request.getProductId()));
 
         BigDecimal quantity = BigDecimal.valueOf(request.getQuantity());
@@ -313,7 +314,7 @@ public class LocationService {
     }
 
     private void validateParent(Long parentId) {
-        if (parentId != null && !locationRepository.existsById(parentId)) {
+        if (parentId != null && !locationRepository.existsByIdAndTenantId(parentId, TenantContext.getTenantId())) {
             throw new ResourceNotFoundException("Parent location", parentId);
         }
     }

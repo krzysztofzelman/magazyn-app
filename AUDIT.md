@@ -14,7 +14,7 @@
 | Backend testy jednostkowe | 🛠️ Naprawiono 9 błędów kompilacji w JwtUtilTest |
 | Frontend build (`npm run build`) | ✅ tsc + vite OK (zweryfikowano) |
 | Frontend testy (`npm test`) | ✅ 9 testów Pagination — wszystkie przeszły |
-| Aplikacja na VPS | ⚠️ Działa, pozostały drobne błędy (patrz sekcje poniżej) |
+| Aplikacja na VPS | ✅ Wdrożona z fixami B1-B4, F1-F3 (2025-07-14) |
 
 ---
 
@@ -29,6 +29,21 @@
 | F1 | **Dashboard race condition** | `DashboardPanel.tsx`, `api.ts` | Dodano `onWarehouseChange` listener, dashboard refetchuje przy zmianie magazynu |
 | F2 | **Warehouse ID nie persistowany** | `api.ts` | `setCurrentWarehouseId()` zapisuje/usuwa z localStorage; odtwarzany przy starcie modułu |
 | F3 | **Silent catch()** | `WarehouseSelector.tsx`, `TenantSettingsPanel.tsx` | Dodano komunikaty błędów zamiast pustego `.catch(() => {})` |
+
+---
+
+## 🚀 Wdrożone na VPS (2025-07-14)
+
+**Wszystkie 8 fixów** z commitów:
+- `9b0fb1c` (backend) — JwtUtilTest, EmailService, TenantService, NotificationService, frontend bundle
+- `047bfbc` (frontend) — DashboardPanel, api.ts, WarehouseSelector, TenantSettingsPanel, LangToggle
+
+**Deploy:** Docker Compose rebuild → kontenery wystartowane (`docker ps`):
+- `magazyn-postgres` — Healthy (PostgreSQL 18)
+- `magazyn-app` — Up, Spring Boot 4.0.6 na Java 25
+- `magazyn-backup` — codzienne backup'y
+
+**Weryfikacja:** `GET /` → HTTP 200, `GET /api/warehouses` → HTTP 401 (auth required — OK)
 
 ---
 

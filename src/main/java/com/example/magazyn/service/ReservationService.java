@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.CreateReservationRequest;
 import com.example.magazyn.dto.ProductAvailabilityResponse;
 import com.example.magazyn.dto.ReservationResponse;
@@ -170,7 +171,7 @@ public class ReservationService {
      */
     @Transactional(readOnly = true)
     public ProductAvailabilityResponse getProductAvailability(Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdAndTenantId(productId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         int reservedQuantity = getActiveReservedQuantity(productId);

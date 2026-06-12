@@ -50,6 +50,10 @@ public class Product extends TenantAware {
     @Builder.Default
     private BigDecimal price = BigDecimal.ZERO;
 
+    @Column(precision = 5, scale = 2)
+    @Builder.Default
+    private BigDecimal defaultVatRate = new BigDecimal("23.00");
+
     @Column
     @Builder.Default
     private Integer minQuantity = 0;

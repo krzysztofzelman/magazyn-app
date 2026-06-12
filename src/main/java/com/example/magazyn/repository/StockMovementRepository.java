@@ -11,9 +11,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
+
+    Optional<StockMovement> findByIdAndTenantId(Long id, Long tenantId);
 
     @EntityGraph(attributePaths = "product")
     List<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId);

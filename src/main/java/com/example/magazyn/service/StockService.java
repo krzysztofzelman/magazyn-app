@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.StockMovementRequest;
 import com.example.magazyn.dto.StockMovementResponse;
 import com.example.magazyn.dto.StockResponse;
@@ -266,7 +267,7 @@ public class StockService {
 
     @Transactional(readOnly = true)
     public Page<StockMovementResponse> getMovements(Long productId, Pageable pageable) {
-        if (!productRepository.existsById(productId)) {
+        if (!productRepository.existsByIdAndTenantId(productId, TenantContext.getTenantId())) {
             throw new ResourceNotFoundException("Product", productId);
         }
         return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId, pageable)
@@ -281,7 +282,7 @@ public class StockService {
 
     @Transactional(readOnly = true)
     public StockResponse getStock(Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdAndTenantId(productId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         return new StockResponse(product.getId(), product.getName(), product.getSku(), product.getQuantity());
     }

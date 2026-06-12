@@ -24,6 +24,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(
             String name, String sku, Pageable pageable);
 
+    Optional<Product> findByIdAndTenantId(Long id, Long tenantId);
+
+    boolean existsByIdAndTenantId(Long id, Long tenantId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);

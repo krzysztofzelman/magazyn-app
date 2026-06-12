@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.entity.Location;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.exception.ResourceNotFoundException;
@@ -44,7 +45,7 @@ public class LabelService {
     }
 
     public byte[] generateLocationLabel(Long locationId) {
-        Location location = locationRepository.findById(locationId)
+        Location location = locationRepository.findByIdAndTenantId(locationId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -132,7 +133,7 @@ public class LabelService {
     }
 
     public byte[] generateProductLabel(Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdAndTenantId(productId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -157,7 +158,7 @@ public class LabelService {
     private static final int ZPL_MARGIN = 20;
 
     public String generateProductZpl(Long productId) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdAndTenantId(productId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         String barcodeText = product.getBarcode() != null ? product.getBarcode() : product.getSku();
@@ -201,7 +202,7 @@ public class LabelService {
     }
 
     public String generateLocationZpl(Long locationId) {
-        Location location = locationRepository.findById(locationId)
+        Location location = locationRepository.findByIdAndTenantId(locationId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
 
         String barcodeText = location.getBarcode() != null ? location.getBarcode() : location.getCode();

@@ -16,6 +16,8 @@ import java.util.Optional;
 @Repository
 public interface StockReservationRepository extends JpaRepository<StockReservation, Long> {
 
+    Optional<StockReservation> findByIdAndTenantId(Long id, Long tenantId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM StockReservation r WHERE r.id = :id")
     Optional<StockReservation> findByIdForUpdate(@Param("id") Long id);

@@ -18,6 +18,8 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 
 **Swagger UI:** [`https://magazyn.kzelman.pl/swagger-ui/index.html`](https://magazyn.kzelman.pl/swagger-ui/index.html) (wymaga roli ADMIN)
 
+**Ostatni audyt i deploy:** 2025-07-14 — naprawiono 8 błędów (izolacja tenantów, email leak, dashboard, silent catch) i wdrożono na VPS przez Docker Compose. Szczegóły w [`AUDIT.md`](./AUDIT.md).
+
 ---
 
 ## Spis treści
@@ -523,19 +525,17 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 
 | Zakładka | Komponent | Opis |
 |---|---|---|
-| **Dashboard** | `DashboardPanel` | Karty z metrykami (produkty, wartość stanu, dokumenty), wykres słupkowy dokumentów (30d), wykres kołowy wartości stanu, alerty |
-| **Products** | `ProductTable` | Tabela produktów z paginacją, wyszukiwaniem, sortowaniem. Dla każdego produktu: stan, najbliższa data ważności partii, lokalizacja. Formularz dodawania/edycji. |
-| **Contractors** | `ContractorTable` | Lista kontrahentów z wyszukiwaniem. Formularz dodawania/edycji. |
-| **Documents (PZ/WZ)** | `DocumentList` | Lista dokumentów z filtrowaniem po typie i statusie. Formularz tworzenia z dynamicznymi pozycjami. Modal szczegółów dokumentu. |
-| **Locations** | `LocationPanel`, `LocationTree`, `LocationDetailDrawer` | Drzewo lokalizacji. Formularz dodawania/edycji. Szczegóły lokalizacji ze stanem magazynowym. |
-| **Reservations** | `ReservationPanel` | Lista rezerwacji z filtrami. Tworzenie i zwalnianie rezerwacji. |
-| **Scanner** | `ScannerPanel`, `ScannerTab` | Multi-mode skaner kodów kreskowych — szybkie przyjęcie (PZ), szybkie wydanie (WZ), transfer między lokalizacjami, inwentaryzacja. |
-| **Inventory** | (część `DocumentList`) | Sesje inwentaryzacyjne: raport różnic, zamykanie sesji. |
-| **Users** (tylko ADMIN) | `UserManagementPanel` | Zarządzanie użytkownikami — CRUD, role, dezaktywacja. |
-| **Profile** | `ProfilePanel` | Zmiana hasła, podgląd własnego profilu. |
-| **Tenant** (tylko ADMIN) | `TenantSettingsPanel` | Podgląd profilu najemcy, klucze API, zmiana planu |
-| **Warehouses** (tylko ADMIN) | `WarehousePanel` | Zarządzanie magazynami — CRUD, przełącznik aktywnego magazynu |
-| **Audit** (tylko ADMIN) | `AuditLogPanel` | Dziennik audytu z filtrowaniem po użytkowniku i akcji. |
+| **Panel** | `DashboardPanel` | Karty z metrykami (produkty, wartość stanu, partie do wygaśnięcia, alerty stanów). Lista najczęściej wydawanych produktów. Tabela produktów poniżej minimalnego stanu. |
+| **Produkty** | `ProductTable`, `StockPanel`, `BatchPanel` | Tabela produktów z paginacją, wyszukiwarką. Dla każdego produktu: panel stanu z historią ruchów, panel partii (batch/lot) z datami ważności. CRUD przez modale. |
+| **Dokumenty** | `DocumentList`, `DocumentFormModal`, `DocumentDetailModal` | Lista dokumentów PZ/WZ z filtrowaniem po typie i statusie. Tworzenie, potwierdzanie, anulowanie. Eksport PDF. |
+| **Lokalizacje** | `LocationPanel`, `LocationTree`, `LocationDetailDrawer` | Hierarchiczne drzewo lokalizacji (Magazyn → Regał → Półka → Kuweta). Stan magazynowy w lokalizacji, przenoszenie towaru. |
+| **Skaner** | `ScannerTab`, `ScannerPanel` | Multi-mode skaner kodów kreskowych — szybkie przyjęcie (PZ), szybkie wydanie (WZ), transfer, inwentaryzacja. Obsługa kamery (ZXing) i klawiatury. |
+| **Inwentaryzacja** | `InventoryPanel` | Sesje inwentaryzacyjne: tworzenie, skanowanie produktów, raport różnic, zamykanie sesji z aktualizacją stanów. |
+| **Ustawienia** | `TenantSettingsPanel`, `WarehousePanel` | Profil firmy (nazwa, subdomena, plan, licznik użytkowników). Klucz API (pokaż/ukryj/kopiuj/wygeneruj nowy). Zarządzanie magazynami (CRUD). |
+
+**Header (widoczny zawsze):** przełącznik magazynu (`WarehouseSelector`), dark mode (`ThemeToggle`), język PL/EN (`LangToggle`), przyciski Dodaj/Import produktu (admin), profil użytkownika (`ProfilePanel` — podgląd + zmiana hasła), wylogowanie.
+
+**Komponenty istniejące w kodzie, ale niepodpięte w interfejsie:** `ContractorTable`, `ReservationPanel`, `UserManagementPanel`, `AuditLogPanel` — wymagają dokończenia integracji. **Kontrahenci** i **Rezerwacje** są dostępne przez dedykowane endpointy API.
 
 ### Funkcje przekrojowe (header)
 
@@ -547,19 +547,19 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 
 ### Hooks i konteksty (stan)
 
-| Hook / Context | Zarządza |
-|---|---|
-| `useAuth` | Stan autoryzacji, login/logout, przechowywanie JWT w localStorage |
-| `useProducts` | Lista produktów, paginacja, wyszukiwanie (debounced), CRUD |
-| `useContractors` | Lista kontrahentów, wyszukiwanie, CRUD |
-| `useDocuments` | Lista dokumentów (filtry typ/status), paginacja, CRUD, potwierdzanie/anulowanie |
-| `useReservations` | Lista rezerwacji, filtry, tworzenie/zwalnianie |
-| `useBarcodeScanner` | Skaner kamery (ZXing + video stream), obsługa kodów kreskowych |
-| `useScannerInput` | Keyboard-wedge scanner (buforowanie znaków + debounce) |
-| `useNotification` | Komunikaty toast |
-| `ThemeContext` | Stan motywu (dark/light), przełączanie, localStorage |
-| `LangContext` | Stan języka (pl/en), przełączanie, tłumaczenia |
-| `WarehouseContext` | Stan aktywnego magazynu, lista magazynów, przełączanie |
+| Hook / Context | Zarządza | Stan |
+|---|---|---|
+| `useAuth` | Stan autoryzacji, login/logout, JWT w localStorage | ✅ Podpięty |
+| `useProducts` | Lista produktów, paginacja, wyszukiwanie, CRUD | ✅ Podpięty |
+| `useDocuments` | Lista dokumentów (filtry typ/status), paginacja, CRUD | ✅ Podpięty |
+| `useNotification` | Komunikaty toast (auto-hide 4s) | ✅ Podpięty |
+| `useContractors` | Lista kontrahentów, wyszukiwanie, CRUD | ⏳ Istnieje, niepodpięty |
+| `useReservations` | Lista rezerwacji, filtry, tworzenie/zwalnianie | ⏳ Istnieje, niepodpięty |
+| `useBarcodeScanner` | Skaner kamery (ZXing + video stream) | ⏳ Istnieje, niepodpięty |
+| `useScannerInput` | Keyboard-wedge scanner (buforowanie + debounce) | ⏳ Istnieje, niepodpięty |
+| `ThemeContext` | Motyw dark/light, localStorage | ✅ Podpięty |
+| `LangContext` | Język pl/en, tłumaczenia, localStorage | ✅ Podpięty |
+| `WarehouseContext` | Aktywny magazyn, lista, przełączanie | ⏳ Istnieje, niepodpięty (użyto `onWarehouseChange` w api.ts) |
 
 ---
 

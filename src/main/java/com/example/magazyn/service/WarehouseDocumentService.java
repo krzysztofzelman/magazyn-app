@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.*;
 import com.example.magazyn.entity.*;
 import com.example.magazyn.exception.InsufficientStockException;
@@ -49,6 +50,7 @@ public class WarehouseDocumentService {
     private final ReservationService reservationService;
     private final LocationRepository locationRepository;
     private final LocationStockRepository locationStockRepository;
+    private final InvoiceService invoiceService;
 
     public WarehouseDocumentService(WarehouseDocumentRepository documentRepository,
                                     WarehouseDocumentItemRepository itemRepository,
@@ -60,7 +62,8 @@ public class WarehouseDocumentService {
                                     AuditLogService auditLogService,
                                     ReservationService reservationService,
                                     LocationRepository locationRepository,
-                                    LocationStockRepository locationStockRepository) {
+                                    LocationStockRepository locationStockRepository,
+                                    InvoiceService invoiceService) {
         this.documentRepository = documentRepository;
         this.itemRepository = itemRepository;
         this.contractorRepository = contractorRepository;
@@ -72,10 +75,11 @@ public class WarehouseDocumentService {
         this.reservationService = reservationService;
         this.locationRepository = locationRepository;
         this.locationStockRepository = locationStockRepository;
+        this.invoiceService = invoiceService;
     }
 
     public WarehouseDocumentResponse createDocument(WarehouseDocumentRequest request, String username) {
-        Contractor contractor = contractorRepository.findById(request.getContractorId())
+        Contractor contractor = contractorRepository.findByIdAndTenantId(request.getContractorId(), TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contractor", request.getContractorId()));
 
         // Retry up to 3 times in case of concurrent document number collision,
@@ -116,7 +120,7 @@ public class WarehouseDocumentService {
 
         List<WarehouseDocumentItem> items = new ArrayList<>();
         for (WarehouseDocumentItemRequest itemReq : request.getItems()) {
-            Product product = productRepository.findById(itemReq.getProductId())
+            Product product = productRepository.findByIdAndTenantId(itemReq.getProductId(), TenantContext.getTenantId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product", itemReq.getProductId()));
 
             WarehouseDocumentItem item = WarehouseDocumentItem.builder()
@@ -162,7 +166,7 @@ public class WarehouseDocumentService {
     }
 
     public LocationResponse scanLocationForDocument(Long docId, String barcode) {
-        WarehouseDocument document = documentRepository.findById(docId)
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.PZ) {
@@ -188,7 +192,7 @@ public class WarehouseDocumentService {
     }
 
     public WarehouseDocumentItemResponse scanLocationForItem(Long docId, Long itemId, String barcode, String username) {
-        WarehouseDocument document = documentRepository.findById(docId)
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.PZ) {
@@ -290,6 +294,19 @@ public class WarehouseDocumentService {
         auditLogService.log(username, "DOCUMENT_CONFIRM", "WarehouseDocument", id,
                 "type=" + document.getType() + " number=" + document.getNumber());
 
+        // Auto-generate invoice for WZ documents (silently skip if company settings not configured)
+        if (document.getType() == DocumentType.WZ) {
+            try {
+                invoiceService.generateFromDocument(id, username);
+                auditLogService.log(username, "INVOICE_AUTO_GENERATE", "WarehouseDocument", id,
+                        "auto-generated invoice for " + document.getNumber());
+            } catch (Exception e) {
+                // Company settings not configured or other issue — log but don't block confirm
+                auditLogService.log(username, "INVOICE_AUTO_GENERATE_SKIP", "WarehouseDocument", id,
+                        "auto-generate skipped: " + e.getMessage());
+            }
+        }
+
         return toResponse(document);
     }
 
@@ -382,7 +399,7 @@ public class WarehouseDocumentService {
     }
 
     public WzScanResponse scanLocationForWzItem(Long docId, Long itemId, String barcode, String username) {
-        WarehouseDocument document = documentRepository.findById(docId)
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.WZ) {

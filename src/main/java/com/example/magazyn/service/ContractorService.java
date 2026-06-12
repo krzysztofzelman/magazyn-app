@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.ContractorRequest;
 import com.example.magazyn.dto.ContractorResponse;
 import com.example.magazyn.entity.Contractor;
@@ -31,7 +32,7 @@ public class ContractorService {
 
     @Transactional(readOnly = true)
     public ContractorResponse getContractorById(Long id) {
-        Contractor contractor = contractorRepository.findById(id)
+        Contractor contractor = contractorRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contractor", id));
         return toResponse(contractor);
     }
@@ -54,6 +55,9 @@ public class ContractorService {
                 .phone(request.getPhone())
                 .type(request.getType())
                 .active(request.getActive() != null ? request.getActive() : true)
+                .bankAccount(request.getBankAccount())
+                .paymentDays(request.getPaymentDays())
+                .paymentMethod(request.getPaymentMethod())
                 .build();
 
         Contractor saved = contractorRepository.save(contractor);
@@ -61,7 +65,7 @@ public class ContractorService {
     }
 
     public ContractorResponse updateContractor(Long id, ContractorRequest request) {
-        Contractor contractor = contractorRepository.findById(id)
+        Contractor contractor = contractorRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contractor", id));
 
         if (request.getName() != null) contractor.setName(request.getName());
@@ -71,16 +75,18 @@ public class ContractorService {
         if (request.getPhone() != null) contractor.setPhone(request.getPhone());
         if (request.getType() != null) contractor.setType(request.getType());
         if (request.getActive() != null) contractor.setActive(request.getActive());
+        if (request.getBankAccount() != null) contractor.setBankAccount(request.getBankAccount());
+        if (request.getPaymentDays() != null) contractor.setPaymentDays(request.getPaymentDays());
+        if (request.getPaymentMethod() != null) contractor.setPaymentMethod(request.getPaymentMethod());
 
         Contractor saved = contractorRepository.save(contractor);
         return toResponse(saved);
     }
 
     public void deleteContractor(Long id) {
-        if (!contractorRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Contractor", id);
-        }
-        contractorRepository.deleteById(id);
+        Contractor contractor = contractorRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Contractor", id));
+        contractorRepository.delete(contractor);
     }
 
     @Transactional(readOnly = true)
@@ -100,7 +106,8 @@ public class ContractorService {
     private ContractorResponse toResponse(Contractor c) {
         return new ContractorResponse(
                 c.getId(), c.getName(), c.getTaxId(), c.getAddress(),
-                c.getEmail(), c.getPhone(), c.getType(), c.getActive(), c.getCreatedAt()
+                c.getEmail(), c.getPhone(), c.getType(), c.getActive(), c.getCreatedAt(),
+                c.getBankAccount(), c.getPaymentDays(), c.getPaymentMethod()
         );
     }
 }

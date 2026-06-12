@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.InventoryItemResponse;
 import com.example.magazyn.dto.InventoryReportResponse;
 import com.example.magazyn.dto.InventoryScanRequest;
@@ -131,14 +132,14 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventorySessionResponse getSession(Long id) {
-        InventorySession session = sessionRepository.findById(id)
+        InventorySession session = sessionRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", id));
         List<InventoryItem> items = itemRepository.findBySessionId(id);
         return toSessionResponse(session, items.size());
     }
 
     public InventoryItemResponse scan(Long sessionId, InventoryScanRequest request, String username) {
-        InventorySession session = sessionRepository.findById(sessionId)
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
         if (!"OPEN".equals(session.getStatus())) {
@@ -189,7 +190,7 @@ public class InventoryService {
         if (barcodeOrSku != null && barcodeOrSku.startsWith("PROD-")) {
             try {
                 Long id = Long.parseLong(barcodeOrSku.substring(5));
-                return productRepository.findById(id).orElse(null);
+                return productRepository.findByIdAndTenantId(id, TenantContext.getTenantId()).orElse(null);
             } catch (NumberFormatException ignored) {
                 // fall through
             }
@@ -202,7 +203,7 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventoryReportResponse getReport(Long sessionId) {
-        InventorySession session = sessionRepository.findById(sessionId)
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
         List<InventoryItem> items = itemRepository.findBySessionId(sessionId);
@@ -246,7 +247,7 @@ public class InventoryService {
     }
 
     public InventorySessionResponse closeSession(Long sessionId, String username) {
-        InventorySession session = sessionRepository.findById(sessionId)
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
         if (!"OPEN".equals(session.getStatus())) {

@@ -16,6 +16,8 @@ import java.util.Optional;
 @Repository
 public interface BatchRepository extends JpaRepository<Batch, Long> {
 
+    Optional<Batch> findByIdAndTenantId(Long id, Long tenantId);
+
     @EntityGraph(attributePaths = {"product"})
     List<Batch> findByProductIdOrderByExpiryDateAsc(Long productId);
 

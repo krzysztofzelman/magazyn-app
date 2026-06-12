@@ -25,6 +25,12 @@ public class ContractorRequest {
     @NotNull(message = "Status aktywności jest wymagany")
     private Boolean active;
 
+    private String bankAccount;
+
+    private Integer paymentDays;
+
+    private String paymentMethod;
+
     public @NotBlank(message = "Nazwa kontrahenta jest wymagana") String getName() {
         return name;
     }
@@ -80,4 +86,11 @@ public class ContractorRequest {
     public void setActive(Boolean active) {
         this.active = active;
     }
+
+    public String getBankAccount() { return bankAccount; }
+    public void setBankAccount(String bankAccount) { this.bankAccount = bankAccount; }
+    public Integer getPaymentDays() { return paymentDays; }
+    public void setPaymentDays(Integer paymentDays) { this.paymentDays = paymentDays; }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
 }

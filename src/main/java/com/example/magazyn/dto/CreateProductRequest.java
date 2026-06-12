@@ -24,6 +24,8 @@ public class CreateProductRequest {
     @PositiveOrZero(message = "Minimalny stan musi być większy lub równy 0")
     private Integer minQuantity;
 
+    private BigDecimal defaultVatRate;
+
     private Boolean trackExpiry;
 
     private String barcode;
@@ -49,6 +51,9 @@ public class CreateProductRequest {
 
     public Integer getMinQuantity() { return minQuantity; }
     public void setMinQuantity(Integer minQuantity) { this.minQuantity = minQuantity; }
+
+    public BigDecimal getDefaultVatRate() { return defaultVatRate; }
+    public void setDefaultVatRate(BigDecimal defaultVatRate) { this.defaultVatRate = defaultVatRate; }
 
     public Boolean getTrackExpiry() { return trackExpiry; }
     public void setTrackExpiry(Boolean trackExpiry) { this.trackExpiry = trackExpiry; }

@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.ChangePasswordRequest;
 import com.example.magazyn.dto.UserRequest;
 import com.example.magazyn.dto.UserResponse;
@@ -61,7 +62,7 @@ public class UserService {
     }
 
     public UserResponse getUser(Long id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
         return toResponse(user);
     }
@@ -74,7 +75,7 @@ public class UserService {
 
     @Transactional
     public UserResponse updateUser(Long id, UserRequest request) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
 
         if (request.getUsername() != null && !request.getUsername().isBlank()
@@ -103,7 +104,7 @@ public class UserService {
 
     @Transactional
     public void deactivateUser(Long id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
         user.setIsActive(false);
         userRepository.save(user);
@@ -111,7 +112,7 @@ public class UserService {
 
     @Transactional
     public void activateUser(Long id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", id));
         user.setIsActive(true);
         userRepository.save(user);
@@ -119,7 +120,7 @@ public class UserService {
 
     @Transactional
     public void changePassword(Long userId, ChangePasswordRequest request) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdAndTenantId(userId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {

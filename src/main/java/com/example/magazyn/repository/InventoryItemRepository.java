@@ -10,6 +10,8 @@ import java.util.Optional;
 @Repository
 public interface InventoryItemRepository extends JpaRepository<InventoryItem, Long> {
 
+    Optional<InventoryItem> findByIdAndTenantId(Long id, Long tenantId);
+
     List<InventoryItem> findBySessionId(Long sessionId);
 
     List<InventoryItem> findBySessionIdAndLocationId(Long sessionId, Long locationId);

@@ -20,6 +20,8 @@ import java.util.Optional;
 public interface WarehouseDocumentRepository extends JpaRepository<WarehouseDocument, Long>,
         JpaSpecificationExecutor<WarehouseDocument> {
 
+    Optional<WarehouseDocument> findByIdAndTenantId(Long id, Long tenantId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM WarehouseDocument d LEFT JOIN FETCH d.items i LEFT JOIN FETCH i.product WHERE d.id = :id")
     Optional<WarehouseDocument> findByIdWithItemsLocked(@Param("id") Long id);

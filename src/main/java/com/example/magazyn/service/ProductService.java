@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.AssignLocationRequest;
 import com.example.magazyn.dto.CreateProductRequest;
 import com.example.magazyn.dto.ProductResponse;
@@ -64,7 +65,7 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductById(Long id) {
         Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
-        return productRepository.findById(id)
+        return productRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
@@ -101,6 +102,7 @@ public class ProductService {
                 .barcode(request.getBarcode())
                 .categoryId(request.getCategoryId())
                 .defaultLocationId(request.getDefaultLocationId())
+                .defaultVatRate(request.getDefaultVatRate())
                 .build();
 
         Product saved = productRepository.save(product);
@@ -111,7 +113,7 @@ public class ProductService {
 
     @Transactional
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
-        Product existing = productRepository.findById(id)
+        Product existing = productRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         if (request.getName() != null) {
@@ -142,6 +144,9 @@ public class ProductService {
         if (request.getBarcode() != null) {
             existing.setBarcode(request.getBarcode());
         }
+        if (request.getDefaultVatRate() != null) {
+            existing.setDefaultVatRate(request.getDefaultVatRate());
+        }
 
         Product saved = productRepository.save(existing);
         auditLogService.log(currentUsername(), "UPDATE_PRODUCT", "Product", saved.getId(),
@@ -152,11 +157,11 @@ public class ProductService {
 
     public void deleteProduct(Long id) {
         meterRegistry.counter("products.deleted.count").increment();
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         auditLogService.log(currentUsername(), "DELETE_PRODUCT", "Product", id,
                 "Deleted product: " + product.getName() + " (SKU: " + product.getSku() + ")");
-        productRepository.deleteById(id);
+        productRepository.delete(product);
     }
 
     @Transactional(readOnly = true)
@@ -168,7 +173,7 @@ public class ProductService {
     }
 
     public ProductResponse assignLocation(Long productId, AssignLocationRequest request) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findByIdAndTenantId(productId, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         product.setLocationId(request.getLocationId());
         Product saved = productRepository.save(product);
@@ -202,6 +207,7 @@ public class ProductService {
         );
         response.setCategoryId(product.getCategoryId());
         response.setDefaultLocationId(product.getDefaultLocationId());
+        response.setDefaultVatRate(product.getDefaultVatRate());
         return response;
     }
 }

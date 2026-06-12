@@ -23,6 +23,7 @@ public class ProductResponse {
     private String barcode;
     private Long categoryId;
     private Long defaultLocationId;
+    private BigDecimal defaultVatRate;
 
     public ProductResponse() {}
 
@@ -114,4 +115,7 @@ public class ProductResponse {
 
     public Long getDefaultLocationId() { return defaultLocationId; }
     public void setDefaultLocationId(Long defaultLocationId) { this.defaultLocationId = defaultLocationId; }
+
+    public BigDecimal getDefaultVatRate() { return defaultVatRate; }
+    public void setDefaultVatRate(BigDecimal defaultVatRate) { this.defaultVatRate = defaultVatRate; }
 }
