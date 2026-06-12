@@ -53,6 +53,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public WarehouseSessionFilter warehouseSessionFilter() {
+        return new WarehouseSessionFilter(entityManager);
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(request -> {
@@ -65,7 +70,8 @@ public class SecurityConfig {
                         "https://magazyn.kzelman.pl"
                 ));
                 config.setAllowedMethods(java.util.Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-                config.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type"));
+                config.setAllowedHeaders(java.util.Arrays.asList("Authorization", "Content-Type", "X-Warehouse-Id"));
+                config.setExposedHeaders(java.util.Arrays.asList("X-Warehouse-Id"));
                 config.setMaxAge(3600L);
                 return config;
             }))
@@ -73,6 +79,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                .requestMatchers("/api/tenants/register").permitAll()
                 .requestMatchers("/api/auth/logout").authenticated()
                 .requestMatchers("/api/auth/register").hasRole("ADMIN")
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
@@ -120,6 +127,9 @@ public class SecurityConfig {
                 // Scanner - ADMIN, MANAGER, WAREHOUSE
                 .requestMatchers("/api/scanner/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE")
 
+                // Warehouses — all roles
+                .requestMatchers("/api/warehouses/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE", "VIEWER")
+
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/icons.svg", "/assets/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -128,6 +138,7 @@ public class SecurityConfig {
             .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(tenantSessionFilter(), JwtAuthenticationFilter.class)
+            .addFilterAfter(warehouseSessionFilter(), JwtAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     byte[] body = ("{\"status\":401,\"message\":\"Token niewa\u017cny lub wygas\u0142\",\"timestamp\":\""

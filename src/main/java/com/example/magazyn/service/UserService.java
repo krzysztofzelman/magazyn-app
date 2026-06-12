@@ -19,15 +19,25 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TenantService tenantService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       TenantService tenantService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tenantService = tenantService;
     }
 
     public UserResponse register(UserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateResourceException("Username already exists: " + request.getUsername());
+        }
+
+        // Enforce tenant plan user limit
+        if (!tenantService.canAddUser()) {
+            throw new IllegalStateException(
+                "Osi\u0105gni\u0119to limit u\u017Cytkownik\u00F3w dla tego planu. "
+                + "Aby doda\u0107 wi\u0119cej u\u017Cytkownik\u00F3w, zaktualizuj plan.");
         }
 
         String role = normalizeRole(request.getRole());

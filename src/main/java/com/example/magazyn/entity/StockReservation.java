@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "stock_reservations")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class StockReservation extends TenantAware {
 
     @Id
@@ -65,6 +66,9 @@ public class StockReservation extends TenantAware {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @Version
     private Integer version;

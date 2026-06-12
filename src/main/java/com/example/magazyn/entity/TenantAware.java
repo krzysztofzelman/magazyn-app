@@ -18,10 +18,16 @@ import org.hibernate.annotations.ParamDef;
  */
 @Data
 @MappedSuperclass
-@FilterDef(
-    name = "tenantFilter",
-    parameters = @ParamDef(name = "tenantId", type = Long.class)
-)
+@FilterDefs({
+    @FilterDef(
+        name = "tenantFilter",
+        parameters = @ParamDef(name = "tenantId", type = Long.class)
+    ),
+    @FilterDef(
+        name = "warehouseFilter",
+        parameters = @ParamDef(name = "warehouseId", type = Long.class)
+    )
+})
 public abstract class TenantAware {
 
     @Column(name = "tenant_id", nullable = false, updatable = false)

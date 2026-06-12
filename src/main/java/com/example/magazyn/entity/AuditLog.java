@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "audit_logs")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class AuditLog extends TenantAware {
 
     @Id
@@ -48,4 +49,7 @@ public class AuditLog extends TenantAware {
 
     @CreationTimestamp
     private LocalDateTime timestamp;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }

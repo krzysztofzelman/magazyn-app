@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
     @UniqueConstraint(columnNames = {"location_id", "product_id"})
 })
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class LocationStock extends TenantAware {
 
     @Id
@@ -51,4 +52,7 @@ public class LocationStock extends TenantAware {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }

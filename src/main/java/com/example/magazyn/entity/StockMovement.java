@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "stock_movements")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class StockMovement extends TenantAware {
 
     @Id
@@ -54,4 +55,7 @@ public class StockMovement extends TenantAware {
 
     @Column
     private Long batchId;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }

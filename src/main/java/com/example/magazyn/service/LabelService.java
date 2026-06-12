@@ -149,6 +149,116 @@ public class LabelService {
         return baos.toByteArray();
     }
 
+    // ============= ZPL label generation =============
+
+    private static final int ZPL_DPI = 203;             // 203 dpi
+    private static final int ZPL_W = 800;                // ~100mm
+    private static final int ZPL_H = 600;                // ~75mm
+    private static final int ZPL_MARGIN = 20;
+
+    public String generateProductZpl(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
+
+        String barcodeText = product.getBarcode() != null ? product.getBarcode() : product.getSku();
+        String name = truncateZpl(product.getName(), 30);
+        String sku = product.getSku();
+
+        StringBuilder zpl = new StringBuilder();
+        zpl.append("^XA");                                         // start label
+        zpl.append("^LH0,0");                                      // label home
+        zpl.append("^LL").append(ZPL_H);                           // label length
+
+        // Font: A=0 (CG Triumvirate Bold Condensed), default size 30
+        zpl.append("^CF0,30");
+        // Header
+        zpl.append("^FO").append(ZPL_MARGIN).append(",").append(ZPL_MARGIN);
+        zpl.append("^FD").append("PRODUKT").append("^FS");
+
+        // Product name — larger font
+        zpl.append("^CF0,40");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",55");
+        zpl.append("^FD").append(name).append("^FS");
+
+        // SKU
+        zpl.append("^CF0,24");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",110");
+        zpl.append("^FDSKU: ").append(sku).append("^FS");
+
+        // Barcode (Code 128)
+        zpl.append("^BY2,3,120");                                  // module width=2, ratio=3, height=120
+        zpl.append("^FO").append(ZPL_MARGIN).append(",160");
+        zpl.append("^BCN,120,Y,N,N");
+        zpl.append("^FD").append(barcodeText).append("^FS");
+
+        // Barcode text below
+        zpl.append("^CF0,22");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",290");
+        zpl.append("^FD").append(barcodeText).append("^FS");
+
+        zpl.append("^XZ");                                         // end label
+        return zpl.toString();
+    }
+
+    public String generateLocationZpl(Long locationId) {
+        Location location = locationRepository.findById(locationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Location", locationId));
+
+        String barcodeText = location.getBarcode() != null ? location.getBarcode() : location.getCode();
+        String name = truncateZpl(location.getName(), 30);
+        String code = location.getCode();
+
+        StringBuilder zpl = new StringBuilder();
+        zpl.append("^XA");
+        zpl.append("^LH0,0");
+        zpl.append("^LL").append(ZPL_H);
+
+        // Header
+        zpl.append("^CF0,30");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",").append(ZPL_MARGIN);
+        zpl.append("^FD").append("LOKALIZACJA").append("^FS");
+
+        // Location name — larger
+        zpl.append("^CF0,40");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",55");
+        zpl.append("^FD").append(name).append("^FS");
+
+        // Code
+        zpl.append("^CF0,24");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",110");
+        zpl.append("^FDKod: ").append(code).append("^FS");
+
+        // Type
+        zpl.append("^FO").append(ZPL_MARGIN).append(",140");
+        zpl.append("^FDTyp: ").append(location.getType().name()).append("^FS");
+
+        // Zone
+        if (location.getZone() != null && !location.getZone().isBlank()) {
+            zpl.append("^FO").append(ZPL_MARGIN).append(",170");
+            zpl.append("^FDStrefa: ").append(location.getZone()).append("^FS");
+        }
+
+        // Barcode (Code 128)
+        zpl.append("^BY2,3,120");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",210");
+        zpl.append("^BCN,120,Y,N,N");
+        zpl.append("^FD").append(barcodeText).append("^FS");
+
+        // Barcode text below
+        zpl.append("^CF0,22");
+        zpl.append("^FO").append(ZPL_MARGIN).append(",340");
+        zpl.append("^FD").append(barcodeText).append("^FS");
+
+        zpl.append("^XZ");
+        return zpl.toString();
+    }
+
+    private static String truncateZpl(String text, int maxLen) {
+        if (text == null) return "";
+        if (text.length() <= maxLen) return text;
+        return text.substring(0, maxLen - 3) + "...";
+    }
+
     // ---- A6 label helpers ----
 
     private void addLocationLabelContent(PDPageContentStream cs, PDDocument doc,

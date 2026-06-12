@@ -29,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Public endpoints — always let through without token
         if (path.equals("/api/auth/login") || path.equals("/api/auth/refresh")
+                || path.equals("/api/tenants/register")
                 || path.equals("/actuator/health") || path.equals("/actuator/info")
                 || path.equals("/") || path.equals("/index.html") || path.equals("/favicon.svg")
                 || path.equals("/icons.svg") || path.startsWith("/assets/")) {
@@ -48,6 +49,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Set tenant context from JWT
                 TenantContext.setTenantId(tenantId);
+
+                // Set warehouse context from header (optional)
+                String warehouseHeader = request.getHeader("X-Warehouse-Id");
+                if (warehouseHeader != null && !warehouseHeader.isBlank()) {
+                    try {
+                        WarehouseContext.setWarehouseId(Long.parseLong(warehouseHeader));
+                    } catch (NumberFormatException ignored) {}
+                }
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(

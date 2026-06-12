@@ -170,6 +170,19 @@ public class LocationController {
                 .body(pdf);
     }
 
+    @GetMapping("/{id}/label-zpl")
+    @Operation(summary = "Pobierz etykiet\u0119 ZPL lokalizacji (dla drukarki termicznej)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> getLocationLabelZpl(
+            @PathVariable @Parameter(description = "ID lokalizacji") Long id) {
+        String zpl = labelService.generateLocationZpl(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/plain;charset=UTF-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"location-" + id + "-label.zpl\"")
+                .body(zpl);
+    }
+
     @GetMapping("/labels-pdf")
     @Operation(summary = "Pobierz etykiety PDF wielu lokalizacji (A4, 2x2)")
     @PreAuthorize("isAuthenticated()")

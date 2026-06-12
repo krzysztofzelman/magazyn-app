@@ -173,6 +173,19 @@ public class ProductController {
         return ResponseEntity.ok(reservationService.getProductAvailability(id));
     }
 
+    @GetMapping("/{id}/label-zpl")
+    @Operation(summary = "Pobierz etykiet\u0119 ZPL produktu (dla drukarki termicznej)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> getProductLabelZpl(
+            @PathVariable @Parameter(description = "ID produktu") Long id) {
+        String zpl = labelService.generateProductZpl(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/plain;charset=UTF-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"product-" + id + "-label.zpl\"")
+                .body(zpl);
+    }
+
     @GetMapping("/{id}/label-pdf")
     @Operation(summary = "Pobierz etykiet\u0119 PDF produktu (A6)")
     @PreAuthorize("isAuthenticated()")

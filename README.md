@@ -1,16 +1,18 @@
-# Magazyn — System Zarządzania Magazynem
+# Magazyn — Wielodzierżawczy System Zarządzania Magazynem (SaaS)
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-[![JWT](https://img.shields.io/badge/JWT-jjwt%200.13.0-000000?logo=jsonwebtokens)](https://github.com/jwtk/jjwt)
+[![JWT](https://img.shields.io/badge/JWT-jjwt%200.13.0-000000?logo=jsonwebtokens)](https://github.com/jwtk/jwt)
 [![Docker](https://img.shields.io/badge/Docker-29.5.2-2496ED?logo=docker)](https://www.docker.com/)
+[![Multi-Tenant](https://img.shields.io/badge/Multi--Tenant-SaaS-8A2BE2)](https://github.com/krzysztofzelman/magazyn-app)
+[![PL/EN](https://img.shields.io/badge/lang-PL%2FEN-0099FF)](.)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
 [![License](https://img.shields.io/badge/license-proprietary-red.svg)](LICENSE)
 
-Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. System obsługuje pełny cykl dokumentów magazynowych (PZ, WZ), śledzenie partii (batch/lot), rezerwacje stanów, lokalizacje produktów, FIFO przy wydaniach oraz eksport danych.
+Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. System działa w modelu **SaaS (multi-tenant)** z izolacją danych przez `tenant_id`, wspiera wiele magazynów na firmę, oferuje samoobsługową rejestrację najemców oraz interfejs w języku polskim i angielskim.
 
 **Produkcja:** [`https://magazyn.kzelman.pl`](https://magazyn.kzelman.pl)
 
@@ -120,6 +122,85 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 - Logowanie wszystkich akcji: logowanie, CRUD produktów, dokumenty, rezerwacje
 - Filtrowanie po użytkowniku i typie akcji
 - Widok tylko dla ADMIN
+
+### Wielodzierżawczość (Multi-tenant SaaS)
+- Współdzielona baza PostgreSQL z izolacją danych przez kolumnę `tenant_id` we wszystkich encjach
+- Automatyczne ustawianie kontekstu najemcy z tokena JWT (`TenantContext` ThreadLocal)
+- Filtr Hibernate `@Filter(name = "tenantFilter")` automatycznie dodaje warunek `tenant_id = ?` do każdego zapytania
+- Czyszczenie kontekstu po zakończeniu żądania (`TenantCleanupFilter`)
+- Rejestracja administracyjna nowego najemcy z automatycznym tworzeniem schematu bazowego (domyślny użytkownik ADMIN, domyślny magazyn, dane startowe)
+- Każdy najemca widzi tylko swoje dane — izolacja na poziomie aplikacji, nie bazy
+
+### Samoobsługowa rejestracja najemcy (Self-service)
+- Publiczny endpoint `POST /api/tenants/register` (bez autoryzacji)
+- Formularz: nazwa firmy, email, hasło, subdomena
+- Automatyczne tworzenie konta ADMIN dla nowego najemcy
+- Walidacja unikalności subdomeny
+- Zwraca dane logowania, nazwę najemcy i klucz API
+
+### Panel zarządzania najemcą
+- Widok profilu najemcy: nazwa firmy, email, subdomena, aktualny plan
+- Możliwość zmiany nazwy firmy i hasła głównego
+- Podgląd kluczy API z możliwością regeneracji
+- Widoczny tylko dla użytkowników z rolą ADMIN w danym tenant
+
+### Limity planów (Plan limits enforcement)
+- Każdy najemca ma przypisany plan: FREE / BASIC / PRO / ENTERPRISE
+- Limity: max liczba użytkowników, produktów, magazynów, dokumentów miesięcznie
+- Sprawdzanie limitów przy próbie utworzenia zasobu (user, product, warehouse, document)
+- Zwraca błąd `429 PLAN_LIMIT_EXCEEDED` po przekroczeniu limitu
+- Łatwa zmiana planu z poziomu panelu administracyjnego
+
+### Dashboard z wykresami
+- Wizualne karty (cards) z kluczowymi metrykami: produkty, wartość stanu, liczba dokumentów w tym miesiącu
+- Wykres słupkowy: dokumenty PZ/WZ w ostatnich 30 dniach
+- Wykres kołowy: rozkład wartości stanu magazynowego według produktów (top 10)
+- Lista alertów: niskie stany, wygasające partie, przekroczone limity planu
+- Odświeżanie przy każdym wejściu na dashboard
+
+### Tryb ciemny (Dark mode)
+- Przełącznik w headerze aplikacji (ikona księżyca/słońca)
+- Zmienne CSS (`--bg-primary`, `--text-primary` itp.) definiujące paletę kolorów
+- Stan zapisywany w `localStorage` — trwały między sesjami
+- Płynne przejścia między motywami (CSS `transition`)
+- Automatyczne dopasowanie do preferencji systemu (`prefers-color-scheme`) przy pierwszym uruchomieniu
+
+### Powiadomienia e-mail HTML
+- Codzienny cron (6:00) z raportem w formacie HTML
+- Szablon z logo, stylowaniem inline i responsywnym layoutem
+- Sekcje: niskie stany, wygasające partie, podsumowanie dokumentów z ostatnich 24h
+- Stopka z linkiem do aplikacji i informacją o koncie
+- Wysyłka przez `JavaMailSender` z szablonem HTML budowanym w `EmailService`
+
+### Klucze API dla najemców (API Keys)
+- Generowanie klucza API przy rejestracji najemcy (format: `mgz_` + 48 znaków hex)
+- Możliwość wygenerowania nowego klucza z poziomu panelu najemcy (stary klucz traci ważność)
+- Autoryzacja przez nagłówek `X-API-Key` — alternatywa dla JWT dla integracji zewnętrznych
+- Klucz przechowywany jako zahaszowany `BCrypt` w tabeli `tenants`
+- Endpointy wymagające klucza API oznaczone adnotacją
+
+### Wielojęzyczność PL/EN
+- Przełącznik języka w headerze aplikacji
+- Wsparcie dla języka polskiego (`pl`) i angielskiego (`en`)
+- Pliki tłumaczeń zorganizowane w `LangContext` (React Context API)
+- Tłumaczenia obejmują: nawigację, etykiety formularzy, komunikaty błędów, tooltipy, powiadomienia
+- Domyślny język: polski (`pl`)
+- Łatwe dodawanie kolejnych języków przez rozszerzenie plików tłumaczeń
+
+### Etykiety ZPL
+- Generowanie etykiet w formacie ZPL (Zebra Programming Language) dla produktów
+- Etykieta zawiera: nazwę produktu, SKU, kod kreskowy CODE128, datę ważności (jeśli batch), cenę
+- Pobieranie jako plik tekstowy `.zpl` do bezpośredniego wysłania na drukarkę Zebra
+- Endpoint `GET /api/products/{id}/label-zpl` zwraca surowy ZPL z nagłówkiem `Content-Type: application/x-zpl`
+- Obsługa przez `LabelService` z możliwością rozszerzenia na lokalizacje
+
+### Wielomagazynowość (Multi-warehouse)
+- Każdy najemca może mieć wiele magazynów
+- Przełącznik aktywnego magazynu w headerze aplikacji (zapisywany w `localStorage`)
+- Kontekst magazynu (`WarehouseContext` ThreadLocal) ustawiany z nagłówka `X-Warehouse-Id`
+- Filtr Hibernate `@Filter(name = "warehouseFilter")` automatycznie izoluje dane magazynu
+- Zarządzanie magazynami: CRUD z nazwą, kodem, adresem i statusem aktywnym
+- Podział lokalizacji, stanów magazynowych, dokumentów i sesji inwentaryzacyjnych według magazynu
 
 ---
 
@@ -406,6 +487,32 @@ InventorySession ──1:N──> InventoryItem
 |---|---|---|---|
 | POST | `/api/seed/locations` | Zasiew przykładowych lokalizacji (drzewo 16 węzłów) | ADMIN |
 
+### Najemcy (Tenants) — `/api/tenants`
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| POST | `/api/tenants/register` | Samoobsługowa rejestracja nowego najemcy | Publiczny |
+| GET | `/api/tenants` | Lista najemców | ADMIN (nadrzędny) |
+| GET | `/api/tenants/me` | Profil bieżącego najemcy | ADMIN |
+| PUT | `/api/tenants/me` | Aktualizacja profilu najemcy | ADMIN |
+| PUT | `/api/tenants/me/plan` | Zmiana planu taryfowego | ADMIN (nadrzędny) |
+| POST | `/api/tenants/me/regenerate-api-key` | Regeneracja klucza API | ADMIN |
+
+### Magazyny (Warehouses) — `/api/warehouses`
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/warehouses` | Lista magazynów najemcy | Zalogowany |
+| POST | `/api/warehouses` | Utworzenie magazynu | ADMIN |
+| PUT | `/api/warehouses/{id}` | Aktualizacja magazynu | ADMIN |
+| DELETE | `/api/warehouses/{id}` | Usunięcie magazynu | ADMIN |
+
+### Produkty — etykiety ZPL
+
+| Metoda | Ścieżka | Opis | Dostęp |
+|---|---|---|---|
+| GET | `/api/products/{id}/label-zpl` | Etykieta ZPL produktu (dla drukarki Zebra) | Zalogowany |
+
 ---
 
 ## Frontend
@@ -416,6 +523,7 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 
 | Zakładka | Komponent | Opis |
 |---|---|---|
+| **Dashboard** | `DashboardPanel` | Karty z metrykami (produkty, wartość stanu, dokumenty), wykres słupkowy dokumentów (30d), wykres kołowy wartości stanu, alerty |
 | **Products** | `ProductTable` | Tabela produktów z paginacją, wyszukiwaniem, sortowaniem. Dla każdego produktu: stan, najbliższa data ważności partii, lokalizacja. Formularz dodawania/edycji. |
 | **Contractors** | `ContractorTable` | Lista kontrahentów z wyszukiwaniem. Formularz dodawania/edycji. |
 | **Documents (PZ/WZ)** | `DocumentList` | Lista dokumentów z filtrowaniem po typie i statusie. Formularz tworzenia z dynamicznymi pozycjami. Modal szczegółów dokumentu. |
@@ -425,11 +533,21 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 | **Inventory** | (część `DocumentList`) | Sesje inwentaryzacyjne: raport różnic, zamykanie sesji. |
 | **Users** (tylko ADMIN) | `UserManagementPanel` | Zarządzanie użytkownikami — CRUD, role, dezaktywacja. |
 | **Profile** | `ProfilePanel` | Zmiana hasła, podgląd własnego profilu. |
+| **Tenant** (tylko ADMIN) | `TenantSettingsPanel` | Podgląd profilu najemcy, klucze API, zmiana planu |
+| **Warehouses** (tylko ADMIN) | `WarehousePanel` | Zarządzanie magazynami — CRUD, przełącznik aktywnego magazynu |
 | **Audit** (tylko ADMIN) | `AuditLogPanel` | Dziennik audytu z filtrowaniem po użytkowniku i akcji. |
 
-### Hooks (stan)
+### Funkcje przekrojowe (header)
 
-| Hook | Zarządza |
+| Funkcja | Komponent | Opis |
+|---|---|---|
+| **Dark mode** | `ThemeToggle` | Przełącznik motywu ciemny/jasny z zapisem w localStorage |
+| **Multi-language** | `LangToggle` | Przełącznik języka PL/EN z zapisem w localStorage |
+| **Warehouse switcher** | `WarehouseSelector` | Przełącznik aktywnego magazynu dla zalogowanego użytkownika |
+
+### Hooks i konteksty (stan)
+
+| Hook / Context | Zarządza |
 |---|---|
 | `useAuth` | Stan autoryzacji, login/logout, przechowywanie JWT w localStorage |
 | `useProducts` | Lista produktów, paginacja, wyszukiwanie (debounced), CRUD |
@@ -439,6 +557,9 @@ Frontend to SPA napisane w React 19 + TypeScript 6.0, budowane przez Vite i serw
 | `useBarcodeScanner` | Skaner kamery (ZXing + video stream), obsługa kodów kreskowych |
 | `useScannerInput` | Keyboard-wedge scanner (buforowanie znaków + debounce) |
 | `useNotification` | Komunikaty toast |
+| `ThemeContext` | Stan motywu (dark/light), przełączanie, localStorage |
+| `LangContext` | Stan języka (pl/en), przełączanie, tłumaczenia |
+| `WarehouseContext` | Stan aktywnego magazynu, lista magazynów, przełączanie |
 
 ---
 
@@ -464,10 +585,12 @@ Nowi użytkownicy rejestrowani są z rolą `ROLE_USER`. Nadanie roli `ROLE_ADMIN
 | `JWT_SECRET` | Klucz do podpisu JWT (min. 32 znaki, Base64) | Tak |
 | `JWT_EXPIRATION` | Czas ważności tokena (ms, domyślnie 86400000 = 24h) | Nie |
 | `NOTIFICATIONS_ENABLED` | Włączenie powiadomień e-mail (domyślnie false) | Nie |
-| `SPRING_MAIL_HOST` | Host SMTP | Gdy notifications włączone |
-| `SPRING_MAIL_PORT` | Port SMTP (587) | Gdy notifications włączone |
-| `SPRING_MAIL_USERNAME` | Użytkownik SMTP | Gdy notifications włączone |
-| `SPRING_MAIL_PASSWORD` | Hasło SMTP | Gdy notifications włączone |
+| `MAIL_HOST` | Host SMTP | Gdy notifications włączone |
+| `MAIL_PORT` | Port SMTP (587) | Gdy notifications włączone |
+| `MAIL_USERNAME` | Użytkownik SMTP | Gdy notifications włączone |
+| `MAIL_PASSWORD` | Hasło SMTP | Gdy notifications włączone |
+| `MAIL_FROM` | Adres nadawcy e-mail | Gdy notifications włączone |
+| `DEFAULT_TENANT_PLAN` | Domyślny plan przy rejestracji (FREE/BASIC/PRO, domyślnie FREE) | Nie |
 
 ### Przykładowy plik `.env`
 
@@ -477,6 +600,13 @@ DB_USERNAME=magazyn_user
 DB_PASSWORD=zmien_haslo
 JWT_SECRET=zmien_na_wlasny_klucz_o_dlugosci_co_najmniej_32_znakow
 JWT_EXPIRATION=86400000
+NOTIFICATIONS_ENABLED=false
+MAIL_HOST=
+MAIL_PORT=587
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_FROM=
+DEFAULT_TENANT_PLAN=FREE
 ```
 
 Plik `.env` znajduje się w `.gitignore`. W repozytorium dostępny jest szablon `.env.example`.
@@ -642,17 +772,18 @@ magazyn-app/
 ├── src/main/java/com/example/magazyn/
 │   ├── MagazynApplication.java        # @SpringBootApplication + @EnableScheduling
 │   ├── auth/                          # Autoryzacja (kontroler, serwis, DTO)
-│   ├── config/                        # Security, filtry JWT/RateLimit/AuditLog, OpenAPI
-│   ├── controller/                    # REST API (16 kontrolerów)
-│   ├── dto/                           # Data Transfer Objects (ponad 40 klas)
-│   ├── entity/                        # Encje JPA + enums (14 encji)
-│   ├── exception/                     # GlobalExceptionHandler + 6 custom exceptions
-│   ├── repository/                    # Spring Data JPA (14 repozytoriów)
-│   ├── service/                       # Logika biznesowa (16 serwisów)
+│   ├── config/                        # Security, filtry JWT/RateLimit/AuditLog, OpenAPI, TenantContext, WarehouseContext, WarehouseSessionFilter
+│   ├── controller/                    # REST API (18 kontrolerów: +TenantController, +WarehouseController)
+│   ├── dto/                           # Data Transfer Objects (45+ klas: +RegisterTenantRequest, +TenantResponse, +ApiKeyResponse, +WarehouseRequest/Response)
+│   ├── entity/                        # Encje JPA + enums (+Warehouse, +tenant_id na encjach, +@Filter(name = "tenantFilter"), +@Filter(name = "warehouseFilter"))
+│   ├── exception/                     # GlobalExceptionHandler + 7 custom exceptions
+│   ├── repository/                    # Spring Data JPA (15 repozytoriów: +WarehouseRepository)
+│   ├── service/                       # Logika biznesowa (18 serwisów: +TenantService, +WarehouseService)
 │   └── util/                          # JwtUtil, AuditContext
 │
 ├── src/main/resources/
 │   ├── application.properties         # Konfiguracja (env-based)
+│   ├── db/migration/                  # Migracje Flyway (+V11__add_warehouses.sql)
 │   └── static/                        # Frontend bundle (index.html, assets/)
 │
 ├── src/test/java/com/example/magazyn/
@@ -662,10 +793,11 @@ magazyn-app/
 │
 ├── magazyn-frontend/                  # Frontend React + TypeScript
 │   ├── src/
-│   │   ├── components/                # Komponenty React (18 plików)
+│   │   ├── components/                # Komponenty React (23 pliki: +DashboardPanel, +WarehousePanel, +WarehouseSelector, +TenantSettingsPanel, +ThemeToggle, +LangToggle)
 │   │   ├── hooks/                     # Niestandardowe hooki (5)
-│   │   ├── services/                  # Klient API (Axios)
-│   │   ├── types/                     # Interfejsy TypeScript
+│   │   ├── contexts/                  # Konteksty React (ThemeContext, LangContext, WarehouseContext)
+│   │   ├── services/                  # Klient API (Axios — rozszerzony o serwisy tenant/warehouse)
+│   │   ├── types/                     # Interfejsy TypeScript (rozszerzone o tenant/warehouse/apiKey)
 │   │   └── __tests__/                 # Testy komponentów
 │   ├── vite.config.ts
 │   └── package.json

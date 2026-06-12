@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_batch_product_created", columnList = "product_id, created_at")
 })
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class Batch extends TenantAware {
 
     @Id
@@ -56,6 +57,9 @@ public class Batch extends TenantAware {
 
     @Column
     private Long locationId;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

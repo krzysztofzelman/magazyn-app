@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "inventory_sessions")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class InventorySession extends TenantAware {
 
     @Id

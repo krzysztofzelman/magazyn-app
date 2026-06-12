@@ -17,6 +17,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "warehouse_document_items")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class WarehouseDocumentItem extends TenantAware {
 
     @Id
@@ -49,6 +50,9 @@ public class WarehouseDocumentItem extends TenantAware {
 
     @Column(name = "location_id")
     private Long locationId;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @Version
     private Integer version;

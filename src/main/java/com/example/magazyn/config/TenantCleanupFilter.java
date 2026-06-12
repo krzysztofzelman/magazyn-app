@@ -26,6 +26,7 @@ public class TenantCleanupFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            WarehouseContext.clear();
         }
     }
 }

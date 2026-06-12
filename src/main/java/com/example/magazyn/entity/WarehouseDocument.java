@@ -21,6 +21,7 @@ import java.util.List;
         @UniqueConstraint(columnNames = "number")
 })
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class WarehouseDocument extends TenantAware {
 
     @Id
@@ -54,6 +55,9 @@ public class WarehouseDocument extends TenantAware {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

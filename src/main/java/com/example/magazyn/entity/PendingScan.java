@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "pending_scans")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class PendingScan extends TenantAware {
 
     @Id
@@ -56,4 +57,7 @@ public class PendingScan extends TenantAware {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }

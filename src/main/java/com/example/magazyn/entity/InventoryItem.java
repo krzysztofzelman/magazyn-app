@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "inventory_items")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class InventoryItem extends TenantAware {
 
     @Id
@@ -50,4 +51,7 @@ public class InventoryItem extends TenantAware {
 
     @Column(name = "scanned_by")
     private String scannedBy;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }

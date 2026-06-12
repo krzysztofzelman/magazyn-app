@@ -21,6 +21,7 @@ import org.hibernate.annotations.Filter;
 @Entity
 @Table(name = "locations")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class Location extends TenantAware {
 
     @Id
@@ -68,4 +69,7 @@ public class Location extends TenantAware {
     @Column
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 }
