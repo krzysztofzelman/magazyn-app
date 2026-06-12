@@ -2,6 +2,7 @@ package com.example.magazyn.service;
 
 import com.example.magazyn.entity.AuditLog;
 import com.example.magazyn.repository.AuditLogRepository;
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.util.AuditContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,13 @@ public class AuditLogService {
                     .details(details)
                     .ipAddress(AuditContext.getIp())
                     .build();
+
+            // For events like LOGIN_FAILURE that occur before authentication,
+            // TenantContext is empty — fall back to the default tenant (ID=1)
+            if (auditLog.getTenantId() == null) {
+                Long contextTenant = TenantContext.getTenantId();
+                auditLog.setTenantId(contextTenant != null ? contextTenant : 1L);
+            }
 
             auditLogRepository.save(auditLog);
         } catch (Exception e) {
