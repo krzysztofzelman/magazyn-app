@@ -67,40 +67,36 @@ public class EmailService {
      * Build a styled HTML email body with a header, content, and footer.
      */
     public static String buildTemplate(String title, String bodyHtml) {
-        return """
-            <!DOCTYPE html>
-            <html>
-            <head><meta charset="UTF-8"></head>
-            <body style="margin:0;padding:0;background:#f5f6fa;font-family:'Inter',system-ui,sans-serif;">
-              <table width="100%%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:40px 16px;">
-                    <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
-                      <tr>
-                        <td style="padding:32px 32px 0;background:linear-gradient(135deg,#6c8cff,#8b5cf6);">
-                          <h1 style="margin:0 0 4px;font-size:20px;font-weight:600;color:#ffffff;">"""
-            + title +
-            """</h1>
-                          <p style="margin:0 0 24px;font-size:13px;color:rgba(255,255,255,0.8);">System Magazyn</p>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:32px;font-size:14px;line-height:1.6;color:#1a1d27;">
-                          """ + bodyHtml + """
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding:16px 32px;border-top:1px solid #e2e4ea;font-size:12px;color:#8b8fa3;">
-                          <p style="margin:0;">Wiadomo\u015B\u0107 wygenerowana automatycznie przez system Magazyn.</p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </body>
-            </html>
-            """;
+        return "<!DOCTYPE html>\n" +
+            "<html>\n" +
+            "<head><meta charset=\"UTF-8\"></head>\n" +
+            "<body style=\"margin:0;padding:0;background:#f5f6fa;font-family:'Inter',system-ui,sans-serif;\">\n" +
+            "  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n" +
+            "    <tr>\n" +
+            "      <td align=\"center\" style=\"padding:40px 16px;\">\n" +
+            "        <table width=\"560\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);\">\n" +
+            "          <tr>\n" +
+            "            <td style=\"padding:32px 32px 0;background:linear-gradient(135deg,#6c8cff,#8b5cf6);\">\n" +
+            "              <h1 style=\"margin:0 0 4px;font-size:20px;font-weight:600;color:#ffffff;\">" + title + "</h1>\n" +
+            "              <p style=\"margin:0 0 24px;font-size:13px;color:rgba(255,255,255,0.8);\">System Magazyn</p>\n" +
+            "            </td>\n" +
+            "          </tr>\n" +
+            "          <tr>\n" +
+            "            <td style=\"padding:32px;font-size:14px;line-height:1.6;color:#1a1d27;\">\n" +
+            "              " + bodyHtml + "\n" +
+            "            </td>\n" +
+            "          </tr>\n" +
+            "          <tr>\n" +
+            "            <td style=\"padding:16px 32px;border-top:1px solid #e2e4ea;font-size:12px;color:#8b8fa3;\">\n" +
+            "              <p style=\"margin:0;\">" + "Wiadomo\u015B\u0107 wygenerowana automatycznie przez system Magazyn.</p>\n" +
+            "            </td>\n" +
+            "          </tr>\n" +
+            "        </table>\n" +
+            "      </td>\n" +
+            "    </tr>\n" +
+            "  </table>\n" +
+            "</body>\n" +
+            "</html>\n";
     }
 
     /**
