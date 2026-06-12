@@ -65,7 +65,7 @@ public class NotificationService {
                         b.getProduct().getUnit()))
                 .collect(Collectors.joining("\n"));
 
-        emailService.sendToAdmins(subject, text);
+        emailService.sendHtmlToAdmins(subject, EmailService.bodyText(text));
     }
 
     private void sendLowStockNotifications() {
@@ -87,6 +87,6 @@ public class NotificationService {
                         p.getMinQuantity()))
                 .collect(Collectors.joining("\n"));
 
-        emailService.sendToAdmins(subject, text);
+        emailService.sendHtmlToAdmins(subject, EmailService.bodyText(text));
     }
 }
