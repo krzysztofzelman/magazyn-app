@@ -5,6 +5,7 @@ import com.example.magazyn.entity.User;
 import com.example.magazyn.exception.DuplicateResourceException;
 import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.UserRepository;
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.service.AuditLogService;
 import com.example.magazyn.util.JwtUtil;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -64,12 +65,18 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-        RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+        // Set tenant context from the saved user so TenantAware @PrePersist works
+        TenantContext.setTenantId(user.getTenantId());
+        try {
+            String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
+            RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
 
-        auditLogService.log(currentUsername(), "REGISTER", "User", user.getId(),
-                "Registered user: " + user.getUsername());
-        return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+            auditLogService.log(currentUsername(), "REGISTER", "User", user.getId(),
+                    "Registered user: " + user.getUsername());
+            return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -84,12 +91,17 @@ public class AuthService {
             User user = userRepository.findByUsername(request.getUsername())
                     .orElseThrow(() -> new ResourceNotFoundException("User", request.getUsername()));
 
-            String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-            RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+            TenantContext.setTenantId(user.getTenantId());
+            try {
+                String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
+                RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
 
-            auditLogService.log(user.getUsername(), "LOGIN_SUCCESS", "User", user.getId(),
-                    "Login successful for user: " + user.getUsername());
-            return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+                auditLogService.log(user.getUsername(), "LOGIN_SUCCESS", "User", user.getId(),
+                        "Login successful for user: " + user.getUsername());
+                return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+            } finally {
+                TenantContext.clear();
+            }
         } catch (AuthenticationException e) {
             auditLogService.log("anonymous", "LOGIN_FAILURE", "User", null,
                     "Login failed for username=" + request.getUsername() + " reason=" + e.getMessage());
@@ -102,9 +114,14 @@ public class AuthService {
         User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
         refreshTokenService.deleteByUser(user);
 
-        String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-        RefreshToken newRefreshToken = refreshTokenService.generateRefreshToken(user);
-        return new AuthResponse(token, newRefreshToken.getToken().toString(), user.getUsername(), user.getRole());
+        TenantContext.setTenantId(user.getTenantId());
+        try {
+            String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
+            RefreshToken newRefreshToken = refreshTokenService.generateRefreshToken(user);
+            return new AuthResponse(token, newRefreshToken.getToken().toString(), user.getUsername(), user.getRole());
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @Transactional
