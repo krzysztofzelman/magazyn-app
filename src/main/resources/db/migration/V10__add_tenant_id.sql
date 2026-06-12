@@ -12,62 +12,62 @@ BEGIN
     SELECT id INTO default_tenant_id FROM tenants ORDER BY id LIMIT 1;
 
     -- AuditLog
-    ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE audit_logs ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE audit_logs ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- Batches
-    ALTER TABLE batches ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE batches ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE batches ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE batches ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- Contractors
-    ALTER TABLE contractors ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE contractors ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE contractors ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE contractors ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- InventoryItems
-    ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE inventory_items ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE inventory_items ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- InventorySessions
-    ALTER TABLE inventory_sessions ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE inventory_sessions ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE inventory_sessions ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE inventory_sessions ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- Locations
-    ALTER TABLE locations ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE locations ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE locations ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE locations ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- LocationStock
-    ALTER TABLE location_stock ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE location_stock ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE location_stock ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE location_stock ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- PendingScans
-    ALTER TABLE pending_scans ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE pending_scans ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE pending_scans ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE pending_scans ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- Products
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE products ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE products ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE products ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- RefreshTokens
-    ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE refresh_tokens ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE refresh_tokens ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- StockMovements
-    ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE stock_movements ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE stock_movements ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- StockReservations
-    ALTER TABLE stock_reservations ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE stock_reservations ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE stock_reservations ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE stock_reservations ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- Users
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE users ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE users ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- WarehouseDocuments
-    ALTER TABLE warehouse_documents ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE warehouse_documents ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE warehouse_documents ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE warehouse_documents ALTER COLUMN tenant_id DROP DEFAULT';
 
     -- WarehouseDocumentItems
-    ALTER TABLE warehouse_document_items ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT default_tenant_id;
-    ALTER TABLE warehouse_document_items ALTER COLUMN tenant_id DROP DEFAULT;
+    EXECUTE 'ALTER TABLE warehouse_document_items ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT ' || default_tenant_id;
+    EXECUTE 'ALTER TABLE warehouse_document_items ALTER COLUMN tenant_id DROP DEFAULT';
 END $$;
