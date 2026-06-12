@@ -5,6 +5,7 @@ import com.example.magazyn.auth.RefreshTokenService;
 import com.example.magazyn.entity.RefreshToken;
 import com.example.magazyn.entity.User;
 import com.example.magazyn.repository.RefreshTokenRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,11 +28,15 @@ class RefreshTokenServiceTest {
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
 
-    @InjectMocks
     private RefreshTokenService refreshTokenService;
 
     @Captor
     private ArgumentCaptor<RefreshToken> tokenCaptor;
+
+    @BeforeEach
+    void setUp() {
+        refreshTokenService = new RefreshTokenService(refreshTokenRepository, 604800000L);
+    }
 
     private User createUser(Long id, String username) {
         return User.builder()

@@ -178,7 +178,7 @@ class InventoryServiceTest {
                 .status("OPEN").createdAt(LocalDateTime.now())
                 .build();
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(itemRepository.findBySessionId(100L)).thenReturn(List.of(
                 InventoryItem.builder().id(1L).build(),
                 InventoryItem.builder().id(2L).build()
@@ -191,7 +191,7 @@ class InventoryServiceTest {
 
     @Test
     void getSession_notFound_throwsException() {
-        when(sessionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(sessionRepository.findByIdAndTenantId(eq(99L), any())).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> inventoryService.getSession(99L));
     }
 
@@ -208,9 +208,9 @@ class InventoryServiceTest {
         request.setProductBarcode("PROD-1");
         request.setQuantity(25.0);
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(shelfA));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
         when(itemRepository.findBySessionIdAndLocationIdAndProductId(100L, 10L, 1L))
                 .thenReturn(Optional.empty());
         when(itemRepository.save(any(InventoryItem.class)))
@@ -222,7 +222,7 @@ class InventoryServiceTest {
         assertEquals(10L, response.getLocationId().longValue());
         assertEquals(1L, response.getProductId().longValue());
         assertEquals("Product A", response.getProductName());
-        assertEquals(BigDecimal.valueOf(25), response.getCountedQuantity());
+        assertEquals(BigDecimal.valueOf(25.0), response.getCountedQuantity());
         assertNotNull(response.getScannedAt());
         assertEquals(USERNAME, response.getScannedBy());
         verify(itemRepository).save(any(InventoryItem.class));
@@ -243,9 +243,9 @@ class InventoryServiceTest {
                 .expectedQuantity(BigDecimal.valueOf(20)).countedQuantity(BigDecimal.valueOf(22))
                 .build();
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(shelfA));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
         when(itemRepository.findBySessionIdAndLocationIdAndProductId(100L, 10L, 1L))
                 .thenReturn(Optional.of(existing));
         when(itemRepository.save(any(InventoryItem.class)))
@@ -253,9 +253,9 @@ class InventoryServiceTest {
 
         InventoryItemResponse response = inventoryService.scan(100L, request, USERNAME);
 
-        assertEquals(BigDecimal.valueOf(30), response.getCountedQuantity());
+        assertEquals(BigDecimal.valueOf(30.0), response.getCountedQuantity());
         assertEquals(BigDecimal.valueOf(20), response.getExpectedQuantity());
-        assertEquals(BigDecimal.valueOf(10), response.getDifference());
+        assertEquals(BigDecimal.valueOf(10.0), response.getDifference());
     }
 
     @Test
@@ -267,7 +267,7 @@ class InventoryServiceTest {
         request.setProductBarcode("SKU-B");
         request.setQuantity(10.0);
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(shelfB));
         when(productRepository.findByBarcode("SKU-B")).thenReturn(Optional.empty());
         when(productRepository.findBySku("SKU-B")).thenReturn(Optional.of(productB));
@@ -279,14 +279,14 @@ class InventoryServiceTest {
         InventoryItemResponse response = inventoryService.scan(100L, request, USERNAME);
 
         assertEquals("Product B", response.getProductName());
-        assertEquals(BigDecimal.valueOf(10), response.getCountedQuantity());
+        assertEquals(BigDecimal.valueOf(10.0), response.getCountedQuantity());
     }
 
     @Test
     void scan_closedSession_throwsException() {
         InventorySession session = InventorySession.builder()
                 .id(100L).name("Test").status("CLOSED").build();
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
 
         InventoryScanRequest request = new InventoryScanRequest();
         assertThrows(RuntimeException.class,
@@ -314,12 +314,10 @@ class InventoryServiceTest {
                 .scannedAt(LocalDateTime.now()).scannedBy(USERNAME)
                 .build();
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(itemRepository.findBySessionId(100L)).thenReturn(Arrays.asList(item1, item2));
-        when(locationRepository.findById(10L)).thenReturn(Optional.of(shelfA));
-        when(locationRepository.findById(11L)).thenReturn(Optional.of(shelfB));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findById(2L)).thenReturn(Optional.of(productB));
+        when(locationRepository.findAllById(List.of(10L, 11L))).thenReturn(List.of(shelfA, shelfB));
+        when(productRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(productA, productB));
 
         InventoryReportResponse report = inventoryService.getReport(100L);
 
@@ -346,7 +344,7 @@ class InventoryServiceTest {
                 .expectedQuantity(BigDecimal.valueOf(20)).countedQuantity(BigDecimal.valueOf(22))
                 .build();
 
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
         when(itemRepository.findBySessionId(100L)).thenReturn(List.of(item));
         when(locationStockRepository.findByLocationIdAndProductId(10L, 1L))
                 .thenReturn(Optional.of(stockA1));
@@ -368,7 +366,7 @@ class InventoryServiceTest {
     void closeSession_alreadyClosed_throwsException() {
         InventorySession session = InventorySession.builder()
                 .id(100L).name("Test").status("CLOSED").build();
-        when(sessionRepository.findById(100L)).thenReturn(Optional.of(session));
+        when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
 
         assertThrows(RuntimeException.class,
                 () -> inventoryService.closeSession(100L, USERNAME));

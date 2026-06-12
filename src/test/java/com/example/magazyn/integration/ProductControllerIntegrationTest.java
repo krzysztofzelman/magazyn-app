@@ -43,8 +43,8 @@ class ProductControllerIntegrationTest {
         webTestClient = WebTestClient.bindToServer()
                 .baseUrl("http://localhost:" + port)
                 .build();
-        adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
-        userToken = jwtUtil.generateToken("user", "ROLE_USER");
+        adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
+        userToken = jwtUtil.generateToken("user", "ROLE_USER", 1L);
     }
 
     @Test

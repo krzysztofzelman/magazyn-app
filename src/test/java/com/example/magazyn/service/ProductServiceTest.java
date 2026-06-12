@@ -225,7 +225,7 @@ class ProductServiceTest {
         request.setPrice(BigDecimal.valueOf(50.00));
         request.setMinQuantity(3);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
         when(productRepository.findBySku("NEW-SKU")).thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -244,7 +244,7 @@ class ProductServiceTest {
         UpdateProductRequest request = new UpdateProductRequest();
         request.setName("Updated Name");
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
         ProductResponse response = productService.updateProduct(1L, request);
@@ -260,7 +260,7 @@ class ProductServiceTest {
         UpdateProductRequest request = new UpdateProductRequest();
         request.setSku("SKU-B");
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
         when(productRepository.findBySku("SKU-B")).thenReturn(Optional.of(otherProduct));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
@@ -274,13 +274,13 @@ class ProductServiceTest {
         UpdateProductRequest request = new UpdateProductRequest();
         request.setName("Updated Name");
 
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.updateProduct(999L, request));
         assertTrue(exception.getMessage().contains("not found"));
 
-        verify(productRepository).findById(999L);
+        verify(productRepository).findByIdAndTenantId(eq(999L), any());
         verify(productRepository, never()).save(any());
     }
 
@@ -290,24 +290,26 @@ class ProductServiceTest {
 
     @Test
     void deleteProduct_success() {
-        when(productRepository.existsById(1L)).thenReturn(true);
+        Product product = createProductEntity(1L, "Product", "PRD-001", 10);
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
+        doNothing().when(auditLogService).log(anyString(), anyString(), anyString(), any(), anyString());
 
         productService.deleteProduct(1L);
 
-        verify(productRepository).existsById(1L);
-        verify(productRepository).deleteById(1L);
+        verify(productRepository).findByIdAndTenantId(eq(1L), any());
+        verify(productRepository).delete(product);
     }
 
     @Test
     void deleteProduct_notFound_throws() {
-        when(productRepository.existsById(999L)).thenReturn(false);
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.deleteProduct(999L));
         assertTrue(exception.getMessage().contains("not found"));
 
-        verify(productRepository).existsById(999L);
-        verify(productRepository, never()).deleteById(any());
+        verify(productRepository).findByIdAndTenantId(eq(999L), any());
+        verify(productRepository, never()).delete(any());
     }
 
     // ──────────────────────────────────────────────
@@ -320,7 +322,7 @@ class ProductServiceTest {
         AssignLocationRequest request = new AssignLocationRequest();
         request.setLocationId(5L);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
         ProductResponse response = productService.assignLocation(1L, request);
@@ -337,7 +339,7 @@ class ProductServiceTest {
         AssignLocationRequest request = new AssignLocationRequest();
         request.setLocationId(null);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
         ProductResponse response = productService.assignLocation(1L, request);
@@ -350,7 +352,7 @@ class ProductServiceTest {
         AssignLocationRequest request = new AssignLocationRequest();
         request.setLocationId(5L);
 
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.assignLocation(999L, request));
@@ -364,7 +366,7 @@ class ProductServiceTest {
     @Test
     void getProductById_found() {
         Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
 
         Optional<ProductResponse> result = productService.getProductById(1L);
 
@@ -374,7 +376,7 @@ class ProductServiceTest {
 
     @Test
     void getProductById_notFound() {
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         Optional<ProductResponse> result = productService.getProductById(999L);
 

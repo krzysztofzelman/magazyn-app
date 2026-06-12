@@ -299,7 +299,6 @@ class ReservationServiceTest {
         StockReservation reservation = createReservation(1L, createProduct(1L, "Product A", 50), 10, ReservationStatus.RELEASED);
 
         when(reservationRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservation));
-
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.fulfill(1L, USERNAME));
 
@@ -318,9 +317,8 @@ class ReservationServiceTest {
         StockReservation r2 = createReservation(2L, product, 10, ReservationStatus.ACTIVE);
         StockReservation r3 = createReservation(3L, product, 15, ReservationStatus.ACTIVE);
 
-        when(reservationRepository.findByProductIdAndStatus(1L, ReservationStatus.ACTIVE))
+        when(reservationRepository.findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE))
                 .thenReturn(List.of(r1, r2, r3));
-        when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> i.getArgument(0));
 
         int fulfilled = reservationService.fulfillActiveReservations(1L, 18, USERNAME);
 
@@ -335,19 +333,18 @@ class ReservationServiceTest {
         assertEquals(ReservationStatus.ACTIVE, r3.getStatus());
         assertEquals(12, r3.getQuantity());
 
-        verify(reservationRepository).findByProductIdAndStatus(1L, ReservationStatus.ACTIVE);
-        verify(reservationRepository, times(3)).save(any(StockReservation.class));
+        verify(reservationRepository).findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE);
     }
 
     @Test
     void fulfillActiveReservations_noReservations_returnsZero() {
-        when(reservationRepository.findByProductIdAndStatus(1L, ReservationStatus.ACTIVE))
+        when(reservationRepository.findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE))
                 .thenReturn(List.of());
 
         int fulfilled = reservationService.fulfillActiveReservations(1L, 10, USERNAME);
 
         assertEquals(0, fulfilled);
-        verify(reservationRepository).findByProductIdAndStatus(1L, ReservationStatus.ACTIVE);
+        verify(reservationRepository).findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE);
         verify(reservationRepository, never()).save(any());
     }
 
@@ -363,7 +360,6 @@ class ReservationServiceTest {
 
         when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
                 .thenReturn(List.of(expired1));
-        when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> i.getArgument(0));
 
         reservationService.releaseExpired();
 
@@ -371,7 +367,6 @@ class ReservationServiceTest {
         assertTrue(expired1.getNotes().contains("auto-released"));
 
         verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
-        verify(reservationRepository).save(expired1);
     }
 
     @Test
@@ -415,7 +410,7 @@ class ReservationServiceTest {
     void getProductAvailability_returnsCorrectValues() {
         Product product = createProduct(1L, "Product A", 100);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
         when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(30);
 
         ProductAvailabilityResponse response = reservationService.getProductAvailability(1L);
@@ -430,7 +425,7 @@ class ReservationServiceTest {
 
     @Test
     void getProductAvailability_productNotFound_throws() {
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.getProductAvailability(999L));

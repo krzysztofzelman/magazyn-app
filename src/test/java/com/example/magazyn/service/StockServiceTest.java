@@ -3,10 +3,14 @@ package com.example.magazyn.service;
 import com.example.magazyn.dto.StockMovementRequest;
 import com.example.magazyn.dto.StockMovementResponse;
 import com.example.magazyn.dto.StockResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import com.example.magazyn.entity.MovementType;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.entity.StockMovement;
 import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.repository.BatchRepository;
 import com.example.magazyn.repository.StockMovementRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +34,9 @@ class StockServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private BatchRepository batchRepository;
 
     @Mock
     private AuditLogService auditLogService;
@@ -186,7 +193,7 @@ class StockServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));
 
-        assertTrue(ex.getMessage().contains("positive"));
+        assertTrue(ex.getMessage().contains("required"));
         verify(stockMovementRepository, never()).save(any());
     }
 
@@ -253,9 +260,9 @@ class StockServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(productRepository.existsById(1L)).thenReturn(true);
-        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(1L))
-                .thenReturn(List.of(movement));
+        when(productRepository.existsByIdAndTenantId(eq(1L), any())).thenReturn(true);
+        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(eq(1L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(movement)));
 
         List<StockMovementResponse> result = stockService.getMovements(1L);
 
@@ -265,19 +272,19 @@ class StockServiceTest {
         assertEquals(MovementType.PRZYJECIE, result.get(0).getType());
         assertEquals(10, result.get(0).getQuantity());
 
-        verify(productRepository).existsById(1L);
-        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(1L);
+        verify(productRepository).existsByIdAndTenantId(eq(1L), any());
+        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(eq(1L), any());
     }
 
     @Test
     void getMovements_productNotFound_throws() {
-        when(productRepository.existsById(999L)).thenReturn(false);
+        when(productRepository.existsByIdAndTenantId(eq(999L), any())).thenReturn(false);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.getMovements(999L));
 
         assertTrue(ex.getMessage().contains("not found"));
-        verify(productRepository).existsById(999L);
+        verify(productRepository).existsByIdAndTenantId(eq(999L), any());
         verifyNoInteractions(stockMovementRepository);
     }
 
@@ -289,7 +296,7 @@ class StockServiceTest {
     void getStock_returnsStockInfo() {
         Product product = createProduct(1L, "Produkt A", "A-001", 42);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
 
         StockResponse response = stockService.getStock(1L);
 
@@ -299,17 +306,17 @@ class StockServiceTest {
         assertEquals("A-001", response.getSku());
         assertEquals(42, response.getQuantity());
 
-        verify(productRepository).findById(1L);
+        verify(productRepository).findByIdAndTenantId(eq(1L), any());
     }
 
     @Test
     void getStock_productNotFound_throws() {
-        when(productRepository.findById(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.getStock(999L));
 
         assertTrue(ex.getMessage().contains("not found"));
-        verify(productRepository).findById(999L);
+        verify(productRepository).findByIdAndTenantId(eq(999L), any());
     }
 }

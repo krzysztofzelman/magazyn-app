@@ -86,9 +86,8 @@ class StockServiceFifoTest {
 
         StockMovementRequest request = createRequest(MovementType.WYDANIE, 20, null);
 
+        when(batchRepository.findByProductIdOrderByCreatedAtAscForUpdate(1L)).thenReturn(List.of(batch));
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(batchRepository.findByProductIdOrderByCreatedAtAsc(1L)).thenReturn(List.of(batch));
-        when(batchRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(batch));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
         when(batchRepository.save(any(Batch.class))).thenAnswer(i -> i.getArgument(0));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
@@ -112,8 +111,7 @@ class StockServiceFifoTest {
         assertEquals(80, product.getQuantity()); // 100 - 20
         assertEquals(30, batch.getQuantity());   // 50 - 20
 
-        verify(batchRepository).findByProductIdOrderByCreatedAtAsc(1L);
-        verify(batchRepository).findByIdForUpdate(10L);
+        verify(batchRepository).findByProductIdOrderByCreatedAtAscForUpdate(1L);
         verify(stockMovementRepository).save(any(StockMovement.class));
     }
 
@@ -131,12 +129,8 @@ class StockServiceFifoTest {
         StockMovementRequest request = createRequest(MovementType.WYDANIE, 40, null);
 
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(batchRepository.findByProductIdOrderByCreatedAtAsc(1L))
+        when(batchRepository.findByProductIdOrderByCreatedAtAscForUpdate(1L))
                 .thenReturn(List.of(batch1, batch2, batch3));
-        // Three sequential calls: first batch1, then batch2, then batch3
-        when(batchRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(batch1));
-        when(batchRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(batch2));
-        when(batchRepository.findByIdForUpdate(12L)).thenReturn(Optional.of(batch3));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
         when(batchRepository.save(any(Batch.class))).thenAnswer(i -> i.getArgument(0));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
@@ -165,8 +159,7 @@ class StockServiceFifoTest {
         // batch3: partially consumed (30 - 10 = 20 left)
         assertEquals(20, batch3.getQuantity());
 
-        verify(batchRepository).findByProductIdOrderByCreatedAtAsc(1L);
-        verify(batchRepository, times(3)).findByIdForUpdate(any());
+        verify(batchRepository).findByProductIdOrderByCreatedAtAscForUpdate(1L);
         verify(batchRepository, times(3)).save(any(Batch.class));
     }
 
@@ -210,7 +203,7 @@ class StockServiceFifoTest {
         assertEquals(Long.valueOf(11L), response.getBatchId());
 
         verify(batchRepository).findByIdForUpdate(11L);
-        verify(batchRepository, never()).findByProductIdOrderByCreatedAtAsc(any());
+        verify(batchRepository, never()).findByProductIdOrderByCreatedAtAscForUpdate(any());
     }
 
     // ──────────────────────────────────────────────
@@ -225,7 +218,6 @@ class StockServiceFifoTest {
         StockMovementRequest request = createRequest(MovementType.WYDANIE, 10, null);
 
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(batchRepository.findByProductIdOrderByCreatedAtAsc(1L)).thenReturn(List.of(batch));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));

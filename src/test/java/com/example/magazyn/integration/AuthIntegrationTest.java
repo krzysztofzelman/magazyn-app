@@ -33,7 +33,7 @@ class AuthIntegrationTest {
 
     @Test
     void register_success() {
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         String registerJson = """
                 {"username": "newuser", "password": "password123"}
                 """;
@@ -52,7 +52,7 @@ class AuthIntegrationTest {
 
     @Test
     void register_duplicateUsername_returnsError() {
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         String registerJson = """
                 {"username": "duplicateuser", "password": "password123"}
                 """;
@@ -89,7 +89,7 @@ class AuthIntegrationTest {
 
     @Test
     void register_withInvalidData_returns400() {
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         String invalidJson = """
                 {"username": "ab", "password": "12"}
                 """;
@@ -104,7 +104,7 @@ class AuthIntegrationTest {
 
     @Test
     void login_success() {
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
 
         // First register a user
         String registerJson = """
@@ -150,7 +150,7 @@ class AuthIntegrationTest {
 
     @Test
     void accessProtectedEndpoint_withValidToken_success() {
-        String token = jwtUtil.generateToken("testuser", "ROLE_USER");
+        String token = jwtUtil.generateToken("testuser", "ROLE_USER", 1L);
 
         webTestClient.get().uri("/api/products")
                 .header("Authorization", "Bearer " + token)
@@ -167,7 +167,7 @@ class AuthIntegrationTest {
 
     @Test
     void accessAdminEndpoint_withUserRole_returns403() {
-        String userToken = jwtUtil.generateToken("regularuser", "ROLE_USER");
+        String userToken = jwtUtil.generateToken("regularuser", "ROLE_USER", 1L);
         String productJson = """
                 {"name": "Test", "sku": "TST-AUTH", "unit": "szt."}
                 """;
@@ -182,7 +182,7 @@ class AuthIntegrationTest {
 
     @Test
     void accessAdminEndpoint_withAdminToken_success() {
-        String adminToken = jwtUtil.generateToken("adminuser", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("adminuser", "ROLE_ADMIN", 1L);
         String productJson = """
                 {"name": "Admin Product", "sku": "ADM-001", "unit": "szt."}
                 """;
@@ -209,7 +209,7 @@ class AuthIntegrationTest {
     @Test
     void refreshToken_returnsNewTokens() {
         // Register + login to get refresh token
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         webTestClient.post().uri("/api/auth/register")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -278,7 +278,7 @@ class AuthIntegrationTest {
     @Test
     void logout_invalidatesToken() {
         // Register + login to get refresh token
-        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         webTestClient.post().uri("/api/auth/register")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)

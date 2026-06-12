@@ -91,14 +91,14 @@ class LocationServiceTest {
         assertNull(response.getParentId());
 
         verify(locationRepository).save(any(Location.class));
-        verify(locationRepository, never()).existsById(any());
+        verify(locationRepository, never()).existsByIdAndTenantId(any(), any());
     }
 
     @Test
     void createLocation_withValidParent_success() {
         LocationRequest request = createRequest("RACK-01", "Rack 1", LocationType.RACK, 1L);
 
-        when(locationRepository.existsById(1L)).thenReturn(true);
+        when(locationRepository.existsByIdAndTenantId(eq(1L), any())).thenReturn(true);
 
         Location saved = createLocation(2L, "RACK-01", "Rack 1", LocationType.RACK, 1L);
         when(locationRepository.save(any(Location.class))).thenReturn(saved);
@@ -108,20 +108,20 @@ class LocationServiceTest {
         assertNotNull(response);
         assertEquals(2L, response.getId());
         assertEquals(Long.valueOf(1L), response.getParentId());
-        verify(locationRepository).existsById(1L);
+        verify(locationRepository).existsByIdAndTenantId(eq(1L), any());
     }
 
     @Test
     void createLocation_withInvalidParent_throws() {
         LocationRequest request = createRequest("RACK-01", "Rack 1", LocationType.RACK, 999L);
 
-        when(locationRepository.existsById(999L)).thenReturn(false);
+        when(locationRepository.existsByIdAndTenantId(eq(999L), any())).thenReturn(false);
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> locationService.createLocation(request));
         assertTrue(exception.getMessage().contains("Parent location not found"));
 
-        verify(locationRepository).existsById(999L);
+        verify(locationRepository).existsByIdAndTenantId(eq(999L), any());
         verify(locationRepository, never()).save(any());
     }
 
@@ -134,7 +134,7 @@ class LocationServiceTest {
 
         locationService.createLocation(request);
 
-        verify(locationRepository, never()).existsById(any());
+        verify(locationRepository, never()).existsByIdAndTenantId(any(), any());
         verify(locationRepository).save(any(Location.class));
     }
 
@@ -197,19 +197,19 @@ class LocationServiceTest {
     void deleteLocation_withoutChildren_success() {
         Location location = createLocation(1L, "WH-01", "Warehouse", LocationType.WAREHOUSE, null);
 
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(location));
+        when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(location));
         when(locationRepository.existsByParentId(1L)).thenReturn(false);
 
         locationService.deleteLocation(1L);
 
-        verify(locationRepository).deleteById(1L);
+        verify(locationRepository).delete(location);
     }
 
     @Test
     void deleteLocation_withChildren_throws() {
         Location location = createLocation(1L, "WH-01", "Warehouse", LocationType.WAREHOUSE, null);
 
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(location));
+        when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(location));
         when(locationRepository.existsByParentId(1L)).thenReturn(true);
 
         RuntimeException exception = assertThrows(RuntimeException.class,
@@ -221,7 +221,7 @@ class LocationServiceTest {
 
     @Test
     void deleteLocation_notFound_throws() {
-        when(locationRepository.findById(999L)).thenReturn(Optional.empty());
+        when(locationRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> locationService.deleteLocation(999L));
@@ -251,7 +251,7 @@ class LocationServiceTest {
     @Test
     void getLocationById_found() {
         Location location = createLocation(1L, "WH-01", "Warehouse", LocationType.WAREHOUSE, null);
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(location));
+        when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(location));
 
         Optional<LocationResponse> result = locationService.getLocationById(1L);
 
@@ -261,7 +261,7 @@ class LocationServiceTest {
 
     @Test
     void getLocationById_notFound() {
-        when(locationRepository.findById(999L)).thenReturn(Optional.empty());
+        when(locationRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         Optional<LocationResponse> result = locationService.getLocationById(999L);
 
@@ -291,7 +291,7 @@ class LocationServiceTest {
         Location existing = createLocation(1L, "OLD-CODE", "Old Name", LocationType.WAREHOUSE, null);
         LocationRequest request = createRequest("NEW-CODE", "New Name", LocationType.RACK, null);
 
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
         when(locationRepository.save(any(Location.class))).thenAnswer(i -> i.getArgument(0));
 
         LocationResponse response = locationService.updateLocation(1L, request);
@@ -307,8 +307,8 @@ class LocationServiceTest {
         Location existing = createLocation(2L, "RACK-01", "Rack", LocationType.RACK, 1L);
         LocationRequest request = createRequest("RACK-01", "Rack", LocationType.RACK, 999L);
 
-        when(locationRepository.findById(2L)).thenReturn(Optional.of(existing));
-        when(locationRepository.existsById(999L)).thenReturn(false);
+        when(locationRepository.findByIdAndTenantId(eq(2L), any())).thenReturn(Optional.of(existing));
+        when(locationRepository.existsByIdAndTenantId(eq(999L), any())).thenReturn(false);
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> locationService.updateLocation(2L, request));
@@ -319,7 +319,7 @@ class LocationServiceTest {
     @Test
     void updateLocation_notFound_throws() {
         LocationRequest request = createRequest("CODE", "Name", LocationType.WAREHOUSE, null);
-        when(locationRepository.findById(999L)).thenReturn(Optional.empty());
+        when(locationRepository.findByIdAndTenantId(eq(999L), any())).thenReturn(Optional.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> locationService.updateLocation(999L, request));
@@ -332,7 +332,7 @@ class LocationServiceTest {
         LocationRequest request = new LocationRequest();
         request.setCode("NEW-CODE");
 
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
         when(locationRepository.save(any(Location.class))).thenAnswer(i -> i.getArgument(0));
 
         LocationResponse response = locationService.updateLocation(1L, request);
@@ -369,13 +369,11 @@ class LocationServiceTest {
 
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
         when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
-        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
-        when(locationStockRepository.findByLocationIdAndProductId(2L, 5L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L)).thenReturn(Optional.empty());
         when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
         when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findById(2L)).thenReturn(Optional.of(toLoc));
 
         TransferResponse response = locationService.transferStock(request, "testuser");
 
@@ -384,9 +382,8 @@ class LocationServiceTest {
         assertEquals("MG-01-R02", response.getToLocationCode());
         assertEquals("Test Product", response.getProductName());
         assertEquals(Double.valueOf(20.0), response.getQuantityMoved());
-        assertEquals(BigDecimal.valueOf(30), fromStock.getQuantity()); // 50 - 20
+        assertEquals(BigDecimal.valueOf(30.0), fromStock.getQuantity()); // 50 - 20
         verify(locationStockRepository).save(fromStock);
-        verify(locationStockRepository).save(any(LocationStock.class));
         verify(auditLogService).log(eq("testuser"), eq("STOCK_TRANSFER"), eq("LocationStock"), isNull(), anyString());
     }
 
@@ -413,8 +410,8 @@ class LocationServiceTest {
 
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
         when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
-        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
 
         assertThrows(RuntimeException.class,
                 () -> locationService.transferStock(request, "testuser"));
@@ -437,8 +434,8 @@ class LocationServiceTest {
 
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
         when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
-        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,
                 () -> locationService.transferStock(request, "testuser"));
@@ -467,13 +464,11 @@ class LocationServiceTest {
 
         when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
         when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
-        when(productRepository.findById(5L)).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductId(1L, 5L)).thenReturn(Optional.of(fromStock));
-        when(locationStockRepository.findByLocationIdAndProductId(2L, 5L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L)).thenReturn(Optional.empty());
         when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
         when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
-        when(locationRepository.findById(1L)).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findById(2L)).thenReturn(Optional.of(toLoc));
 
         TransferResponse response = locationService.transferStock(request, "testuser");
 

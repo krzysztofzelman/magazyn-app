@@ -60,6 +60,9 @@ class WarehouseDocumentServiceTest {
     @Mock
     private LocationStockRepository locationStockRepository;
 
+    @Mock
+    private InvoiceService invoiceService;
+
     @InjectMocks
     private WarehouseDocumentService documentService;
 
@@ -151,9 +154,9 @@ class WarehouseDocumentServiceTest {
 
     @Test
     void createDocument_PZ_createsDocumentWithItems() {
-        when(contractorRepository.findById(1L)).thenReturn(Optional.of(contractor));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findById(2L)).thenReturn(Optional.of(productB));
+        when(contractorRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(contractor));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdAndTenantId(eq(2L), any())).thenReturn(Optional.of(productB));
         when(documentRepository.findMaxNumberByTypeAndYear(eq(DocumentType.PZ), startsWith("PZ/2026/")))
                 .thenReturn(Optional.empty());
         when(documentRepository.save(any(WarehouseDocument.class)))
@@ -179,8 +182,8 @@ class WarehouseDocumentServiceTest {
 
     @Test
     void createDocument_WZ_generatesSequentialNumber() {
-        when(contractorRepository.findById(1L)).thenReturn(Optional.of(contractor));
-        when(productRepository.findById(1L)).thenReturn(Optional.of(productA));
+        when(contractorRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(contractor));
+        when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
         when(documentRepository.findMaxNumberByTypeAndYear(eq(DocumentType.WZ), startsWith("WZ/2026/")))
                 .thenReturn(Optional.of("WZ/2026/005"));
         when(documentRepository.save(any(WarehouseDocument.class)))
@@ -213,8 +216,6 @@ class WarehouseDocumentServiceTest {
         when(documentRepository.findByIdWithItemsLocked(1L)).thenReturn(Optional.of(doc));
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
         when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
-        when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
-        when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
@@ -378,7 +379,7 @@ class WarehouseDocumentServiceTest {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(doc));
         when(locationRepository.findByBarcode("LOC-MG01-R01-S1")).thenReturn(Optional.of(location));
         when(locationStockRepository.findByLocationIdAndProductId(10L, 3L)).thenReturn(Optional.of(lStock));
         when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
@@ -407,7 +408,7 @@ class WarehouseDocumentServiceTest {
                 .id(10L).code("MG-01-R01-S1").name("Regal 1")
                 .barcode("LOC-MG01-R01-S1").build();
 
-        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(doc));
         when(locationRepository.findByBarcode("LOC-MG01-R01-S1")).thenReturn(Optional.of(location));
         when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.empty());
         when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
@@ -424,7 +425,7 @@ class WarehouseDocumentServiceTest {
         WarehouseDocumentItem item = createItem(20L, null, productA, 10);
         WarehouseDocument doc = createDocument(5L, DocumentType.PZ, DocumentStatus.DRAFT, List.of(item));
 
-        when(documentRepository.findById(5L)).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(doc));
 
         assertThrows(RuntimeException.class,
                 () -> documentService.scanLocationForWzItem(5L, 20L, "LOC-TEST", USERNAME));
@@ -461,8 +462,8 @@ class WarehouseDocumentServiceTest {
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.getActiveReservedQuantity(2L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
-        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.of(stockA));
-        when(locationStockRepository.findByLocationIdAndProductId(10L, 2L)).thenReturn(Optional.of(stockB));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 1L)).thenReturn(Optional.of(stockA));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 2L)).thenReturn(Optional.of(stockB));
         when(batchRepository.findByProductIdOrderByCreatedAtAsc(anyLong())).thenReturn(List.of());
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
@@ -498,7 +499,7 @@ class WarehouseDocumentServiceTest {
         when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
-        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L)).thenReturn(Optional.of(stockA));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 1L)).thenReturn(Optional.of(stockA));
         when(batchRepository.findByProductIdOrderByCreatedAtAsc(anyLong())).thenReturn(List.of());
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
