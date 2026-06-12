@@ -10,6 +10,7 @@ class JwtUtilTest {
 
     private static final String SECRET = "testSecretKeyForJWTThatIsAtLeast32CharactersLong";
     private static final long EXPIRATION = 3600000L; // 1 hour
+    private static final Long TENANT_ID = 1L;
 
     private JwtUtil jwtUtil;
 
@@ -20,7 +21,7 @@ class JwtUtilTest {
 
     @Test
     void generateToken_returnsNonEmptyToken() {
-        String token = jwtUtil.generateToken("testuser", "ROLE_USER");
+        String token = jwtUtil.generateToken("testuser", "ROLE_USER", TENANT_ID);
 
         assertNotNull(token);
         assertFalse(token.isBlank());
@@ -29,7 +30,7 @@ class JwtUtilTest {
 
     @Test
     void extractUsername_returnsCorrectUsername() {
-        String token = jwtUtil.generateToken("john.doe", "ROLE_ADMIN");
+        String token = jwtUtil.generateToken("john.doe", "ROLE_ADMIN", TENANT_ID);
 
         String username = jwtUtil.extractUsername(token);
 
@@ -38,7 +39,7 @@ class JwtUtilTest {
 
     @Test
     void extractRole_returnsCorrectRole() {
-        String token = jwtUtil.generateToken("admin", "ROLE_ADMIN");
+        String token = jwtUtil.generateToken("admin", "ROLE_ADMIN", TENANT_ID);
 
         String role = jwtUtil.extractRole(token);
 
@@ -47,7 +48,7 @@ class JwtUtilTest {
 
     @Test
     void isTokenValid_withValidToken_returnsTrue() {
-        String token = jwtUtil.generateToken("testuser", "ROLE_USER");
+        String token = jwtUtil.generateToken("testuser", "ROLE_USER", TENANT_ID);
 
         assertTrue(jwtUtil.isTokenValid(token));
     }
@@ -69,24 +70,24 @@ class JwtUtilTest {
 
     @Test
     void generateToken_differentUsers_differentTokens() {
-        String token1 = jwtUtil.generateToken("user1", "ROLE_USER");
-        String token2 = jwtUtil.generateToken("user2", "ROLE_USER");
+        String token1 = jwtUtil.generateToken("user1", "ROLE_USER", TENANT_ID);
+        String token2 = jwtUtil.generateToken("user2", "ROLE_USER", TENANT_ID);
 
         assertNotEquals(token1, token2);
     }
 
     @Test
     void generateToken_differentRoles_differentTokens() {
-        String token1 = jwtUtil.generateToken("user", "ROLE_USER");
-        String token2 = jwtUtil.generateToken("user", "ROLE_ADMIN");
+        String token1 = jwtUtil.generateToken("user", "ROLE_USER", TENANT_ID);
+        String token2 = jwtUtil.generateToken("user", "ROLE_ADMIN", TENANT_ID);
 
         assertNotEquals(token1, token2);
     }
 
     @Test
     void extractUsername_withDifferentUsernames() {
-        String token1 = jwtUtil.generateToken("alice", "ROLE_USER");
-        String token2 = jwtUtil.generateToken("bob", "ROLE_ADMIN");
+        String token1 = jwtUtil.generateToken("alice", "ROLE_USER", TENANT_ID);
+        String token2 = jwtUtil.generateToken("bob", "ROLE_ADMIN", TENANT_ID);
 
         assertEquals("alice", jwtUtil.extractUsername(token1));
         assertEquals("bob", jwtUtil.extractUsername(token2));
@@ -96,7 +97,7 @@ class JwtUtilTest {
     void expiredToken_returnsInvalid() throws InterruptedException {
         // Create a JwtUtil with very short expiration
         JwtUtil shortLived = new JwtUtil(SECRET, 1L); // 1 ms
-        String token = shortLived.generateToken("testuser", "ROLE_USER");
+        String token = shortLived.generateToken("testuser", "ROLE_USER", TENANT_ID);
 
         // Wait for expiration
         Thread.sleep(10);

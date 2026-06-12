@@ -48,10 +48,10 @@ public class EmailService {
     }
 
     /**
-     * Send an HTML email to all administrators.
+     * Send an HTML email to all administrators (scoped to tenant).
      */
-    public void sendHtmlToAdmins(String subject, String htmlContent) {
-        List<User> admins = userRepository.findByRole("ROLE_ADMIN");
+    public void sendHtmlToAdmins(String subject, String htmlContent, Long tenantId) {
+        List<User> admins = userRepository.findByRoleAndTenantId("ROLE_ADMIN", tenantId);
         boolean anySent = false;
         for (User admin : admins) {
             if (admin.getEmail() == null || admin.getEmail().isBlank()) continue;

@@ -87,7 +87,7 @@ public class TenantService {
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new RuntimeException("Tenant nie znaleziony"));
 
-        long userCount = userRepository.count();
+        long userCount = userRepository.countByTenantId(tenantId);
 
         return new TenantResponse(
                 tenant.getId(),
@@ -108,7 +108,7 @@ public class TenantService {
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
         if (tenant == null) return true;
 
-        long currentUsers = userRepository.count();
+        long currentUsers = userRepository.countByTenantId(tenantId);
         return currentUsers < tenant.getMaxUsers();
     }
 
