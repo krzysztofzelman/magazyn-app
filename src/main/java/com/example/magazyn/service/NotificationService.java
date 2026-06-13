@@ -105,7 +105,7 @@ public class NotificationService {
     }
 
     private void sendLowStockNotifications(Long tenantId) {
-        List<Product> lowStockProducts = productRepository.findProductsBelowMinStock();
+        List<Product> lowStockProducts = productRepository.findProductsBelowMinStock(tenantId);
         if (lowStockProducts.isEmpty()) {
             log.debug("No low-stock products for tenant id={}", tenantId);
             return;

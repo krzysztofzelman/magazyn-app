@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.StatsDashboardResponse;
 import com.example.magazyn.dto.StatsDashboardResponse.ReorderAlert;
 import com.example.magazyn.dto.StatsDashboardResponse.TopSellingProduct;
@@ -37,13 +38,14 @@ public class StatsService {
     }
 
     public StatsDashboardResponse getDashboard() {
+        Long tenantId = TenantContext.getTenantId();
         long totalProducts = productRepository.count();
 
-        BigDecimal totalStockValue = productRepository.getTotalStockValue();
+        BigDecimal totalStockValue = productRepository.getTotalStockValue(tenantId);
 
         List<TopSellingProduct> topSelling = getTopSellingProducts();
 
-        List<ReorderAlert> reorderAlerts = getReorderAlerts();
+        List<ReorderAlert> reorderAlerts = getReorderAlerts(tenantId);
 
         // No sales module — return null for revenue
         BigDecimal revenueLast30Days = null;
@@ -74,8 +76,8 @@ public class StatsService {
                 .collect(Collectors.toList());
     }
 
-    private List<ReorderAlert> getReorderAlerts() {
-        List<Product> lowStockProducts = productRepository.findProductsBelowMinStock();
+    private List<ReorderAlert> getReorderAlerts(Long tenantId) {
+        List<Product> lowStockProducts = productRepository.findProductsBelowMinStock(tenantId);
 
         if (lowStockProducts.isEmpty()) {
             return Collections.emptyList();

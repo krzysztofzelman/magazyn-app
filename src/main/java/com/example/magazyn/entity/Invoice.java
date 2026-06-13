@@ -21,6 +21,7 @@ import java.util.List;
 @Entity
 @Table(name = "invoices")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class Invoice extends TenantAware {
 
     @Id
@@ -32,6 +33,9 @@ public class Invoice extends TenantAware {
 
     @Column(name = "document_id")
     private Long documentId;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

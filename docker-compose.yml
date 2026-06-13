@@ -19,13 +19,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   app:
     build: .
     container_name: magazyn-app
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    mem_limit: 512m
+    mem_reservation: 256m
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/magazyn_db
       DB_USERNAME: ${DB_USERNAME}
@@ -44,6 +51,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backup:
     image: postgres:18
@@ -70,6 +82,11 @@ services:
     networks:
       - magazyn-net
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   magazyn-net:

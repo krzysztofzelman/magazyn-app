@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
 import org.apache.poi.ss.usermodel.*;
@@ -21,7 +22,7 @@ public class ExportService {
     }
 
     public byte[] exportProductsCsv(Set<String> fields) {
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveProductHeaders(fields);
         StringBuilder sb = new StringBuilder();
 
@@ -39,7 +40,7 @@ public class ExportService {
     }
 
     public byte[] exportProductsExcel(Set<String> fields) {
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveProductHeaders(fields);
 
         try (Workbook workbook = new XSSFWorkbook()) {
@@ -92,7 +93,7 @@ public class ExportService {
     }
 
     public byte[] exportStockCsv(Set<String> fields) {
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveStockHeaders(fields);
         StringBuilder sb = new StringBuilder();
 
@@ -108,7 +109,7 @@ public class ExportService {
     }
 
     public byte[] exportStockExcel(Set<String> fields) {
-        List<Product> products = productRepository.findAll();
+        List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveStockHeaders(fields);
 
         try (Workbook workbook = new XSSFWorkbook()) {

@@ -98,6 +98,7 @@ public class InvoiceService {
         Invoice invoice = Invoice.builder()
                 .number(number)
                 .documentId(documentId)
+                .warehouseId(doc.getWarehouseId())
                 .status(InvoiceStatus.ISSUED)
                 .sellerName(seller.getName())
                 .sellerTaxId(seller.getTaxId())
@@ -131,6 +132,7 @@ public class InvoiceService {
 
             InvoiceItem invItem = InvoiceItem.builder()
                     .invoice(invoice)
+                    .warehouseId(doc.getWarehouseId())
                     .productId(product.getId())
                     .productName(product.getName())
                     .productSku(product.getSku())

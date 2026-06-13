@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "invoice_items")
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+@Filter(name = "warehouseFilter", condition = "warehouse_id = :warehouseId")
 public class InvoiceItem extends TenantAware {
 
     @Id
@@ -28,6 +29,9 @@ public class InvoiceItem extends TenantAware {
 
     @Column(name = "product_id")
     private Long productId;
+
+    @Column(name = "warehouse_id")
+    private Long warehouseId;
 
     @Column(nullable = false)
     private String productName;

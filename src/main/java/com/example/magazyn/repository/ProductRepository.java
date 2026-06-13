@@ -28,15 +28,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     boolean existsByIdAndTenantId(Long id, Long tenantId);
 
+    List<Product> findByTenantId(Long tenantId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
-    @Query("SELECT p FROM Product p WHERE p.quantity < p.minQuantity ORDER BY (p.minQuantity - p.quantity) DESC")
-    List<Product> findProductsBelowMinStock();
+    @Query("SELECT p FROM Product p WHERE p.quantity < p.minQuantity AND p.tenantId = :tenantId ORDER BY (p.minQuantity - p.quantity) DESC")
+    List<Product> findProductsBelowMinStock(@Param("tenantId") Long tenantId);
 
     List<Product> findByLocationId(Long locationId);
 
-    @Query("SELECT COALESCE(SUM(p.quantity * p.price), 0) FROM Product p")
-    BigDecimal getTotalStockValue();
+    @Query("SELECT COALESCE(SUM(p.quantity * p.price), 0) FROM Product p WHERE p.tenantId = :tenantId")
+    BigDecimal getTotalStockValue(@Param("tenantId") Long tenantId);
 }
