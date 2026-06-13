@@ -1,6 +1,7 @@
 package com.example.magazyn.service;
 
 import com.example.magazyn.config.TenantContext;
+import com.example.magazyn.dto.CreateInvoiceRequest;
 import com.example.magazyn.dto.InvoiceItemResponse;
 import com.example.magazyn.dto.InvoiceResponse;
 import com.example.magazyn.entity.*;
@@ -15,6 +16,10 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +32,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -175,19 +181,214 @@ public class InvoiceService {
         return toResponse(invoice);
     }
 
+    /**
+     * Create a blank DRAFT invoice (not from a WZ document).
+     */
+    public InvoiceResponse createBlankInvoice(CreateInvoiceRequest request, String username) {
+        Long tenantId = TenantContext.getTenantId();
+        CompanySettings seller = companySettingsRepository.findByTenantId(tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Brak danych firmy. Skonfiguruj ustawienia firmy."));
+
+        String draftNumber = generateDraftNumber();
+
+        Invoice invoice = Invoice.builder()
+                .number(draftNumber)
+                .status(InvoiceStatus.DRAFT)
+                .sellerName(seller.getName())
+                .sellerTaxId(seller.getTaxId())
+                .sellerAddress(seller.getAddress())
+                .sellerBankAccount(seller.getBankAccount())
+                .buyerName(request.buyerName())
+                .buyerTaxId(request.buyerTaxId())
+                .buyerAddress(request.buyerAddress())
+                .issueDate(LocalDate.now())
+                .saleDate(request.saleDate())
+                .dueDate(request.dueDate())
+                .paymentMethod(request.paymentMethod() != null ? request.paymentMethod() : "PRZELEW")
+                .paymentAccount(request.paymentAccount())
+                .notes(request.notes())
+                .createdBy(username)
+                .items(new ArrayList<>())
+                .build();
+
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+
+        for (var reqItem : request.items()) {
+            BigDecimal qty = BigDecimal.valueOf(reqItem.quantity());
+            BigDecimal vatRate = reqItem.vatRate();
+            BigDecimal itemNet = reqItem.unitPriceNet().multiply(qty);
+            BigDecimal itemVat = itemNet.multiply(vatRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            BigDecimal itemGross = itemNet.add(itemVat);
+
+            InvoiceItem item = InvoiceItem.builder()
+                    .invoice(invoice)
+                    .productId(null)
+                    .productName(reqItem.productName())
+                    .productSku(reqItem.productSku())
+                    .productUnit(reqItem.productUnit())
+                    .quantity(reqItem.quantity())
+                    .unitPriceNet(reqItem.unitPriceNet())
+                    .vatRate(vatRate)
+                    .vatAmount(itemVat)
+                    .totalNet(itemNet)
+                    .totalGross(itemGross)
+                    .build();
+
+            invoice.getItems().add(item);
+            totalNet = totalNet.add(itemNet);
+            totalVat = totalVat.add(itemVat);
+        }
+
+        invoice.setTotalNet(totalNet);
+        invoice.setTotalVat(totalVat);
+        invoice.setTotalGross(totalNet.add(totalVat));
+
+        invoice = invoiceRepository.save(invoice);
+
+        auditLogService.log(username, "INVOICE_DRAFT_CREATE", "Invoice", invoice.getId(),
+                "number=" + draftNumber + " buyer=" + request.buyerName() + " total=" + invoice.getTotalGross());
+
+        return toResponse(invoice);
+    }
+
+    /**
+     * Update a DRAFT invoice — replaces items in full.
+     */
+    public InvoiceResponse updateInvoice(Long id, CreateInvoiceRequest request, String username) {
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice", id));
+
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new InvalidOperationException("Tylko faktury w statusie DRAFT można edytować");
+        }
+
+        invoice.setBuyerName(request.buyerName());
+        invoice.setBuyerTaxId(request.buyerTaxId());
+        invoice.setBuyerAddress(request.buyerAddress());
+        invoice.setSaleDate(request.saleDate());
+        invoice.setDueDate(request.dueDate());
+        if (request.paymentMethod() != null) invoice.setPaymentMethod(request.paymentMethod());
+        if (request.paymentAccount() != null) invoice.setPaymentAccount(request.paymentAccount());
+        invoice.setNotes(request.notes());
+
+        // Replace items
+        invoice.getItems().clear();
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+
+        for (var reqItem : request.items()) {
+            BigDecimal qty = BigDecimal.valueOf(reqItem.quantity());
+            BigDecimal vatRate = reqItem.vatRate();
+            BigDecimal itemNet = reqItem.unitPriceNet().multiply(qty);
+            BigDecimal itemVat = itemNet.multiply(vatRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            BigDecimal itemGross = itemNet.add(itemVat);
+
+            InvoiceItem item = InvoiceItem.builder()
+                    .invoice(invoice)
+                    .productId(null)
+                    .productName(reqItem.productName())
+                    .productSku(reqItem.productSku())
+                    .productUnit(reqItem.productUnit())
+                    .quantity(reqItem.quantity())
+                    .unitPriceNet(reqItem.unitPriceNet())
+                    .vatRate(vatRate)
+                    .vatAmount(itemVat)
+                    .totalNet(itemNet)
+                    .totalGross(itemGross)
+                    .build();
+
+            invoice.getItems().add(item);
+            totalNet = totalNet.add(itemNet);
+            totalVat = totalVat.add(itemVat);
+        }
+
+        invoice.setTotalNet(totalNet);
+        invoice.setTotalVat(totalVat);
+        invoice.setTotalGross(totalNet.add(totalVat));
+
+        invoice = invoiceRepository.save(invoice);
+
+        auditLogService.log(username, "INVOICE_DRAFT_UPDATE", "Invoice", id,
+                "number=" + invoice.getNumber());
+
+        return toResponse(invoice);
+    }
+
+    /**
+     * Delete a DRAFT invoice permanently.
+     */
+    public void deleteInvoice(Long id, String username) {
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice", id));
+
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new InvalidOperationException("Tylko faktury w statusie DRAFT można usunąć");
+        }
+
+        invoiceRepository.delete(invoice);
+
+        auditLogService.log(username, "INVOICE_DRAFT_DELETE", "Invoice", id,
+                "number=" + invoice.getNumber());
+    }
+
+    /**
+     * Issue a DRAFT invoice — changes status to ISSUED and assigns a proper FV number.
+     */
+    public InvoiceResponse issueInvoice(Long id, String username) {
+        Invoice invoice = invoiceRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice", id));
+
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new InvalidOperationException("Tylko faktury w statusie DRAFT można wystawić");
+        }
+
+        String fvNumber = generateInvoiceNumber();
+        invoice.setNumber(fvNumber);
+        invoice.setStatus(InvoiceStatus.ISSUED);
+        invoice.setIssueDate(LocalDate.now());
+
+        invoice = invoiceRepository.save(invoice);
+
+        auditLogService.log(username, "INVOICE_ISSUE", "Invoice", id,
+                "number=" + fvNumber);
+
+        return toResponse(invoice);
+    }
+
     @Transactional(readOnly = true)
     public List<InvoiceResponse> getAllInvoices(String statusFilter) {
+        return getAllInvoices(statusFilter, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvoiceResponse> getAllInvoices(String statusFilter, Integer year) {
         Long tenantId = TenantContext.getTenantId();
         List<Invoice> invoices;
-        if (statusFilter != null && !statusFilter.isBlank()) {
+        boolean hasStatus = statusFilter != null && !statusFilter.isBlank();
+        boolean hasYear = year != null && year > 0;
+
+        if (hasStatus && hasYear) {
+            InvoiceStatus status = InvoiceStatus.valueOf(statusFilter.toUpperCase());
+            invoices = invoiceRepository.findByTenantIdAndStatusAndYear(tenantId, status, year);
+        } else if (hasStatus) {
             InvoiceStatus status = InvoiceStatus.valueOf(statusFilter.toUpperCase());
             invoices = invoiceRepository.findByTenantIdAndStatusOrderByCreatedAtDesc(tenantId, status);
+        } else if (hasYear) {
+            invoices = invoiceRepository.findByTenantIdAndYear(tenantId, year);
         } else {
             invoices = invoiceRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
         }
         return invoices.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InvoiceResponse> getAllInvoicesPaged(Pageable pageable) {
+        Long tenantId = TenantContext.getTenantId();
+        Page<Invoice> page = invoiceRepository.findByTenantId(tenantId, pageable);
+        return page.map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -553,7 +754,16 @@ public class InvoiceService {
 
         void drawStatusStamp() throws IOException {
             checkFooter(40);
-            if (invoice.getStatus() == InvoiceStatus.PAID) {
+            if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+                y -= 16;
+                cs.setFont(fontBold, 14);
+                cs.setNonStrokingColor(0.6f, 0.6f, 0.6f);
+                cs.beginText();
+                cs.newLineAtOffset(MARGIN, y);
+                cs.showText("SZKIC");
+                cs.endText();
+                cs.setNonStrokingColor(0, 0, 0);
+            } else if (invoice.getStatus() == InvoiceStatus.PAID) {
                 y -= 16;
                 cs.setFont(fontBold, 16);
                 cs.setNonStrokingColor(0, 0.6f, 0);
@@ -577,6 +787,21 @@ public class InvoiceService {
 
     private String generateInvoiceNumber() {
         String prefix = "FV/" + Year.now().getValue() + "/";
+        String maxNumber = invoiceRepository.findMaxNumberByPrefix(prefix).orElse(null);
+
+        int nextSeq = 1;
+        if (maxNumber != null) {
+            String seqPart = maxNumber.substring(prefix.length());
+            try {
+                nextSeq = Integer.parseInt(seqPart) + 1;
+            } catch (NumberFormatException ignored) {}
+        }
+
+        return prefix + String.format("%03d", nextSeq);
+    }
+
+    private String generateDraftNumber() {
+        String prefix = "SZKIC/" + Year.now().getValue() + "/";
         String maxNumber = invoiceRepository.findMaxNumberByPrefix(prefix).orElse(null);
 
         int nextSeq = 1;
