@@ -355,6 +355,8 @@ public class InvoiceService {
         float y;
         int pageNum;
         private PDPageContentStream cs;
+        private PDFont currentFont;
+        private float currentFontSize;
         final float col2 = A4_W / 2;
 
         // Seller/buyer section tracking
@@ -409,6 +411,8 @@ public class InvoiceService {
         }
 
         void setFont(PDFont font, float size) throws IOException {
+            currentFont = font;
+            currentFontSize = size;
             cs.setFont(font, size);
         }
 
@@ -421,7 +425,7 @@ public class InvoiceService {
         }
 
         void writeLineRight(String text, float rightX) throws IOException {
-            float tw = cs.getFont().getStringWidth(text) / 1000f * cs.getFontSize();
+            float tw = currentFont.getStringWidth(text) / 1000f * currentFontSize;
             cs.beginText();
             cs.newLineAtOffset(rightX - tw, y);
             cs.showText(text);
