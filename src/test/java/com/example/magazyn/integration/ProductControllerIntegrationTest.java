@@ -6,7 +6,9 @@ import com.example.magazyn.entity.Location;
 import com.example.magazyn.entity.LocationType;
 import com.example.magazyn.repository.LocationRepository;
 import com.example.magazyn.util.JwtUtil;
+import com.example.magazyn.config.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,11 +42,17 @@ class ProductControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setTenantId(1L);
         webTestClient = WebTestClient.bindToServer()
                 .baseUrl("http://localhost:" + port)
                 .build();
         adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         userToken = jwtUtil.generateToken("user", "ROLE_USER", 1L);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     @Test
@@ -102,7 +110,7 @@ class ProductControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(objectMapper.writeValueAsString(request))
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isEqualTo(409);
     }
 
     @Test

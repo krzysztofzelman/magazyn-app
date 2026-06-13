@@ -47,7 +47,7 @@ class AuthIntegrationTest {
                 .expectBody()
                 .jsonPath("$.token").isNotEmpty()
                 .jsonPath("$.username").isEqualTo("newuser")
-                .jsonPath("$.role").isEqualTo("ROLE_USER");
+                .jsonPath("$.role").isEqualTo("ROLE_WAREHOUSE");
     }
 
     @Test
@@ -71,7 +71,7 @@ class AuthIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(registerJson)
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isEqualTo(409);
     }
 
     @Test
@@ -132,7 +132,7 @@ class AuthIntegrationTest {
                 .jsonPath("$.token").isNotEmpty()
                 .jsonPath("$.refreshToken").isNotEmpty()
                 .jsonPath("$.username").isEqualTo("logintest")
-                .jsonPath("$.role").isEqualTo("ROLE_USER");
+                .jsonPath("$.role").isEqualTo("ROLE_WAREHOUSE");
     }
 
     @Test
@@ -150,7 +150,7 @@ class AuthIntegrationTest {
 
     @Test
     void accessProtectedEndpoint_withValidToken_success() {
-        String token = jwtUtil.generateToken("testuser", "ROLE_USER", 1L);
+        String token = jwtUtil.generateToken("testuser", "ROLE_WAREHOUSE", 1L);
 
         webTestClient.get().uri("/api/products")
                 .header("Authorization", "Bearer " + token)
@@ -167,7 +167,7 @@ class AuthIntegrationTest {
 
     @Test
     void accessAdminEndpoint_withUserRole_returns403() {
-        String userToken = jwtUtil.generateToken("regularuser", "ROLE_USER", 1L);
+        String userToken = jwtUtil.generateToken("regularuser", "ROLE_WAREHOUSE", 1L);
         String productJson = """
                 {"name": "Test", "sku": "TST-AUTH", "unit": "szt."}
                 """;
@@ -243,7 +243,7 @@ class AuthIntegrationTest {
                 .jsonPath("$.token").isNotEmpty()
                 .jsonPath("$.refreshToken").isNotEmpty()
                 .jsonPath("$.username").isEqualTo("refreshtest1")
-                .jsonPath("$.role").isEqualTo("ROLE_USER")
+                .jsonPath("$.role").isEqualTo("ROLE_WAREHOUSE")
                 .returnResult()
                 .getResponseBodyContent();
 
@@ -304,6 +304,7 @@ class AuthIntegrationTest {
         webTestClient.post().uri("/api/auth/logout")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"refreshToken\": \"" + refreshToken + "\"}")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
@@ -320,9 +321,11 @@ class AuthIntegrationTest {
     @Test
     void logout_withInvalidToken_returns200() {
         // Logout should succeed even with an invalid/consumed token
+        String adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         webTestClient.post().uri("/api/auth/logout")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{\"refreshToken\": \"00000000-0000-0000-0000-000000000000\"}")
+                .header("Authorization", "Bearer " + adminToken)
                 .exchange()
                 .expectStatus().isOk();
     }

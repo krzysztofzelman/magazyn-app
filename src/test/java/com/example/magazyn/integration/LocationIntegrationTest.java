@@ -4,6 +4,8 @@ import com.example.magazyn.entity.Location;
 import com.example.magazyn.entity.LocationType;
 import com.example.magazyn.repository.LocationRepository;
 import com.example.magazyn.util.JwtUtil;
+import com.example.magazyn.config.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,12 +35,18 @@ class LocationIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setTenantId(1L);
         webTestClient = WebTestClient.bindToServer()
                 .baseUrl("http://localhost:" + port)
                 .build();
         locationRepository.deleteAll();
         adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
         userToken = jwtUtil.generateToken("user", "ROLE_USER", 1L);
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     @Test

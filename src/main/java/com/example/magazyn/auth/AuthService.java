@@ -124,7 +124,6 @@ public class AuthService {
         }
     }
 
-    @Transactional
     public void logout(String refreshTokenStr) {
         try {
             User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
