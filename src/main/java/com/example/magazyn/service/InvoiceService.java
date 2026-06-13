@@ -35,8 +35,21 @@ import java.util.stream.Collectors;
 public class InvoiceService {
 
     private static final float MARGIN = 40f;
+    private static final float BOTTOM_M = 55f;
     private static final float A4_W = PDRectangle.A4.getWidth();
     private static final float A4_H = PDRectangle.A4.getHeight();
+
+    private static final float[] COL_WIDTHS = {30f, 190f, 50f, 60f, 60f, 55f, 70f};
+    private static final float[] COL_STARTS;
+    private static final float TABLE_W;
+    static {
+        COL_STARTS = new float[COL_WIDTHS.length];
+        COL_STARTS[0] = MARGIN;
+        for (int i = 1; i < COL_WIDTHS.length; i++) {
+            COL_STARTS[i] = COL_STARTS[i - 1] + COL_WIDTHS[i - 1];
+        }
+        TABLE_W = COL_STARTS[COL_STARTS.length - 1] + COL_WIDTHS[COL_WIDTHS.length - 1] - MARGIN;
+    }
 
     private final InvoiceRepository invoiceRepository;
     private final InvoiceItemRepository invoiceItemRepository;
@@ -237,147 +250,325 @@ public class InvoiceService {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (PDDocument doc = new PDDocument()) {
-            PDPage page = new PDPage(PDRectangle.A4);
-            doc.addPage(page);
-
-            // Load Unicode-capable fonts from classpath resources
             PDFont fontReg = loadFont(doc, "/fonts/LiberationSans-Regular.ttf");
             PDFont fontBold = loadFont(doc, "/fonts/LiberationSans-Bold.ttf");
 
-            try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
-                float y = A4_H - MARGIN;
-                float col1 = MARGIN;
-                float col2 = A4_W / 2;
+            PdfPageCtx ctx = new PdfPageCtx(doc, invoice, fontReg, fontBold);
+            ctx.newPage();
 
-                // Title
-                cs.setFont(fontBold, 18);
-                y = drawText(cs, "FAKTURA VAT", col1, y, 0);
-                cs.setFont(fontReg, 10);
-                y = drawText(cs, "Nr " + invoice.getNumber(), col1, y, 0);
+            // === HEADER ===
+            ctx.setFont(fontBold, 18);
+            ctx.writeLine("FAKTURA VAT", MARGIN);
+            ctx.setFont(fontReg, 10);
+            ctx.writeLine("Nr " + invoice.getNumber(), MARGIN);
+            ctx.y -= 10;
 
-                // Seller / Buyer info boxes
-                y -= 10;
+            ctx.startSellerBuyerSection();
 
-                // Seller box
-                float boxY = y;
-                cs.setFont(fontBold, 9);
-                drawText(cs, "SPRZEDAWCA:", col1, y, 0);
-                cs.setFont(fontReg, 9);
-                y -= 12;
-                y = drawText(cs, invoice.getSellerName(), col1, y, 0);
-                if (invoice.getSellerTaxId() != null)
-                    y = drawText(cs, "NIP: " + invoice.getSellerTaxId(), col1, y, 0);
-                if (invoice.getSellerAddress() != null)
-                    y = drawText(cs, invoice.getSellerAddress(), col1, y, 0);
-                if (invoice.getSellerBankAccount() != null)
-                    y = drawText(cs, "Konto: " + invoice.getSellerBankAccount(), col1, y, 0);
+            // Seller box
+            ctx.setFont(fontBold, 9);
+            ctx.writeLine("SPRZEDAWCA:", MARGIN);
+            ctx.setFont(fontReg, 9);
+            ctx.y -= 2;
+            ctx.writeLine(invoice.getSellerName(), MARGIN);
+            if (invoice.getSellerTaxId() != null) ctx.writeLine("NIP: " + invoice.getSellerTaxId(), MARGIN);
+            if (invoice.getSellerAddress() != null) ctx.writeLine(invoice.getSellerAddress(), MARGIN);
+            if (invoice.getSellerBankAccount() != null) ctx.writeLine("Konto: " + invoice.getSellerBankAccount(), MARGIN);
 
-                // Buyer box
-                float buyerY = boxY;
-                cs.setFont(fontBold, 9);
-                drawText(cs, "NABYWCA:", col2, buyerY, 0);
-                cs.setFont(fontReg, 9);
-                buyerY -= 12;
-                buyerY = drawText(cs, invoice.getBuyerName(), col2, buyerY, 0);
-                if (invoice.getBuyerTaxId() != null)
-                    buyerY = drawText(cs, "NIP: " + invoice.getBuyerTaxId(), col2, buyerY, 0);
-                if (invoice.getBuyerAddress() != null)
-                    buyerY = drawText(cs, invoice.getBuyerAddress(), col2, buyerY, 0);
+            // Buyer box (right column)
+            ctx.setFont(fontBold, 9);
+            ctx.writeLine("NABYWCA:", ctx.col2);
+            ctx.setFont(fontReg, 9);
+            ctx.y -= 2;
+            ctx.writeLine(invoice.getBuyerName(), ctx.col2);
+            if (invoice.getBuyerTaxId() != null) ctx.writeLine("NIP: " + invoice.getBuyerTaxId(), ctx.col2);
+            if (invoice.getBuyerAddress() != null) ctx.writeLine(invoice.getBuyerAddress(), ctx.col2);
 
-                y = Math.min(y, buyerY) - 10;
+            ctx.endSellerBuyerSection();
 
-                // Date / Payment info
-                cs.setFont(fontReg, 9);
-                y = drawText(cs, "Data wystawienia: " + invoice.getIssueDate(), col1, y, 0);
-                y = drawText(cs, "Data sprzedaży: " + invoice.getSaleDate(), col1, y, 0);
-                y = drawText(cs, "Termin płatności: " + invoice.getDueDate(), col1, y, 0);
-                y = drawText(cs, "Metoda płatności: " + invoice.getPaymentMethod(), col1, y, 0);
-                if (invoice.getPaymentAccount() != null)
-                    y = drawText(cs, "Nr konta: " + invoice.getPaymentAccount(), col1, y, 0);
+            // Date / Payment info
+            ctx.setFont(fontReg, 9);
+            ctx.writeLine("Data wystawienia: " + invoice.getIssueDate(), MARGIN);
+            ctx.writeLine("Data sprzedaży: " + invoice.getSaleDate(), MARGIN);
+            ctx.writeLine("Termin płatności: " + invoice.getDueDate(), MARGIN);
+            ctx.writeLine("Metoda płatności: " + invoice.getPaymentMethod(), MARGIN);
+            if (invoice.getPaymentAccount() != null)
+                ctx.writeLine("Nr konta: " + invoice.getPaymentAccount(), MARGIN);
 
-                y -= 8;
+            ctx.y -= 6;
 
-                // Table header
-                float tableTop = y;
-                float[] colWidths = {30, 180, 50, 60, 60, 60, 70}; // Lp, Product, Qty, Net price, Net value, VAT%, Gross
-                float[] colStarts = new float[colWidths.length];
-                colStarts[0] = MARGIN;
-                for (int i = 1; i < colWidths.length; i++) {
-                    colStarts[i] = colStarts[i - 1] + colWidths[i - 1];
-                }
-                float tableW = colStarts[colStarts.length - 1] + colWidths[colWidths.length - 1] - MARGIN;
-
-                cs.setFont(fontBold, 8);
-                y = drawTableRow(cs, colStarts, colWidths, y, new String[]{
-                        "Lp.", "Produkt", "Ilo\u015B\u0107", "Cena netto", "Warto\u015B\u0107 netto", "VAT %", "Warto\u015B\u0107 brutto"
+            // === TABLE ===
+            ctx.drawTableHeader();
+            int lp = 1;
+            for (InvoiceItem item : invoice.getItems()) {
+                ctx.checkFooter(30);
+                String qtyStr = item.getQuantity() + " " + (item.getProductUnit() != null ? item.getProductUnit() : "szt");
+                ctx.drawTableRow(new String[]{
+                        String.valueOf(lp++),
+                        item.getProductName(),
+                        qtyStr,
+                        formatPrice(item.getUnitPriceNet()),
+                        formatPrice(item.getTotalNet()),
+                        formatVat(item.getVatRate()),
+                        formatPrice(item.getTotalGross())
                 });
-                // Table header underline
-                cs.setStrokingColor(0.6f);
-                cs.moveTo(MARGIN, y);
-                cs.lineTo(MARGIN + tableW, y);
-                cs.stroke();
-                y -= 4;
-
-                // Table rows
-                cs.setFont(fontReg, 8);
-                int lp = 1;
-                for (InvoiceItem item : invoice.getItems()) {
-                    if (y < 60) {
-                        // Page overflow — simple: just stop, draw total on next page not implemented for brevity
-                        break;
-                    }
-                    String qtyStr = item.getQuantity() + " " + (item.getProductUnit() != null ? item.getProductUnit() : "szt");
-                    y = drawTableRow(cs, colStarts, colWidths, y, new String[]{
-                            String.valueOf(lp++),
-                            item.getProductName(),
-                            qtyStr,
-                            formatPrice(item.getUnitPriceNet()),
-                            formatPrice(item.getTotalNet()),
-                            formatVat(item.getVatRate()),
-                            formatPrice(item.getTotalGross())
-                    });
-                    y -= 2;
-                }
-
-                // Bottom line
-                cs.setStrokingColor(0.6f);
-                cs.moveTo(MARGIN, y);
-                cs.lineTo(MARGIN + tableW, y);
-                cs.stroke();
-                y -= 6;
-
-                // Totals
-                cs.setFont(fontBold, 10);
-                y = drawTextRight(cs, fontBold, "Razem netto: " + formatPrice(invoice.getTotalNet()),
-                        MARGIN + tableW, y, 0);
-                y = drawTextRight(cs, fontBold, "W tym VAT: " + formatPrice(invoice.getTotalVat()),
-                        MARGIN + tableW, y, 0);
-                cs.setFont(fontBold, 12);
-                y = drawTextRight(cs, fontBold, "RAZEM BRUTTO: " + formatPrice(invoice.getTotalGross()),
-                        MARGIN + tableW, y, 0);
-
-                // Status stamp
-                if (invoice.getStatus() == InvoiceStatus.PAID) {
-                    y -= 20;
-                    cs.setFont(fontBold, 14);
-                    cs.setNonStrokingColor(0, 0.6f, 0);
-                    drawText(cs, "ZAPŁACONO", MARGIN, y, 0);
-                    cs.setNonStrokingColor(0, 0, 0);
-                } else if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
-                    y -= 20;
-                    cs.setFont(fontBold, 14);
-                    cs.setNonStrokingColor(0.8f, 0, 0);
-                    drawText(cs, "ANULOWANO", MARGIN, y, 0);
-                    cs.setNonStrokingColor(0, 0, 0);
-                }
             }
 
+            ctx.drawTableBottomLine();
+
+            // === TOTALS (gray background) ===
+            ctx.y -= 4;
+            ctx.drawTotals(invoice.getTotalNet(), invoice.getTotalVat(), invoice.getTotalGross());
+
+            // === NOTES ===
+            if (invoice.getNotes() != null && !invoice.getNotes().isBlank()) {
+                ctx.checkFooter(40);
+                ctx.y -= 4;
+                ctx.setFont(fontBold, 9);
+                ctx.writeLine("Uwagi:", MARGIN);
+                ctx.setFont(fontReg, 9);
+                ctx.y -= 2;
+                ctx.writeLine(invoice.getNotes(), MARGIN);
+            }
+
+            // === STATUS STAMP ===
+            ctx.drawStatusStamp();
+
+            // === FINALIZE ===
+            ctx.finalizeFooter();
             doc.save(baos);
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate invoice PDF", e);
         }
 
         return baos.toByteArray();
+    }
+
+    // ========== PdfPageCtx inner class ==========
+
+    private static class PdfPageCtx {
+        final PDDocument doc;
+        final Invoice invoice;
+        final PDFont fontReg;
+        final PDFont fontBold;
+
+        float y;
+        int pageNum;
+        private PDPageContentStream cs;
+        final float col2 = A4_W / 2;
+
+        // Seller/buyer section tracking
+        private float sellerBuyerStartY;
+        private float sellerBuyerMaxX;
+
+        PdfPageCtx(PDDocument doc, Invoice invoice, PDFont fontReg, PDFont fontBold) {
+            this.doc = doc;
+            this.invoice = invoice;
+            this.fontReg = fontReg;
+            this.fontBold = fontBold;
+        }
+
+        void newPage() throws IOException {
+            // Finalize previous page footer if not first page
+            if (pageNum > 0) {
+                drawFooter();
+                cs.close();
+            }
+            pageNum++;
+            PDPage page = new PDPage(PDRectangle.A4);
+            doc.addPage(page);
+            cs = new PDPageContentStream(doc, page);
+            y = A4_H - MARGIN;
+        }
+
+        void checkFooter(float neededSpace) throws IOException {
+            if (y < BOTTOM_M + neededSpace) {
+                newPage();
+            }
+        }
+
+        void finalizeFooter() throws IOException {
+            drawFooter();
+            cs.close();
+        }
+
+        private void drawFooter() throws IOException {
+            if (cs == null) return;
+            String footerText = invoice.getSellerBankAccount() != null && !invoice.getSellerBankAccount().isBlank()
+                    ? "Konto: " + invoice.getSellerBankAccount() + "  |  Strona " + pageNum
+                    : "Strona " + pageNum;
+            cs.setFont(fontReg, 7);
+            float textWidth = fontReg.getStringWidth(footerText) / 1000f * 7;
+            float x = (A4_W - textWidth) / 2;
+            cs.setNonStrokingColor(0.4f, 0.4f, 0.4f);
+            cs.beginText();
+            cs.newLineAtOffset(x, BOTTOM_M - 30);
+            cs.showText(footerText);
+            cs.endText();
+            cs.setNonStrokingColor(0, 0, 0);
+        }
+
+        void setFont(PDFont font, float size) throws IOException {
+            cs.setFont(font, size);
+        }
+
+        void writeLine(String text, float x) throws IOException {
+            cs.beginText();
+            cs.newLineAtOffset(x, y);
+            cs.showText(text);
+            cs.endText();
+            y -= 14;
+        }
+
+        void writeLineRight(String text, float rightX) throws IOException {
+            float tw = cs.getFont().getStringWidth(text) / 1000f * cs.getFontSize();
+            cs.beginText();
+            cs.newLineAtOffset(rightX - tw, y);
+            cs.showText(text);
+            cs.endText();
+            y -= 16;
+        }
+
+        // Seller/buyer section: calculates box height and draws border around both columns
+        void startSellerBuyerSection() {
+            // We track where we started for the border
+            sellerBuyerStartY = y + 14; // top of the last written line before the section
+            sellerBuyerMaxX = MARGIN + TABLE_W + COL_WIDTHS[COL_WIDTHS.length - 1];
+        }
+
+        void endSellerBuyerSection() throws IOException {
+            // Both seller and buyer data is already written; just calculate bottom
+            // No rectangle border — cleaner look
+        }
+
+        // --- Table drawing ---
+
+        void drawTableHeader() throws IOException {
+            checkFooter(40);
+            cs.setFont(fontBold, 8);
+            // Header background
+            cs.setNonStrokingColor(0.92f, 0.92f, 0.92f);
+            cs.addRect(MARGIN, y - 3, TABLE_W, 12);
+            cs.fill();
+            cs.setNonStrokingColor(0, 0, 0);
+
+            String[] headers = {"Lp.", "Produkt", "Ilo\u015B\u0107", "Cena netto", "Warto\u015B\u0107 netto", "VAT %", "Warto\u015B\u0107 brutto"};
+            for (int i = 0; i < headers.length; i++) {
+                cs.beginText();
+                cs.newLineAtOffset(COL_STARTS[i] + 2, y);
+                cs.showText(headers[i]);
+                cs.endText();
+                // Vertical border lines
+                if (i > 0) {
+                    cs.setStrokingColor(0.7f);
+                    cs.moveTo(COL_STARTS[i], y - 2);
+                    cs.lineTo(COL_STARTS[i], y + 8);
+                    cs.stroke();
+                }
+            }
+            // Top horizontal border
+            cs.setStrokingColor(0.7f);
+            cs.moveTo(MARGIN, y + 8);
+            cs.lineTo(MARGIN + TABLE_W, y + 8);
+            cs.stroke();
+            // Bottom of header
+            cs.moveTo(MARGIN, y - 2);
+            cs.lineTo(MARGIN + TABLE_W, y - 2);
+            cs.stroke();
+            cs.setStrokingColor(0, 0, 0);
+            y -= 2 + 12;
+        }
+
+        void drawTableRow(String[] values) throws IOException {
+            float rowH = 12;
+            cs.setFont(fontReg, 8);
+
+            // Vertical borders
+            for (int i = 0; i < COL_STARTS.length; i++) {
+                cs.setStrokingColor(0.7f);
+                cs.moveTo(COL_STARTS[i], y);
+                cs.lineTo(COL_STARTS[i], y - rowH);
+                cs.stroke();
+            }
+            // Rightmost border
+            float rightX = COL_STARTS[COL_STARTS.length - 1] + COL_WIDTHS[COL_WIDTHS.length - 1];
+            cs.moveTo(rightX, y);
+            cs.lineTo(rightX, y - rowH);
+            cs.stroke();
+
+            // Text
+            float textY = y - 8;
+            for (int i = 0; i < values.length; i++) {
+                cs.beginText();
+                cs.newLineAtOffset(COL_STARTS[i] + 2, textY);
+                cs.showText(values[i]);
+                cs.endText();
+            }
+            y -= rowH;
+        }
+
+        void drawTableBottomLine() throws IOException {
+            cs.setStrokingColor(0.7f);
+            float rightX = COL_STARTS[COL_STARTS.length - 1] + COL_WIDTHS[COL_WIDTHS.length - 1];
+            cs.moveTo(MARGIN, y);
+            cs.lineTo(rightX, y);
+            cs.stroke();
+            cs.setStrokingColor(0, 0, 0);
+        }
+
+        // --- Totals with gray background ---
+
+        void drawTotals(BigDecimal totalNet, BigDecimal totalVat, BigDecimal totalGross) throws IOException {
+            checkFooter(50);
+            float boxH = 36;
+            float boxX = MARGIN + TABLE_W - 180;
+            float boxW = 180;
+
+            // Gray background
+            cs.setNonStrokingColor(0.95f, 0.95f, 0.95f);
+            cs.addRect(boxX, y - boxH + 4, boxW, boxH);
+            cs.fill();
+            cs.setNonStrokingColor(0, 0, 0);
+
+            // Border
+            cs.setStrokingColor(0.5f);
+            cs.addRect(boxX, y - boxH + 4, boxW, boxH);
+            cs.stroke();
+            cs.setStrokingColor(0, 0, 0);
+
+            float ty = y - 4;
+            cs.setFont(fontBold, 9);
+            writeLineRight("Razem netto: " + formatPrice(totalNet), boxX + boxW - 4);
+            writeLineRight("W tym VAT: " + formatPrice(totalVat), boxX + boxW - 4);
+            cs.setFont(fontBold, 11);
+            writeLineRight("RAZEM BRUTTO: " + formatPrice(totalGross), boxX + boxW - 4);
+            y = ty - boxH + 4;
+        }
+
+        // --- Status stamp ---
+
+        void drawStatusStamp() throws IOException {
+            checkFooter(40);
+            if (invoice.getStatus() == InvoiceStatus.PAID) {
+                y -= 16;
+                cs.setFont(fontBold, 16);
+                cs.setNonStrokingColor(0, 0.6f, 0);
+                cs.beginText();
+                cs.newLineAtOffset(MARGIN, y);
+                cs.showText("ZAP\u0141ACONO");
+                cs.endText();
+                cs.setNonStrokingColor(0, 0, 0);
+            } else if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
+                y -= 16;
+                cs.setFont(fontBold, 16);
+                cs.setNonStrokingColor(0.8f, 0, 0);
+                cs.beginText();
+                cs.newLineAtOffset(MARGIN, y);
+                cs.showText("ANULOWANO");
+                cs.endText();
+                cs.setNonStrokingColor(0, 0, 0);
+            }
+        }
     }
 
     private String generateInvoiceNumber() {
@@ -442,40 +633,11 @@ public class InvoiceService {
         }
     }
 
-    private float drawText(PDPageContentStream cs, String text, float x, float y, float extra) throws IOException {
-        cs.beginText();
-        cs.newLineAtOffset(x, y);
-        cs.showText(text);
-        cs.endText();
-        return y - 14;
-    }
-
-    private float drawTextRight(PDPageContentStream cs, PDFont font, String text, float rightX, float y, float extra) throws IOException {
-        float textWidth = font.getStringWidth(text) / 1000f * 10;
-        cs.beginText();
-        cs.newLineAtOffset(rightX - textWidth, y);
-        cs.showText(text);
-        cs.endText();
-        return y - 16;
-    }
-
-    private float drawTableRow(PDPageContentStream cs, float[] colStarts, float[] colWidths,
-                                float y, String[] values) throws IOException {
-        float maxH = 0;
-        for (int i = 0; i < values.length; i++) {
-            cs.beginText();
-            cs.newLineAtOffset(colStarts[i] + 2, y);
-            cs.showText(values[i]);
-            cs.endText();
-        }
-        return y - 10;
-    }
-
-    private String formatPrice(BigDecimal price) {
+    private static String formatPrice(BigDecimal price) {
         return price.setScale(2, RoundingMode.HALF_UP).toString() + " PLN";
     }
 
-    private String formatVat(BigDecimal vatRate) {
+    private static String formatVat(BigDecimal vatRate) {
         return vatRate.setScale(0, RoundingMode.HALF_UP).toString() + "%";
     }
 }
