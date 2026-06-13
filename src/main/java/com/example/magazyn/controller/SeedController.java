@@ -4,6 +4,7 @@ import com.example.magazyn.service.SeedService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/seed")
+@Profile("dev")
 @Tag(name = "Seed", description = "Zasiewanie danych testowych (tylko ADMIN)")
 @SecurityRequirement(name = "bearerAuth")
 public class SeedController {
