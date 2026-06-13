@@ -12,6 +12,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -32,9 +34,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class InvoiceService {
 
-    private static final PDFont FONT_REG = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-    private static final PDFont FONT_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-    private static final PDFont FONT_SMALL = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
     private static final float MARGIN = 40f;
     private static final float A4_W = PDRectangle.A4.getWidth();
     private static final float A4_H = PDRectangle.A4.getHeight();
@@ -241,16 +240,19 @@ public class InvoiceService {
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
 
+            // Load Unicode-capable fonts from classpath resources
+            PDFont fontReg = loadFont(doc, "/fonts/LiberationSans-Regular.ttf");
+            PDFont fontBold = loadFont(doc, "/fonts/LiberationSans-Bold.ttf");
+
             try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
                 float y = A4_H - MARGIN;
                 float col1 = MARGIN;
                 float col2 = A4_W / 2;
-                float rowH = 14f;
 
                 // Title
-                cs.setFont(FONT_BOLD, 18);
+                cs.setFont(fontBold, 18);
                 y = drawText(cs, "FAKTURA VAT", col1, y, 0);
-                cs.setFont(FONT_REG, 10);
+                cs.setFont(fontReg, 10);
                 y = drawText(cs, "Nr " + invoice.getNumber(), col1, y, 0);
 
                 // Seller / Buyer info boxes
@@ -258,10 +260,9 @@ public class InvoiceService {
 
                 // Seller box
                 float boxY = y;
-                float boxW = (A4_W - 2 * MARGIN) / 2 - 5;
-                cs.setFont(FONT_BOLD, 9);
+                cs.setFont(fontBold, 9);
                 drawText(cs, "SPRZEDAWCA:", col1, y, 0);
-                cs.setFont(FONT_REG, 9);
+                cs.setFont(fontReg, 9);
                 y -= 12;
                 y = drawText(cs, invoice.getSellerName(), col1, y, 0);
                 if (invoice.getSellerTaxId() != null)
@@ -273,9 +274,9 @@ public class InvoiceService {
 
                 // Buyer box
                 float buyerY = boxY;
-                cs.setFont(FONT_BOLD, 9);
+                cs.setFont(fontBold, 9);
                 drawText(cs, "NABYWCA:", col2, buyerY, 0);
-                cs.setFont(FONT_REG, 9);
+                cs.setFont(fontReg, 9);
                 buyerY -= 12;
                 buyerY = drawText(cs, invoice.getBuyerName(), col2, buyerY, 0);
                 if (invoice.getBuyerTaxId() != null)
@@ -286,7 +287,7 @@ public class InvoiceService {
                 y = Math.min(y, buyerY) - 10;
 
                 // Date / Payment info
-                cs.setFont(FONT_REG, 9);
+                cs.setFont(fontReg, 9);
                 y = drawText(cs, "Data wystawienia: " + invoice.getIssueDate(), col1, y, 0);
                 y = drawText(cs, "Data sprzedaży: " + invoice.getSaleDate(), col1, y, 0);
                 y = drawText(cs, "Termin płatności: " + invoice.getDueDate(), col1, y, 0);
@@ -306,7 +307,7 @@ public class InvoiceService {
                 }
                 float tableW = colStarts[colStarts.length - 1] + colWidths[colWidths.length - 1] - MARGIN;
 
-                cs.setFont(FONT_BOLD, 8);
+                cs.setFont(fontBold, 8);
                 y = drawTableRow(cs, colStarts, colWidths, y, new String[]{
                         "Lp.", "Produkt", "Ilo\u015B\u0107", "Cena netto", "Warto\u015B\u0107 netto", "VAT %", "Warto\u015B\u0107 brutto"
                 });
@@ -318,7 +319,7 @@ public class InvoiceService {
                 y -= 4;
 
                 // Table rows
-                cs.setFont(FONT_REG, 8);
+                cs.setFont(fontReg, 8);
                 int lp = 1;
                 for (InvoiceItem item : invoice.getItems()) {
                     if (y < 60) {
@@ -346,25 +347,25 @@ public class InvoiceService {
                 y -= 6;
 
                 // Totals
-                cs.setFont(FONT_BOLD, 10);
-                y = drawTextRight(cs, "Razem netto: " + formatPrice(invoice.getTotalNet()),
+                cs.setFont(fontBold, 10);
+                y = drawTextRight(cs, fontBold, "Razem netto: " + formatPrice(invoice.getTotalNet()),
                         MARGIN + tableW, y, 0);
-                y = drawTextRight(cs, "W tym VAT: " + formatPrice(invoice.getTotalVat()),
+                y = drawTextRight(cs, fontBold, "W tym VAT: " + formatPrice(invoice.getTotalVat()),
                         MARGIN + tableW, y, 0);
-                cs.setFont(FONT_BOLD, 12);
-                y = drawTextRight(cs, "RAZEM BRUTTO: " + formatPrice(invoice.getTotalGross()),
+                cs.setFont(fontBold, 12);
+                y = drawTextRight(cs, fontBold, "RAZEM BRUTTO: " + formatPrice(invoice.getTotalGross()),
                         MARGIN + tableW, y, 0);
 
                 // Status stamp
                 if (invoice.getStatus() == InvoiceStatus.PAID) {
                     y -= 20;
-                    cs.setFont(FONT_BOLD, 14);
+                    cs.setFont(fontBold, 14);
                     cs.setNonStrokingColor(0, 0.6f, 0);
                     drawText(cs, "ZAPŁACONO", MARGIN, y, 0);
                     cs.setNonStrokingColor(0, 0, 0);
                 } else if (invoice.getStatus() == InvoiceStatus.CANCELLED) {
                     y -= 20;
-                    cs.setFont(FONT_BOLD, 14);
+                    cs.setFont(fontBold, 14);
                     cs.setNonStrokingColor(0.8f, 0, 0);
                     drawText(cs, "ANULOWANO", MARGIN, y, 0);
                     cs.setNonStrokingColor(0, 0, 0);
@@ -430,6 +431,17 @@ public class InvoiceService {
 
     // PDF helpers
 
+    private static PDFont loadFont(PDDocument doc, String resourcePath) {
+        try (InputStream is = InvoiceService.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                return new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+            }
+            return PDType0Font.load(doc, is);
+        } catch (IOException e) {
+            return new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+        }
+    }
+
     private float drawText(PDPageContentStream cs, String text, float x, float y, float extra) throws IOException {
         cs.beginText();
         cs.newLineAtOffset(x, y);
@@ -438,8 +450,8 @@ public class InvoiceService {
         return y - 14;
     }
 
-    private float drawTextRight(PDPageContentStream cs, String text, float rightX, float y, float extra) throws IOException {
-        float textWidth = FONT_BOLD.getStringWidth(text) / 1000f * 10;
+    private float drawTextRight(PDPageContentStream cs, PDFont font, String text, float rightX, float y, float extra) throws IOException {
+        float textWidth = font.getStringWidth(text) / 1000f * 10;
         cs.beginText();
         cs.newLineAtOffset(rightX - textWidth, y);
         cs.showText(text);

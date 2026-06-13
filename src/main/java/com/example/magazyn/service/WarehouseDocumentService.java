@@ -18,11 +18,13 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -51,6 +53,7 @@ public class WarehouseDocumentService {
     private final LocationRepository locationRepository;
     private final LocationStockRepository locationStockRepository;
     private final InvoiceService invoiceService;
+    private final CompanySettingsRepository companySettingsRepository;
 
     public WarehouseDocumentService(WarehouseDocumentRepository documentRepository,
                                     WarehouseDocumentItemRepository itemRepository,
@@ -63,7 +66,8 @@ public class WarehouseDocumentService {
                                     ReservationService reservationService,
                                     LocationRepository locationRepository,
                                     LocationStockRepository locationStockRepository,
-                                    InvoiceService invoiceService) {
+                                    InvoiceService invoiceService,
+                                    CompanySettingsRepository companySettingsRepository) {
         this.documentRepository = documentRepository;
         this.itemRepository = itemRepository;
         this.contractorRepository = contractorRepository;
@@ -76,6 +80,7 @@ public class WarehouseDocumentService {
         this.locationRepository = locationRepository;
         this.locationStockRepository = locationStockRepository;
         this.invoiceService = invoiceService;
+        this.companySettingsRepository = companySettingsRepository;
     }
 
     public WarehouseDocumentResponse createDocument(WarehouseDocumentRequest request, String username) {
@@ -297,11 +302,16 @@ public class WarehouseDocumentService {
         // Auto-generate invoice for WZ documents (silently skip if company settings not configured)
         if (document.getType() == DocumentType.WZ) {
             try {
-                invoiceService.generateFromDocument(id, username);
-                auditLogService.log(username, "INVOICE_AUTO_GENERATE", "WarehouseDocument", id,
-                        "auto-generated invoice for " + document.getNumber());
+                if (companySettingsRepository.findByTenantId(TenantContext.getTenantId()).isPresent()) {
+                    invoiceService.generateFromDocument(id, username);
+                    auditLogService.log(username, "INVOICE_AUTO_GENERATE", "WarehouseDocument", id,
+                            "auto-generated invoice for " + document.getNumber());
+                } else {
+                    auditLogService.log(username, "INVOICE_AUTO_GENERATE_SKIP", "WarehouseDocument", id,
+                            "auto-generate skipped: company settings not configured");
+                }
             } catch (Exception e) {
-                // Company settings not configured or other issue — log but don't block confirm
+                // Other unexpected issue — log but don't block confirm
                 auditLogService.log(username, "INVOICE_AUTO_GENERATE_SKIP", "WarehouseDocument", id,
                         "auto-generate skipped: " + e.getMessage());
             }
@@ -580,8 +590,8 @@ public class WarehouseDocumentService {
                 float[] colStarts = {col0, col1, col2, col3};
                 float[] colWidths = {pageW * 2 / 10, pageW * 3 / 10, pageW * 2.5f / 10, pageW * 2.5f / 10};
 
-                PDFont fontBold = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-                PDFont fontReg = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+                PDFont fontBold = loadFont(pdfDoc, "/fonts/LiberationSans-Bold.ttf");
+                PDFont fontReg = loadFont(pdfDoc, "/fonts/LiberationSans-Regular.ttf");
                 int titleSize = 18;
                 int normalSize = 10;
                 int tableHeaderSize = 9;
@@ -681,6 +691,17 @@ public class WarehouseDocumentService {
             throw new RuntimeException("Failed to export document PDF", e);
         }
         return baos.toByteArray();
+    }
+
+    private static PDFont loadFont(PDDocument doc, String resourcePath) {
+        try (InputStream is = WarehouseDocumentService.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                return new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+            }
+            return PDType0Font.load(doc, is);
+        } catch (IOException e) {
+            return new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+        }
     }
 
     private WarehouseDocumentResponse toResponse(WarehouseDocument doc) {
