@@ -73,8 +73,16 @@ public class WarehouseService {
         Warehouse warehouse = warehouseRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new RuntimeException("Magazyn nie znaleziony"));
 
+        String newCode = request.getCode().toUpperCase().trim();
+        // Check for duplicate code only if code changed
+        if (!warehouse.getCode().equals(newCode)
+                && warehouseRepository.existsByCodeAndTenantId(newCode, tenantId)) {
+            throw new DuplicateResourceException(
+                    "Kod '" + newCode + "' jest ju\u017C u\u017Cywany");
+        }
+
         warehouse.setName(request.getName());
-        warehouse.setCode(request.getCode().toUpperCase().trim());
+        warehouse.setCode(newCode);
         if (request.getIsActive() != null) {
             warehouse.setIsActive(request.getIsActive());
         }

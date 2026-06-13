@@ -4,6 +4,7 @@ import com.example.magazyn.entity.AuditLog;
 import com.example.magazyn.repository.AuditLogRepository;
 import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.util.AuditContext;
+import com.example.magazyn.util.CsvUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -50,7 +51,12 @@ public class AuditLogService {
             // TenantContext is empty — fall back to the default tenant (ID=1)
             if (auditLog.getTenantId() == null) {
                 Long contextTenant = TenantContext.getTenantId();
-                auditLog.setTenantId(contextTenant != null ? contextTenant : 1L);
+                if (contextTenant != null) {
+                    auditLog.setTenantId(contextTenant);
+                } else {
+                    auditLog.setTenantId(1L);
+                    log.warn("No tenant context for audit event (action={}), falling back to tenantId=1", action);
+                }
             }
 
             auditLogRepository.save(auditLog);
@@ -84,23 +90,15 @@ public class AuditLogService {
         sb.append("ID,Username,Action,EntityType,EntityId,Details,IP,Timestamp\n");
         for (AuditLog log : logs.getContent()) {
             sb.append(log.getId()).append(",");
-            sb.append(escapeCsv(log.getUsername())).append(",");
-            sb.append(escapeCsv(log.getAction())).append(",");
-            sb.append(escapeCsv(log.getEntityType())).append(",");
+            sb.append(CsvUtils.escapeCsv(log.getUsername())).append(",");
+            sb.append(CsvUtils.escapeCsv(log.getAction())).append(",");
+            sb.append(CsvUtils.escapeCsv(log.getEntityType())).append(",");
             sb.append(log.getEntityId() != null ? log.getEntityId() : "").append(",");
-            sb.append(escapeCsv(log.getDetails())).append(",");
-            sb.append(escapeCsv(log.getIpAddress())).append(",");
+            sb.append(CsvUtils.escapeCsv(log.getDetails())).append(",");
+            sb.append(CsvUtils.escapeCsv(log.getIpAddress())).append(",");
             sb.append(log.getTimestamp() != null ? log.getTimestamp().toString() : "").append("\n");
         }
 
         return sb.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
-    private String escapeCsv(String value) {
-        if (value == null) return "";
-        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
     }
 }

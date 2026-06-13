@@ -6,7 +6,6 @@ import com.example.magazyn.service.InvoiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -58,7 +57,7 @@ public class InvoiceController {
     @Operation(summary = "Mark invoice as paid")
     public ResponseEntity<InvoiceResponse> payInvoice(
             @PathVariable Long id,
-            @Valid @RequestBody(required = false) PayInvoiceRequest request,
+            @RequestBody(required = false) PayInvoiceRequest request,
             Authentication authentication) {
         String username = authentication.getName();
         String paymentMethod = request != null ? request.paymentMethod() : null;

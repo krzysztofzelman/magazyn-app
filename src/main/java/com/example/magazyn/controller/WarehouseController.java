@@ -34,12 +34,14 @@ public class WarehouseController {
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Lista magazyn\u00F3w", description = "Zwraca magazyny bie\u017C\u0105cego tenanta")
     public ResponseEntity<List<WarehouseResponse>> getAll() {
         return ResponseEntity.ok(warehouseService.getMyWarehouses());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Szczeg\u00F3\u0142y magazynu")
     public ResponseEntity<WarehouseResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(warehouseService.getWarehouse(id));

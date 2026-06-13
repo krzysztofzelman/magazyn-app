@@ -3,6 +3,7 @@ package com.example.magazyn.service;
 import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.entity.Product;
 import com.example.magazyn.repository.ProductRepository;
+import com.example.magazyn.util.CsvUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -183,10 +184,10 @@ public class ExportService {
         return headers.stream()
                 .map(f -> switch (f) {
                     case "id" -> String.valueOf(p.getId());
-                    case "name" -> escapeCsv(p.getName());
-                    case "sku" -> escapeCsv(p.getSku());
-                    case "description" -> escapeCsv(p.getDescription() != null ? p.getDescription() : "");
-                    case "unit" -> escapeCsv(p.getUnit());
+                    case "name" -> CsvUtils.escapeCsv(p.getName());
+                    case "sku" -> CsvUtils.escapeCsv(p.getSku());
+                    case "description" -> CsvUtils.escapeCsv(p.getDescription() != null ? p.getDescription() : "");
+                    case "unit" -> CsvUtils.escapeCsv(p.getUnit());
                     case "quantity" -> String.valueOf(p.getQuantity());
                     case "price" -> p.getPrice() != null ? p.getPrice().toString() : "0";
                     case "minQuantity" -> String.valueOf(p.getMinQuantity());
@@ -226,9 +227,9 @@ public class ExportService {
         return headers.stream()
                 .map(f -> switch (f) {
                     case "productId" -> String.valueOf(p.getId());
-                    case "productName" -> escapeCsv(p.getName());
-                    case "sku" -> escapeCsv(p.getSku());
-                    case "unit" -> escapeCsv(p.getUnit());
+                    case "productName" -> CsvUtils.escapeCsv(p.getName());
+                    case "sku" -> CsvUtils.escapeCsv(p.getSku());
+                    case "unit" -> CsvUtils.escapeCsv(p.getUnit());
                     case "quantity" -> String.valueOf(p.getQuantity());
                     case "price" -> price.toString();
                     case "stockValue" -> stockValue.toString();
@@ -236,13 +237,5 @@ public class ExportService {
                     default -> "";
                 })
                 .toList();
-    }
-
-    private String escapeCsv(String value) {
-        if (value == null) return "";
-        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
     }
 }
