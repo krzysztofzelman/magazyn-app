@@ -2,7 +2,6 @@ package com.example.magazyn.config;
 
 import com.example.magazyn.service.CustomUserDetailsService;
 import com.example.magazyn.util.JwtUtil;
-import jakarta.persistence.EntityManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,12 +23,10 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
-    private final EntityManager entityManager;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil, EntityManager entityManager) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
-        this.entityManager = entityManager;
     }
 
     @Bean
@@ -45,16 +42,6 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(jwtUtil);
-    }
-
-    @Bean
-    public TenantSessionFilter tenantSessionFilter() {
-        return new TenantSessionFilter(entityManager);
-    }
-
-    @Bean
-    public WarehouseSessionFilter warehouseSessionFilter() {
-        return new WarehouseSessionFilter(entityManager);
     }
 
     @Bean
@@ -137,8 +124,6 @@ public class SecurityConfig {
             .addFilterBefore(auditLogFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(tenantSessionFilter(), JwtAuthenticationFilter.class)
-            .addFilterAfter(warehouseSessionFilter(), JwtAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     byte[] body = ("{\"status\":401,\"message\":\"Token niewa\u017cny lub wygas\u0142\",\"timestamp\":\""

@@ -55,7 +55,8 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public List<LocationResponse> getAllLocations() {
-        return locationRepository.findAll().stream()
+        Long tenantId = TenantContext.getTenantId();
+        return locationRepository.findAllByTenantId(tenantId).stream()
                 .sorted(Comparator.comparing(Location::getId))
                 .map(this::toResponse)
                 .toList();
@@ -69,13 +70,15 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public Optional<LocationResponse> getLocationByBarcode(String barcode) {
-        return locationRepository.findByBarcode(barcode)
+        Long tenantId = TenantContext.getTenantId();
+        return locationRepository.findByBarcodeAndTenantId(barcode, tenantId)
                 .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public List<LocationTreeNode> getLocationTree() {
-        List<Location> all = locationRepository.findAll();
+        Long tenantId = TenantContext.getTenantId();
+        List<Location> all = locationRepository.findAllByTenantId(tenantId);
         Map<Long, List<Location>> childrenByParent = all.stream()
                 .filter(l -> l.getParentId() != null)
                 .collect(Collectors.groupingBy(Location::getParentId));
@@ -112,7 +115,8 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public List<LocationResponse> getChildren(Long parentId) {
-        return locationRepository.findByParentId(parentId).stream()
+        Long tenantId = TenantContext.getTenantId();
+        return locationRepository.findByParentIdAndTenantId(parentId, tenantId).stream()
                 .sorted(Comparator.comparing(Location::getId))
                 .map(this::toResponse)
                 .toList();
@@ -120,11 +124,12 @@ public class LocationService {
 
     @Transactional(readOnly = true)
     public List<LocationStockResponse> getLocationStock(Long locationId) {
-        if (!locationRepository.existsByIdAndTenantId(locationId, TenantContext.getTenantId())) {
+        Long tenantId = TenantContext.getTenantId();
+        if (!locationRepository.existsByIdAndTenantId(locationId, tenantId)) {
             throw new ResourceNotFoundException("Location", locationId);
         }
 
-        return locationStockRepository.findByLocationId(locationId).stream()
+        return locationStockRepository.findByLocationIdAndTenantId(locationId, tenantId).stream()
                 .map(this::toStockResponse)
                 .toList();
     }
@@ -203,10 +208,11 @@ public class LocationService {
     }
 
     public void deleteLocation(Long id) {
-        Location location = locationRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        Location location = locationRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location", id));
 
-        if (locationRepository.existsByParentId(id)) {
+        if (locationRepository.existsByParentIdAndTenantId(id, tenantId)) {
             throw new InvalidOperationException("Cannot delete location with children. Remove children first.");
         }
 
@@ -238,20 +244,21 @@ public class LocationService {
     }
 
     public TransferResponse transferStock(TransferRequest request, String username) {
-        Location fromLocation = locationRepository.findByBarcode(request.getFromBarcode())
+        Long tenantId = TenantContext.getTenantId();
+        Location fromLocation = locationRepository.findByBarcodeAndTenantId(request.getFromBarcode(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Source location with barcode " + request.getFromBarcode()));
 
-        Location toLocation = locationRepository.findByBarcode(request.getToBarcode())
+        Location toLocation = locationRepository.findByBarcodeAndTenantId(request.getToBarcode(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Destination location with barcode " + request.getToBarcode()));
 
-        Product product = productRepository.findByIdAndTenantId(request.getProductId(), TenantContext.getTenantId())
+        Product product = productRepository.findByIdAndTenantId(request.getProductId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", request.getProductId()));
 
         BigDecimal quantity = BigDecimal.valueOf(request.getQuantity());
 
         // Check source stock sufficiency (available = quantity - reserved)
         LocationStock fromStock = locationStockRepository
-                .findByLocationIdAndProductIdWithLock(fromLocation.getId(), product.getId())
+                .findByLocationIdAndProductIdWithLock(fromLocation.getId(), product.getId(), tenantId)
                 .orElseThrow(() -> new InvalidOperationException(
                         "Product " + product.getName() + " is not stored in source location " + fromLocation.getCode()));
 
@@ -274,7 +281,7 @@ public class LocationService {
 
         // Increase to-stock (create if not exists)
         LocationStock toStock = locationStockRepository
-                .findByLocationIdAndProductIdWithLock(toLocation.getId(), product.getId())
+                .findByLocationIdAndProductIdWithLock(toLocation.getId(), product.getId(), tenantId)
                 .orElse(LocationStock.builder()
                         .locationId(toLocation.getId())
                         .productId(product.getId())
@@ -302,12 +309,13 @@ public class LocationService {
     }
 
     private void updateLocationOccupied(Long locationId) {
-        List<LocationStock> stocks = locationStockRepository.findByLocationId(locationId);
+        Long tenantId = TenantContext.getTenantId();
+        List<LocationStock> stocks = locationStockRepository.findByLocationIdAndTenantId(locationId, tenantId);
         int totalOccupied = stocks.stream()
                 .map(s -> s.getQuantity().setScale(0, RoundingMode.UP).intValue())
                 .reduce(0, Integer::sum);
 
-        locationRepository.findById(locationId).ifPresent(location -> {
+        locationRepository.findByIdAndTenantId(locationId, tenantId).ifPresent(location -> {
             location.setOccupied(totalOccupied);
             locationRepository.save(location);
         });
@@ -339,12 +347,13 @@ public class LocationService {
     }
 
     private LocationStockResponse toStockResponse(LocationStock stock) {
+        Long tenantId = TenantContext.getTenantId();
         BigDecimal available = stock.getQuantity().subtract(stock.getReservedQuantity());
 
         String productName = "";
         String productSku = "";
         String productUnit = "";
-        Optional<Product> product = productRepository.findById(stock.getProductId());
+        Optional<Product> product = productRepository.findByIdAndTenantId(stock.getProductId(), tenantId);
         if (product.isPresent()) {
             productName = product.get().getName();
             productSku = product.get().getSku();

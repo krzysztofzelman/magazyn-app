@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.BatchResponse;
 import com.example.magazyn.entity.Batch;
 import com.example.magazyn.repository.BatchRepository;
@@ -22,23 +23,26 @@ public class BatchService {
     }
 
     public List<BatchResponse> getBatchesByProduct(Long productId) {
-        return batchRepository.findByProductIdOrderByExpiryDateAsc(productId)
+        Long tenantId = TenantContext.getTenantId();
+        return batchRepository.findByProductIdAndTenantIdOrderByExpiryDateAsc(productId, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<BatchResponse> getExpiringBatches(int days) {
+        Long tenantId = TenantContext.getTenantId();
         LocalDate today = LocalDate.now();
         LocalDate threshold = today.plusDays(days);
-        return batchRepository.findExpiringBatches(today, threshold)
+        return batchRepository.findExpiringBatches(today, threshold, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public Map<Long, LocalDate> getNearestExpiryDateByProduct() {
-        return batchRepository.findNearestExpiryDateByProduct()
+        Long tenantId = TenantContext.getTenantId();
+        return batchRepository.findNearestExpiryDateByProduct(tenantId)
                 .stream()
                 .collect(Collectors.toMap(
                         BatchRepository.NearestExpiryProjection::getProductId,
@@ -47,7 +51,8 @@ public class BatchService {
     }
 
     public List<BatchResponse> getExpiredBatches() {
-        return batchRepository.findExpiredBatches(LocalDate.now())
+        Long tenantId = TenantContext.getTenantId();
+        return batchRepository.findExpiredBatches(LocalDate.now(), tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();

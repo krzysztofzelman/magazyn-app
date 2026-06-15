@@ -12,11 +12,11 @@ public interface PendingScanRepository extends JpaRepository<PendingScan, Long> 
 
     Optional<PendingScan> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<PendingScan> findByModeAndScannedByOrderByCreatedAtAsc(String mode, String scannedBy);
+    List<PendingScan> findByModeAndScannedByAndTenantIdOrderByCreatedAtAsc(String mode, String scannedBy, Long tenantId);
 
-    void deleteByModeAndScannedBy(String mode, String scannedBy);
+    void deleteByModeAndScannedByAndTenantId(String mode, String scannedBy, Long tenantId);
 
-    void deleteByIdAndScannedBy(Long id, String scannedBy);
+    void deleteByIdAndScannedByAndTenantId(Long id, String scannedBy, Long tenantId);
 
-    long countByModeAndScannedBy(String mode, String scannedBy);
+    long countByModeAndScannedByAndTenantId(String mode, String scannedBy, Long tenantId);
 }

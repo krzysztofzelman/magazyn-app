@@ -19,39 +19,39 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
     Optional<Batch> findByIdAndTenantId(Long id, Long tenantId);
 
     @EntityGraph(attributePaths = {"product"})
-    List<Batch> findByProductIdOrderByExpiryDateAsc(Long productId);
+    List<Batch> findByProductIdAndTenantIdOrderByExpiryDateAsc(Long productId, Long tenantId);
 
     @EntityGraph(attributePaths = {"product"})
-    List<Batch> findByProductIdOrderByCreatedAtAsc(Long productId);
+    List<Batch> findByProductIdAndTenantIdOrderByCreatedAtAsc(Long productId, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Batch b WHERE b.id = :id")
-    Optional<Batch> findByIdForUpdate(@Param("id") Long id);
+    @Query("SELECT b FROM Batch b WHERE b.id = :id AND b.tenantId = :tenantId")
+    Optional<Batch> findByIdForUpdate(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId AND b.lotNumber = :lotNumber")
-    Optional<Batch> findByProductIdAndLotNumberForUpdate(@Param("productId") Long productId, @Param("lotNumber") String lotNumber);
+    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId AND b.lotNumber = :lotNumber AND b.tenantId = :tenantId")
+    Optional<Batch> findByProductIdAndLotNumberForUpdate(@Param("productId") Long productId, @Param("lotNumber") String lotNumber, @Param("tenantId") Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId ORDER BY b.createdAt ASC")
-    List<Batch> findByProductIdOrderByCreatedAtAscForUpdate(@Param("productId") Long productId);
+    @Query("SELECT b FROM Batch b WHERE b.product.id = :productId AND b.tenantId = :tenantId ORDER BY b.createdAt ASC")
+    List<Batch> findByProductIdOrderByCreatedAtAscForUpdate(@Param("productId") Long productId, @Param("tenantId") Long tenantId);
 
     @EntityGraph(attributePaths = {"product"})
-    @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
-    List<Batch> findExpiredBatches(@Param("date") LocalDate date);
+    @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0 AND b.tenantId = :tenantId")
+    List<Batch> findExpiredBatches(@Param("date") LocalDate date, @Param("tenantId") Long tenantId);
 
     @EntityGraph(attributePaths = {"product"})
-    @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate > :today AND b.expiryDate <= :threshold AND b.quantity > 0")
-    List<Batch> findExpiringBatches(@Param("today") LocalDate today, @Param("threshold") LocalDate threshold);
+    @Query("SELECT b FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate > :today AND b.expiryDate <= :threshold AND b.quantity > 0 AND b.tenantId = :tenantId")
+    List<Batch> findExpiringBatches(@Param("today") LocalDate today, @Param("threshold") LocalDate threshold, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT COUNT(b) FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate > :today AND b.expiryDate <= :threshold AND b.quantity > 0")
-    long countExpiringBatches(@Param("today") LocalDate today, @Param("threshold") LocalDate threshold);
+    @Query("SELECT COUNT(b) FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.expiryDate > :today AND b.expiryDate <= :threshold AND b.quantity > 0 AND b.tenantId = :tenantId")
+    long countExpiringBatches(@Param("today") LocalDate today, @Param("threshold") LocalDate threshold, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT COALESCE(SUM(p.price * b.quantity), 0) FROM Batch b JOIN b.product p WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0")
-    java.math.BigDecimal totalValueOfExpiredBatches(@Param("date") LocalDate date);
+    @Query("SELECT COALESCE(SUM(p.price * b.quantity), 0) FROM Batch b JOIN b.product p WHERE b.expiryDate IS NOT NULL AND b.expiryDate <= :date AND b.quantity > 0 AND b.tenantId = :tenantId")
+    java.math.BigDecimal totalValueOfExpiredBatches(@Param("date") LocalDate date, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT b.product.id AS productId, MIN(b.expiryDate) AS nearestExpiryDate FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.quantity > 0 GROUP BY b.product.id")
-    List<NearestExpiryProjection> findNearestExpiryDateByProduct();
+    @Query("SELECT b.product.id AS productId, MIN(b.expiryDate) AS nearestExpiryDate FROM Batch b WHERE b.expiryDate IS NOT NULL AND b.quantity > 0 AND b.tenantId = :tenantId GROUP BY b.product.id")
+    List<NearestExpiryProjection> findNearestExpiryDateByProduct(@Param("tenantId") Long tenantId);
 
     interface NearestExpiryProjection {
         Long getProductId();

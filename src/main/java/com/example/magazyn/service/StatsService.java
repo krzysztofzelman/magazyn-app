@@ -39,11 +39,11 @@ public class StatsService {
 
     public StatsDashboardResponse getDashboard() {
         Long tenantId = TenantContext.getTenantId();
-        long totalProducts = productRepository.count();
+        long totalProducts = productRepository.countByTenantId(tenantId);
 
         BigDecimal totalStockValue = productRepository.getTotalStockValue(tenantId);
 
-        List<TopSellingProduct> topSelling = getTopSellingProducts();
+        List<TopSellingProduct> topSelling = getTopSellingProducts(tenantId);
 
         List<ReorderAlert> reorderAlerts = getReorderAlerts(tenantId);
 
@@ -52,8 +52,8 @@ public class StatsService {
 
         // Batch stats
         LocalDate today = LocalDate.now();
-        long expiringBatchesCount = batchRepository.countExpiringBatches(today, today.plusDays(30));
-        BigDecimal expiredBatchesValue = batchRepository.totalValueOfExpiredBatches(today);
+        long expiringBatchesCount = batchRepository.countExpiringBatches(today, today.plusDays(30), tenantId);
+        BigDecimal expiredBatchesValue = batchRepository.totalValueOfExpiredBatches(today, tenantId);
 
         return new StatsDashboardResponse(
                 totalProducts,
@@ -66,9 +66,9 @@ public class StatsService {
         );
     }
 
-    private List<TopSellingProduct> getTopSellingProducts() {
+    private List<TopSellingProduct> getTopSellingProducts(Long tenantId) {
         List<TopSellingProjection> projections = stockMovementRepository
-                .findTopSellingProducts(MovementType.WYDANIE);
+                .findTopSellingProducts(MovementType.WYDANIE, tenantId);
 
         return projections.stream()
                 .limit(5)

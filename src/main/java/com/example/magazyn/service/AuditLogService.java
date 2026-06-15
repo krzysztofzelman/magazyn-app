@@ -68,17 +68,18 @@ public class AuditLogService {
 
     @Transactional(readOnly = true)
     public Page<AuditLog> getAuditLogs(String username, String action, Pageable pageable) {
+        Long tenantId = TenantContext.getTenantId();
         boolean hasUsername = username != null && !username.isBlank();
         boolean hasAction = action != null && !action.isBlank();
 
         if (hasUsername && hasAction) {
-            return auditLogRepository.findByUsernameContainingIgnoreCaseAndAction(username, action, pageable);
+            return auditLogRepository.findByTenantIdAndUsernameContainingIgnoreCaseAndAction(tenantId, username, action, pageable);
         } else if (hasUsername) {
-            return auditLogRepository.findByUsernameContainingIgnoreCase(username, pageable);
+            return auditLogRepository.findByTenantIdAndUsernameContainingIgnoreCase(tenantId, username, pageable);
         } else if (hasAction) {
-            return auditLogRepository.findByAction(action, pageable);
+            return auditLogRepository.findByTenantIdAndAction(tenantId, action, pageable);
         } else {
-            return auditLogRepository.findAll(pageable);
+            return auditLogRepository.findAllByTenantId(tenantId, pageable);
         }
     }
 

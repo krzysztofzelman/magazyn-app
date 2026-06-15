@@ -1,7 +1,7 @@
 # Magazyn — Wielodzierżawczy System Zarządzania Magazynem (SaaS)
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -18,7 +18,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 
 **Swagger UI:** [`https://magazyn.kzelman.pl/swagger-ui/index.html`](https://magazyn.kzelman.pl/swagger-ui/index.html) (wymaga roli ADMIN)
 
-**Ostatni audyt i deploy:** 2025-07-14 — naprawiono 8 błędów (izolacja tenantów, email leak, dashboard, silent catch) i wdrożono na VPS przez Docker Compose. Szczegóły w [`AUDIT.md`](./AUDIT.md).
+**Ostatni audyt i deploy:** 2026-06-15 — gruntowna naprawa izolacji wielodzierżawczej: zastąpiono `TenantSessionFilter` (działał przed otwarciem sesji Hibernate) interceptorem `HandlerInterceptor` z `@PersistenceContext`, dodano jawny parametr `tenantId` do wszystkich metod `@Query` w repozytoriach (15 repozytoriów), zaktualizowano 18 serwisów do przekazywania `TenantContext.getTenantId()`, naprawiono `@Scheduled releaseExpired()` aby iterował wszystkich aktywnych najemców, obniżono Java 25 → 17 (zgodność z Docker `eclipse-temurin:17`), zmieniono `flyway.baseline-version=1` → 0 (automatyczne zastosowanie migracji V13). Szczegóły w [`AUDIT.md`](./AUDIT.md).
 
 ---
 
@@ -128,8 +128,11 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 ### Wielodzierżawczość (Multi-tenant SaaS)
 - Współdzielona baza PostgreSQL z izolacją danych przez kolumnę `tenant_id` we wszystkich encjach
 - Automatyczne ustawianie kontekstu najemcy z tokena JWT (`TenantContext` ThreadLocal)
-- Filtr Hibernate `@Filter(name = "tenantFilter")` automatycznie dodaje warunek `tenant_id = ?` do każdego zapytania
+- `HandlerInterceptor` z `@PersistenceContext` (zamiast `Servlet Filter`) — gwarantuje otwartą sesję Hibernate przed ustawieniem filtra, zastępuje poprzednie `TenantSessionFilter` i `WarehouseSessionFilter`
+- Jawny parametr `tenantId` we wszystkich metodach `@Query` w repozytoriach — podwójne zabezpieczenie izolacji na poziomie zapytania SQL
+- Filtr Hibernate `@Filter(name = "tenantFilter")` jako dodatkowa warstwa bezpieczeństwa automatycznie dodaje warunek `tenant_id = ?` do każdego zapytania
 - Czyszczenie kontekstu po zakończeniu żądania (`TenantCleanupFilter`)
+- Zadania `@Scheduled` (np. zwalnianie wygasłych rezerwacji) iterują wszystkich aktywnych najemców, aby uniknąć `NullPointerException` z braku kontekstu HTTP
 - Rejestracja administracyjna nowego najemcy z automatycznym tworzeniem schematu bazowego (domyślny użytkownik ADMIN, domyślny magazyn, dane startowe)
 - Każdy najemca widzi tylko swoje dane — izolacja na poziomie aplikacji, nie bazy
 
@@ -617,7 +620,7 @@ Plik `.env` znajduje się w `.gitignore`. W repozytorium dostępny jest szablon 
 
 ### Wymagania
 
-- **Java 25 JDK (LTS)** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=25)
+- **Java 17 JDK (LTS)** — [Adoptium Temurin](https://adoptium.net/temurin/releases/?version=17)
 - **Maven 3.8+** — lub użyj dołączonego `mvnw` (Maven Wrapper)
 - **Docker Desktop** — do PostgreSQL (lub lokalna instalacja PostgreSQL 18)
 
@@ -689,8 +692,8 @@ services:
 
 ### Dockerfile (multi-stage)
 
-- **Build:** `maven:3.9-eclipse-temurin-25` — kompiluje projekt
-- **Runtime:** `eclipse-temurin:25-jre` — uruchamia JAR
+- **Build:** `maven:3.9-eclipse-temurin-17` — kompiluje projekt
+- **Runtime:** `eclipse-temurin:17-jre` — uruchamia JAR
 
 ### Komendy
 

@@ -111,7 +111,7 @@ public class WarehouseDocumentService {
 
     private WarehouseDocumentResponse doCreateDocument(WarehouseDocumentRequest request, String username,
                                                         Contractor contractor) {
-        String number = generateDocumentNumber(request.getType());
+        String number = generateDocumentNumber(request.getType(), TenantContext.getTenantId());
 
         WarehouseDocument document = WarehouseDocument.builder()
                 .number(number)
@@ -150,28 +150,31 @@ public class WarehouseDocumentService {
 
     @Transactional(readOnly = true)
     public Page<WarehouseDocumentResponse> getDocuments(DocumentType type, DocumentStatus status, Pageable pageable) {
+        Long tenantId = TenantContext.getTenantId();
         Page<WarehouseDocument> page;
         if (type != null && status != null) {
-            page = documentRepository.findByTypeAndStatus(type, status, pageable);
+            page = documentRepository.findByTypeAndStatusAndTenantId(type, status, tenantId, pageable);
         } else if (type != null) {
-            page = documentRepository.findByType(type, pageable);
+            page = documentRepository.findByTypeAndTenantId(type, tenantId, pageable);
         } else if (status != null) {
-            page = documentRepository.findByStatus(status, pageable);
+            page = documentRepository.findByStatusAndTenantId(status, tenantId, pageable);
         } else {
-            page = documentRepository.findAll(pageable);
+            page = documentRepository.findAllByTenantId(tenantId, pageable);
         }
         return page.map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public WarehouseDocumentResponse getDocumentById(Long id) {
-        WarehouseDocument document = documentRepository.findByIdWithItems(id)
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdWithItems(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
         return toResponse(document);
     }
 
     public LocationResponse scanLocationForDocument(Long docId, String barcode) {
-        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.PZ) {
@@ -182,7 +185,7 @@ public class WarehouseDocumentService {
             throw new InvalidOperationException("Only DRAFT documents can be updated");
         }
 
-        Location location = locationRepository.findByBarcode(barcode)
+        Location location = locationRepository.findByBarcodeAndTenantId(barcode, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
 
         // Assign this location to all items that don't have a location yet
@@ -197,7 +200,8 @@ public class WarehouseDocumentService {
     }
 
     public WarehouseDocumentItemResponse scanLocationForItem(Long docId, Long itemId, String barcode, String username) {
-        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.PZ) {
@@ -213,7 +217,7 @@ public class WarehouseDocumentService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocumentItem", itemId));
 
-        Location location = locationRepository.findByBarcode(barcode)
+        Location location = locationRepository.findByBarcodeAndTenantId(barcode, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
 
         item.setLocationId(location.getId());
@@ -240,25 +244,6 @@ public class WarehouseDocumentService {
         );
     }
 
-    private void updateLocationStock(Long locationId, Long productId, Integer quantity) {
-        LocationStock stock = locationStockRepository.findByLocationIdAndProductId(locationId, productId)
-                .orElse(null);
-
-        if (stock != null) {
-            stock.setQuantity(stock.getQuantity().add(BigDecimal.valueOf(quantity)));
-            stock.setUpdatedAt(LocalDateTime.now());
-        } else {
-            stock = LocationStock.builder()
-                    .locationId(locationId)
-                    .productId(productId)
-                    .quantity(BigDecimal.valueOf(quantity))
-                    .reservedQuantity(BigDecimal.ZERO)
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-        }
-        locationStockRepository.save(stock);
-    }
-
     private LocationResponse toLocationResponse(Location location) {
         return new LocationResponse(
                 location.getId(),
@@ -279,7 +264,8 @@ public class WarehouseDocumentService {
     }
 
     public WarehouseDocumentResponse confirmDocument(Long id, String username) {
-        WarehouseDocument document = documentRepository.findByIdWithItemsLocked(id)
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdWithItemsLocked(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         if (document.getStatus() != DocumentStatus.DRAFT) {
@@ -302,7 +288,7 @@ public class WarehouseDocumentService {
         // Auto-generate invoice for WZ documents (silently skip if company settings not configured)
         if (document.getType() == DocumentType.WZ) {
             try {
-                if (companySettingsRepository.findByTenantId(TenantContext.getTenantId()).isPresent()) {
+                if (companySettingsRepository.findByTenantId(tenantId).isPresent()) {
                     invoiceService.generateFromDocument(id, username);
                     auditLogService.log(username, "INVOICE_AUTO_GENERATE", "WarehouseDocument", id,
                             "auto-generated invoice for " + document.getNumber());
@@ -321,7 +307,8 @@ public class WarehouseDocumentService {
     }
 
     public WarehouseDocumentResponse cancelDocument(Long id, String username) {
-        WarehouseDocument document = documentRepository.findByIdWithItems(id)
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdWithItems(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         if (document.getStatus() != DocumentStatus.DRAFT) {
@@ -338,8 +325,9 @@ public class WarehouseDocumentService {
     }
 
     private void confirmPZ(WarehouseDocument document, String username) {
+        Long tenantId = TenantContext.getTenantId();
         for (WarehouseDocumentItem item : document.getItems()) {
-            Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
+            Product product = productRepository.findByIdForUpdate(item.getProduct().getId(), tenantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() + item.getQuantity());
@@ -351,7 +339,7 @@ public class WarehouseDocumentService {
             // Uses PESSIMISTIC_WRITE on lotNumber lookup to prevent concurrent batch duplication.
             if (item.getLotNumber() != null && !item.getLotNumber().isBlank()
                     && Boolean.TRUE.equals(product.getTrackExpiry())) {
-                Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(product.getId(), item.getLotNumber())
+                Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(product.getId(), item.getLotNumber(), tenantId)
                         .orElse(null);
 
                 if (batch != null) {
@@ -385,7 +373,7 @@ public class WarehouseDocumentService {
             // Update location_stock and location.occupied if item has a location assigned
             if (item.getLocationId() != null) {
                 LocationStock stock = locationStockRepository
-                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId())
+                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId(), tenantId)
                         .orElse(null);
 
                 if (stock != null) {
@@ -409,7 +397,8 @@ public class WarehouseDocumentService {
     }
 
     public WzScanResponse scanLocationForWzItem(Long docId, Long itemId, String barcode, String username) {
-        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument document = documentRepository.findByIdAndTenantId(docId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", docId));
 
         if (document.getType() != DocumentType.WZ) {
@@ -425,11 +414,11 @@ public class WarehouseDocumentService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocumentItem", itemId));
 
-        Location location = locationRepository.findByBarcode(barcode)
+        Location location = locationRepository.findByBarcodeAndTenantId(barcode, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + barcode));
 
         LocationStock stock = locationStockRepository
-                .findByLocationIdAndProductId(location.getId(), item.getProduct().getId())
+                .findByLocationIdAndProductIdAndTenantId(location.getId(), item.getProduct().getId(), tenantId)
                 .orElse(null);
 
         BigDecimal available = (stock != null)
@@ -458,12 +447,13 @@ public class WarehouseDocumentService {
     }
 
     private void updateLocationOccupied(Long locationId) {
-        List<LocationStock> stocks = locationStockRepository.findByLocationId(locationId);
+        Long tenantId = TenantContext.getTenantId();
+        List<LocationStock> stocks = locationStockRepository.findByLocationIdAndTenantId(locationId, tenantId);
         int totalOccupied = stocks.stream()
                 .map(s -> s.getQuantity().setScale(0, RoundingMode.UP).intValue())
                 .reduce(0, Integer::sum);
 
-        Location location = locationRepository.findById(locationId).orElse(null);
+        Location location = locationRepository.findByIdAndTenantId(locationId, tenantId).orElse(null);
         if (location != null) {
             location.setOccupied(totalOccupied);
             locationRepository.save(location);
@@ -471,11 +461,12 @@ public class WarehouseDocumentService {
     }
 
     private void confirmWZ(WarehouseDocument document, String username) {
+        Long tenantId = TenantContext.getTenantId();
         List<String> insufficientProducts = new ArrayList<>();
 
         // Phase 1: check all products first against available stock (considering reservations)
         for (WarehouseDocumentItem item : document.getItems()) {
-            Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
+            Product product = productRepository.findByIdForUpdate(item.getProduct().getId(), tenantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
@@ -496,7 +487,7 @@ public class WarehouseDocumentService {
 
         // Phase 2: execute movements with FIFO batch deduction and fulfill reservations
         for (WarehouseDocumentItem item : document.getItems()) {
-            Product product = productRepository.findByIdForUpdate(item.getProduct().getId())
+            Product product = productRepository.findByIdForUpdate(item.getProduct().getId(), tenantId)
                     .orElseThrow(() -> new ResourceNotFoundException("Product", item.getProduct().getId()));
 
             product.setQuantity(product.getQuantity() - item.getQuantity());
@@ -506,13 +497,13 @@ public class WarehouseDocumentService {
             reservationService.fulfillActiveReservations(product.getId(), item.getQuantity(), username);
 
             // FIFO batch deduction: deduct from oldest batches first
-            List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAsc(product.getId());
+            List<Batch> batches = batchRepository.findByProductIdAndTenantIdOrderByCreatedAtAsc(product.getId(), tenantId);
             int remaining = item.getQuantity();
 
             for (Batch batch : batches) {
                 if (remaining <= 0 || batch.getQuantity() <= 0) continue;
 
-                Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId())
+                Batch lockedBatch = batchRepository.findByIdForUpdate(batch.getId(), tenantId)
                         .orElseThrow(() -> new ResourceNotFoundException("Batch", batch.getId()));
 
                 int deductFromThis = Math.min(remaining, lockedBatch.getQuantity());
@@ -533,7 +524,7 @@ public class WarehouseDocumentService {
             // Decrease location_stock if item has a location assigned
             if (item.getLocationId() != null) {
                 LocationStock stock = locationStockRepository
-                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId())
+                        .findByLocationIdAndProductIdWithLock(item.getLocationId(), item.getProduct().getId(), tenantId)
                         .orElse(null);
 
                 if (stock != null) {
@@ -553,9 +544,9 @@ public class WarehouseDocumentService {
         }
     }
 
-    private String generateDocumentNumber(DocumentType type) {
+    private String generateDocumentNumber(DocumentType type, Long tenantId) {
         String prefix = type.name() + "/" + Year.now().getValue() + "/";
-        String maxNumber = documentRepository.findMaxNumberByTypeAndYear(type, prefix).orElse(null);
+        String maxNumber = documentRepository.findMaxNumberByTypeAndYearAndTenantId(type, prefix, tenantId).orElse(null);
 
         int nextSeq = 1;
         if (maxNumber != null) {
@@ -571,7 +562,8 @@ public class WarehouseDocumentService {
     }
 
     public byte[] exportDocumentPdf(Long id) {
-        WarehouseDocument doc = documentRepository.findByIdWithItems(id)
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument doc = documentRepository.findByIdWithItems(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", id));
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();

@@ -15,13 +15,15 @@ public interface LocationStockRepository extends JpaRepository<LocationStock, Lo
 
     Optional<LocationStock> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<LocationStock> findByLocationId(Long locationId);
+    List<LocationStock> findByTenantId(Long tenantId);
 
-    List<LocationStock> findByProductId(Long productId);
+    List<LocationStock> findByLocationIdAndTenantId(Long locationId, Long tenantId);
 
-    Optional<LocationStock> findByLocationIdAndProductId(Long locationId, Long productId);
+    List<LocationStock> findByProductIdAndTenantId(Long productId, Long tenantId);
+
+    Optional<LocationStock> findByLocationIdAndProductIdAndTenantId(Long locationId, Long productId, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT ls FROM LocationStock ls WHERE ls.locationId = :locationId AND ls.productId = :productId")
-    Optional<LocationStock> findByLocationIdAndProductIdWithLock(Long locationId, Long productId);
+    @Query("SELECT ls FROM LocationStock ls WHERE ls.locationId = :locationId AND ls.productId = :productId AND ls.tenantId = :tenantId")
+    Optional<LocationStock> findByLocationIdAndProductIdWithLock(@Param("locationId") Long locationId, @Param("productId") Long productId, @Param("tenantId") Long tenantId);
 }

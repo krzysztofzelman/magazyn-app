@@ -8,11 +8,13 @@ import com.example.magazyn.entity.Product;
 import com.example.magazyn.entity.ReservationReferenceType;
 import com.example.magazyn.entity.ReservationStatus;
 import com.example.magazyn.entity.StockReservation;
+import com.example.magazyn.entity.Tenant;
 import com.example.magazyn.exception.InsufficientStockException;
 import com.example.magazyn.exception.InvalidOperationException;
 import com.example.magazyn.exception.ResourceNotFoundException;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.StockReservationRepository;
+import com.example.magazyn.repository.TenantRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -31,13 +34,16 @@ public class ReservationService {
     private final StockReservationRepository reservationRepository;
     private final ProductRepository productRepository;
     private final AuditLogService auditLogService;
+    private final TenantRepository tenantRepository;
 
     public ReservationService(StockReservationRepository reservationRepository,
                               ProductRepository productRepository,
-                              AuditLogService auditLogService) {
+                              AuditLogService auditLogService,
+                              TenantRepository tenantRepository) {
         this.reservationRepository = reservationRepository;
         this.productRepository = productRepository;
         this.auditLogService = auditLogService;
+        this.tenantRepository = tenantRepository;
     }
 
     /**
@@ -45,7 +51,8 @@ public class ReservationService {
      * Uses pessimistic lock on Product to prevent concurrent over-reservation.
      */
     public ReservationResponse reserve(CreateReservationRequest request, String username) {
-        Product product = productRepository.findByIdForUpdate(request.getProductId())
+        Long tenantId = TenantContext.getTenantId();
+        Product product = productRepository.findByIdForUpdate(request.getProductId(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", request.getProductId()));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
@@ -88,7 +95,8 @@ public class ReservationService {
      * Releases (cancels) an active reservation.
      */
     public ReservationResponse release(Long reservationId, String username) {
-        StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
+        Long tenantId = TenantContext.getTenantId();
+        StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation", reservationId));
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
@@ -109,7 +117,8 @@ public class ReservationService {
      * Fulfills an active reservation (e.g., when a WZ is confirmed).
      */
     public ReservationResponse fulfill(Long reservationId, String username) {
-        StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
+        Long tenantId = TenantContext.getTenantId();
+        StockReservation reservation = reservationRepository.findByIdForUpdate(reservationId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation", reservationId));
 
         if (reservation.getStatus() != ReservationStatus.ACTIVE) {
@@ -132,7 +141,8 @@ public class ReservationService {
      * Returns the total quantity of reservations fulfilled.
      */
     public int fulfillActiveReservations(Long productId, int quantity, String username) {
-        List<StockReservation> active = reservationRepository.findByProductIdAndStatusForUpdate(productId, ReservationStatus.ACTIVE);
+        Long tenantId = TenantContext.getTenantId();
+        List<StockReservation> active = reservationRepository.findByProductIdAndStatusForUpdate(productId, ReservationStatus.ACTIVE, tenantId);
         int remaining = quantity;
         int fulfilled = 0;
 
@@ -162,7 +172,8 @@ public class ReservationService {
      */
     @Transactional(readOnly = true)
     public int getActiveReservedQuantity(Long productId) {
-        Integer sum = reservationRepository.sumQuantityByProductIdAndStatus(productId, ReservationStatus.ACTIVE);
+        Long tenantId = TenantContext.getTenantId();
+        Integer sum = reservationRepository.sumQuantityByProductIdAndStatus(productId, ReservationStatus.ACTIVE, tenantId);
         return sum != null ? sum : 0;
     }
 
@@ -189,28 +200,50 @@ public class ReservationService {
 
     /**
      * Scheduled task: releases all expired ACTIVE reservations every hour.
+     * Iterates over all active tenants since there is no HTTP request context in @Scheduled methods.
      * Uses PESSIMISTIC_WRITE to lock each expired reservation against concurrent fulfill/release.
      */
     @Scheduled(fixedRateString = "3600000") // 1 hour in ms
     public void releaseExpired() {
-        List<StockReservation> expired = reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(
-                ReservationStatus.ACTIVE, LocalDateTime.now());
+        List<Tenant> activeTenants = tenantRepository.findAll().stream()
+                .filter(t -> Boolean.TRUE.equals(t.getIsActive()))
+                .collect(Collectors.toList());
 
-        for (StockReservation reservation : expired) {
-            reservation.setStatus(ReservationStatus.RELEASED);
-            reservation.setNotes(reservation.getNotes() != null
-                    ? reservation.getNotes() + " [auto-released at expiry]"
-                    : "[auto-released at expiry]");
-
-            log.info("Auto-released expired reservation id={} for productId={} qty={}",
-                    reservation.getId(),
-                    reservation.getProduct().getId(),
-                    reservation.getQuantity());
+        if (activeTenants.isEmpty()) {
+            log.info("No active tenants found — skipping expired reservation release");
+            return;
         }
 
-        if (!expired.isEmpty()) {
+        int totalReleased = 0;
+
+        for (Tenant tenant : activeTenants) {
+            TenantContext.setTenantId(tenant.getId());
+            try {
+                List<StockReservation> expired = reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(
+                        ReservationStatus.ACTIVE, LocalDateTime.now(), tenant.getId());
+
+                for (StockReservation reservation : expired) {
+                    reservation.setStatus(ReservationStatus.RELEASED);
+                    reservation.setNotes(reservation.getNotes() != null
+                            ? reservation.getNotes() + " [auto-released at expiry]"
+                            : "[auto-released at expiry]");
+
+                    log.info("Auto-released expired reservation id={} for productId={} qty={}",
+                            reservation.getId(),
+                            reservation.getProduct().getId(),
+                            reservation.getQuantity());
+                }
+
+                totalReleased += expired.size();
+            } finally {
+                TenantContext.clear();
+            }
+        }
+
+        if (totalReleased > 0) {
             auditLogService.log("SYSTEM", "RESERVATION_EXPIRE_RELEASE", "StockReservation", null,
-                    "Auto-released " + expired.size() + " expired reservations");
+                    "Auto-released " + totalReleased + " expired reservations across "
+                            + activeTenants.size() + " tenants");
         }
     }
 
@@ -219,16 +252,17 @@ public class ReservationService {
      */
     @Transactional(readOnly = true)
     public List<ReservationResponse> getReservations(Long productId, ReservationStatus status) {
+        Long tenantId = TenantContext.getTenantId();
         List<StockReservation> reservations;
 
         if (productId != null && status != null) {
-            reservations = reservationRepository.findByProductIdAndStatus(productId, status);
+            reservations = reservationRepository.findByProductIdAndStatusAndTenantId(productId, status, tenantId);
         } else if (productId != null) {
-            reservations = reservationRepository.findByProductId(productId);
+            reservations = reservationRepository.findByProductIdAndTenantId(productId, tenantId);
         } else if (status != null) {
-            reservations = reservationRepository.findByStatus(status);
+            reservations = reservationRepository.findByStatusAndTenantId(status, tenantId);
         } else {
-            reservations = reservationRepository.findAll();
+            reservations = reservationRepository.findAllByTenantId(tenantId);
         }
 
         return reservations.stream()

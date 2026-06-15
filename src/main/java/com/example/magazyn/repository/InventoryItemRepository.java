@@ -12,10 +12,10 @@ public interface InventoryItemRepository extends JpaRepository<InventoryItem, Lo
 
     Optional<InventoryItem> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<InventoryItem> findBySessionId(Long sessionId);
+    List<InventoryItem> findBySessionIdAndTenantId(Long sessionId, Long tenantId);
 
-    List<InventoryItem> findBySessionIdAndLocationId(Long sessionId, Long locationId);
+    List<InventoryItem> findBySessionIdAndLocationIdAndTenantId(Long sessionId, Long locationId, Long tenantId);
 
-    Optional<InventoryItem> findBySessionIdAndLocationIdAndProductId(
-            Long sessionId, Long locationId, Long productId);
+    Optional<InventoryItem> findBySessionIdAndLocationIdAndProductIdAndTenantId(
+            Long sessionId, Long locationId, Long productId, Long tenantId);
 }

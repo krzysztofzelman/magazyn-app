@@ -19,16 +19,16 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     Optional<StockMovement> findByIdAndTenantId(Long id, Long tenantId);
 
     @EntityGraph(attributePaths = "product")
-    List<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId);
+    List<StockMovement> findByProductIdAndTenantIdOrderByCreatedAtDesc(Long productId, Long tenantId);
 
     @EntityGraph(attributePaths = "product")
-    Page<StockMovement> findByProductIdOrderByCreatedAtDesc(Long productId, Pageable pageable);
+    Page<StockMovement> findByProductIdAndTenantIdOrderByCreatedAtDesc(Long productId, Long tenantId, Pageable pageable);
 
     @Query("SELECT sm.product.id as productId, sm.product.name as productName, " +
            "SUM(sm.quantity) as totalSold " +
            "FROM StockMovement sm " +
-           "WHERE sm.type = :type " +
+           "WHERE sm.type = :type AND sm.tenantId = :tenantId " +
            "GROUP BY sm.product.id, sm.product.name " +
            "ORDER BY totalSold DESC")
-    List<TopSellingProjection> findTopSellingProducts(@Param("type") MovementType type);
+    List<TopSellingProjection> findTopSellingProducts(@Param("type") MovementType type, @Param("tenantId") Long tenantId);
 }

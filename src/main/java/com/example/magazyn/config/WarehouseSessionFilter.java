@@ -7,12 +7,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.Filter;
 import org.hibernate.Session;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
+// Deprecated: replaced by WarehouseInterceptor (HandlerInterceptor)
 public class WarehouseSessionFilter extends OncePerRequestFilter {
 
     private final EntityManager entityManager;

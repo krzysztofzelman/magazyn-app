@@ -53,12 +53,13 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(Pageable pageable, String search) {
         meterRegistry.counter("products.queries.count").increment();
+        Long tenantId = TenantContext.getTenantId();
         Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
         if (search == null || search.isBlank()) {
-            return productRepository.findAll(pageable)
+            return productRepository.findAllByTenantId(tenantId, pageable)
                     .map(product -> toResponse(product, nearestExpiryMap));
         }
-        return productRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase(search, search, pageable)
+        return productRepository.searchByNameOrSku(tenantId, search, pageable)
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
@@ -71,22 +72,25 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductBySku(String sku) {
+        Long tenantId = TenantContext.getTenantId();
         Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
-        return productRepository.findBySku(sku)
+        return productRepository.findBySkuAndTenantId(sku, tenantId)
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
     @Transactional(readOnly = true)
     public Optional<ProductResponse> getProductByBarcode(String barcode) {
+        Long tenantId = TenantContext.getTenantId();
         Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
-        return productRepository.findByBarcode(barcode)
+        return productRepository.findByBarcodeAndTenantId(barcode, tenantId)
                 .map(product -> toResponse(product, nearestExpiryMap));
     }
 
     @Transactional
     public ProductResponse createProduct(CreateProductRequest request) {
         meterRegistry.counter("products.created.count").increment();
-        if (productRepository.findBySku(request.getSku()).isPresent()) {
+        Long tenantId = TenantContext.getTenantId();
+        if (productRepository.findBySkuAndTenantId(request.getSku(), tenantId).isPresent()) {
             throw new DuplicateResourceException("Product with SKU '" + request.getSku() + "' already exists");
         }
 
@@ -113,7 +117,8 @@ public class ProductService {
 
     @Transactional
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
-        Product existing = productRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        Product existing = productRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", id));
 
         if (request.getName() != null) {
@@ -121,7 +126,7 @@ public class ProductService {
         }
         if (request.getSku() != null) {
             if (!existing.getSku().equals(request.getSku())
-                    && productRepository.findBySku(request.getSku()).isPresent()) {
+                    && productRepository.findBySkuAndTenantId(request.getSku(), tenantId).isPresent()) {
                 throw new DuplicateResourceException("Product with SKU '" + request.getSku() + "' already exists");
             }
             existing.setSku(request.getSku());
@@ -166,8 +171,9 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponse> getProductsByLocation(Long locationId) {
+        Long tenantId = TenantContext.getTenantId();
         Map<Long, LocalDate> nearestExpiryMap = batchService.getNearestExpiryDateByProduct();
-        return productRepository.findByLocationId(locationId).stream()
+        return productRepository.findByLocationIdAndTenantId(locationId, tenantId).stream()
                 .map(product -> toResponse(product, nearestExpiryMap))
                 .toList();
     }

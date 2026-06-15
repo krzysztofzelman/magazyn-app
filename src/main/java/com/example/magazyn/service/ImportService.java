@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.ImportResult;
 import com.example.magazyn.dto.ImportResult.RowError;
 import com.example.magazyn.entity.Product;
@@ -79,6 +80,7 @@ public class ImportService {
                     + ". Wymagane: " + String.join(", ", REQUIRED_COLUMNS));
         }
 
+        Long tenantId = TenantContext.getTenantId();
         int added = 0;
         int updated = 0;
         List<RowError> errors = new ArrayList<>();
@@ -160,7 +162,7 @@ public class ImportService {
                 String unit = getCell(row, columnIndex, "unit");
 
                 // Upsert
-                Optional<Product> existing = productRepository.findBySku(sku.trim());
+                Optional<Product> existing = productRepository.findBySkuAndTenantId(sku.trim(), tenantId);
                 if (existing.isPresent()) {
                     Product p = existing.get();
                     p.setName(name.trim());

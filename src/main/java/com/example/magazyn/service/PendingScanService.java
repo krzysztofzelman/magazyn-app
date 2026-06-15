@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.PendingScanRequest;
 import com.example.magazyn.dto.PendingScanResponse;
 import com.example.magazyn.entity.PendingScan;
@@ -31,6 +32,7 @@ public class PendingScanService {
     }
 
     public PendingScanResponse addScan(PendingScanRequest request, String username) {
+        Long tenantId = TenantContext.getTenantId();
         String mode = request.getMode();
         String barcode = request.getBarcode();
         Integer quantity = request.getQuantity() != null ? request.getQuantity() : 1;
@@ -48,8 +50,8 @@ public class PendingScanService {
         }
 
         // Look up product by SKU or barcode
-        Product product = productRepository.findBySku(barcode)
-                .orElseGet(() -> productRepository.findByBarcode(barcode)
+        Product product = productRepository.findBySkuAndTenantId(barcode, tenantId)
+                .orElseGet(() -> productRepository.findByBarcodeAndTenantId(barcode, tenantId)
                         .orElseThrow(() -> {
                             log.warn("addScan: no product found for barcode={}", barcode);
                             return new ResourceNotFoundException("Product with code: " + barcode);
@@ -75,29 +77,33 @@ public class PendingScanService {
 
     @Transactional(readOnly = true)
     public List<PendingScanResponse> listScans(String mode, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.debug("listScans: mode={}, user={}", mode, username);
-        return pendingScanRepository.findByModeAndScannedByOrderByCreatedAtAsc(mode, username)
+        return pendingScanRepository.findByModeAndScannedByAndTenantIdOrderByCreatedAtAsc(mode, username, tenantId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     public void removeScan(Long id, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("removeScan: id={}, user={}", id, username);
-        pendingScanRepository.deleteByIdAndScannedBy(id, username);
+        pendingScanRepository.deleteByIdAndScannedByAndTenantId(id, username, tenantId);
     }
 
     public int clearScans(String mode, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("clearScans: mode={}, user={}", mode, username);
-        long count = pendingScanRepository.countByModeAndScannedBy(mode, username);
-        pendingScanRepository.deleteByModeAndScannedBy(mode, username);
+        long count = pendingScanRepository.countByModeAndScannedByAndTenantId(mode, username, tenantId);
+        pendingScanRepository.deleteByModeAndScannedByAndTenantId(mode, username, tenantId);
         log.debug("clearScans: removed {} pending scans for mode={}, user={}", count, mode, username);
         return (int) count;
     }
 
     public int confirmScans(String mode, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("confirmScans: mode={}, user={}", mode, username);
-        List<PendingScan> scans = pendingScanRepository.findByModeAndScannedByOrderByCreatedAtAsc(mode, username);
+        List<PendingScan> scans = pendingScanRepository.findByModeAndScannedByAndTenantIdOrderByCreatedAtAsc(mode, username, tenantId);
 
         if (scans.isEmpty()) {
             log.warn("confirmScans: no pending scans for mode={}, user={}", mode, username);
@@ -111,7 +117,7 @@ public class PendingScanService {
                     scan.getId(), scan.getMode(), scan.getProductSku(), scan.getQuantity());
         }
 
-        pendingScanRepository.deleteByModeAndScannedBy(mode, username);
+        pendingScanRepository.deleteByModeAndScannedByAndTenantId(mode, username, tenantId);
         log.info("confirmScans: confirmed {} scans for mode={}, user={}", scans.size(), mode, username);
         return scans.size();
     }

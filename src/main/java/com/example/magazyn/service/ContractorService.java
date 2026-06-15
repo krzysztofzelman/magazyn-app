@@ -25,7 +25,8 @@ public class ContractorService {
 
     @Transactional(readOnly = true)
     public List<ContractorResponse> getAllContractors() {
-        return contractorRepository.findAll().stream()
+        Long tenantId = TenantContext.getTenantId();
+        return contractorRepository.findAllByTenantId(tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -38,8 +39,9 @@ public class ContractorService {
     }
 
     public ContractorResponse createContractor(ContractorRequest request) {
+        Long tenantId = TenantContext.getTenantId();
         if (request.getTaxId() != null && !request.getTaxId().isBlank()) {
-            contractorRepository.findByTaxIdContaining(request.getTaxId()).stream()
+            contractorRepository.findByTaxIdContainingAndTenantId(request.getTaxId(), tenantId).stream()
                     .filter(c -> c.getTaxId().equals(request.getTaxId()))
                     .findAny()
                     .ifPresent(c -> {
@@ -91,14 +93,16 @@ public class ContractorService {
 
     @Transactional(readOnly = true)
     public List<ContractorResponse> searchByName(String name) {
-        return contractorRepository.findByNameContainingIgnoreCase(name).stream()
+        Long tenantId = TenantContext.getTenantId();
+        return contractorRepository.findByNameContainingIgnoreCaseAndTenantId(name, tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<ContractorResponse> searchByTaxId(String taxId) {
-        return contractorRepository.findByTaxIdContaining(taxId).stream()
+        Long tenantId = TenantContext.getTenantId();
+        return contractorRepository.findByTaxIdContainingAndTenantId(taxId, tenantId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }

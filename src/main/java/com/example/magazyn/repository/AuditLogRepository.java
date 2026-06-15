@@ -13,6 +13,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Optional<AuditLog> findByIdAndTenantId(Long id, Long tenantId);
 
+    Page<AuditLog> findAllByTenantId(Long tenantId, Pageable pageable);
+
+    Page<AuditLog> findByTenantIdAndUsernameContainingIgnoreCase(Long tenantId, String username, Pageable pageable);
+
+    Page<AuditLog> findByTenantIdAndAction(Long tenantId, String action, Pageable pageable);
+
+    Page<AuditLog> findByTenantIdAndUsernameContainingIgnoreCaseAndAction(Long tenantId, String username, String action, Pageable pageable);
+
     Page<AuditLog> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
 
     Page<AuditLog> findByAction(String action, Pageable pageable);

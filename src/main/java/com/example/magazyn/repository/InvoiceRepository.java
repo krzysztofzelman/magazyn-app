@@ -23,10 +23,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     List<Invoice> findByTenantIdAndStatusOrderByCreatedAtDesc(Long tenantId, InvoiceStatus status);
 
-    Optional<Invoice> findByDocumentId(Long documentId);
+    Optional<Invoice> findByDocumentIdAndTenantId(Long documentId, Long tenantId);
 
-    @Query("SELECT MAX(i.number) FROM Invoice i WHERE i.number LIKE :prefix%")
-    Optional<String> findMaxNumberByPrefix(@Param("prefix") String prefix);
+    @Query("SELECT MAX(i.number) FROM Invoice i WHERE i.number LIKE :prefix% AND i.tenantId = :tenantId")
+    Optional<String> findMaxNumberByPrefixAndTenantId(@Param("prefix") String prefix, @Param("tenantId") Long tenantId);
 
     @Query("SELECT i FROM Invoice i WHERE i.tenantId = :tenantId AND YEAR(i.issueDate) = :year ORDER BY i.createdAt DESC")
     List<Invoice> findByTenantIdAndYear(@Param("tenantId") Long tenantId, @Param("year") int year);

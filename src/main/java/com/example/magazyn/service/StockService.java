@@ -44,7 +44,8 @@ public class StockService {
     }
 
     public StockMovementResponse addMovement(Long productId, StockMovementRequest request, String username) {
-        Product product = productRepository.findByIdForUpdate(productId)
+        Long tenantId = TenantContext.getTenantId();
+        Product product = productRepository.findByIdForUpdate(productId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         if (request.getQuantity() == null) {
@@ -65,6 +66,7 @@ public class StockService {
     }
 
     private StockMovementResponse addMovementSingle(Product product, StockMovementRequest request, String username) {
+        Long tenantId = TenantContext.getTenantId();
         Long requestBatchId = request.getBatchId();
         Long batchId = requestBatchId;  // may be reassigned if a new batch is created
 
@@ -77,7 +79,7 @@ public class StockService {
 
                 if (batchId != null) {
                     // When batchId is explicitly provided for PRZYJECIE, add to that batch
-                    Batch batch = batchRepository.findByIdForUpdate(batchId)
+                    Batch batch = batchRepository.findByIdForUpdate(batchId, tenantId)
                             .orElseThrow(() -> new ResourceNotFoundException("Batch", requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
                         throw new InvalidOperationException("Batch does not belong to this product");
@@ -110,7 +112,7 @@ public class StockService {
 
                 if (batchId != null) {
                     // Deduct from a specific batch
-                    Batch batch = batchRepository.findByIdForUpdate(batchId)
+                    Batch batch = batchRepository.findByIdForUpdate(batchId, tenantId)
                             .orElseThrow(() -> new ResourceNotFoundException("Batch", requestBatchId));
                     if (!batch.getProduct().getId().equals(product.getId())) {
                         throw new InvalidOperationException("Batch does not belong to this product");
@@ -171,7 +173,8 @@ public class StockService {
 
         // Lock all batches at once to prevent TOCTOU — no concurrent transaction
         // can modify batch quantities between the read and the deduction.
-        List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAscForUpdate(product.getId());
+        Long tenantId = TenantContext.getTenantId();
+        List<Batch> batches = batchRepository.findByProductIdOrderByCreatedAtAscForUpdate(product.getId(), tenantId);
         int remaining = request.getQuantity();
 
         // Deduct from oldest batches first
@@ -216,7 +219,8 @@ public class StockService {
                                                              String username, String lotNumber,
                                                          java.time.LocalDate expiryDate,
                                                          java.time.LocalDate manufacturingDate) {
-        Product product = productRepository.findByIdForUpdate(productId)
+        Long tenantId = TenantContext.getTenantId();
+        Product product = productRepository.findByIdForUpdate(productId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
@@ -230,7 +234,7 @@ public class StockService {
         productRepository.save(product);
 
         // Find or create batch — locked lookup prevents duplicate batch creation
-        Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(productId, lotNumber)
+        Batch batch = batchRepository.findByProductIdAndLotNumberForUpdate(productId, lotNumber, tenantId)
                 .orElse(null);
 
         if (batch != null) {
@@ -267,10 +271,11 @@ public class StockService {
 
     @Transactional(readOnly = true)
     public Page<StockMovementResponse> getMovements(Long productId, Pageable pageable) {
-        if (!productRepository.existsByIdAndTenantId(productId, TenantContext.getTenantId())) {
+        Long tenantId = TenantContext.getTenantId();
+        if (!productRepository.existsByIdAndTenantId(productId, tenantId)) {
             throw new ResourceNotFoundException("Product", productId);
         }
-        return stockMovementRepository.findByProductIdOrderByCreatedAtDesc(productId, pageable)
+        return stockMovementRepository.findByProductIdAndTenantIdOrderByCreatedAtDesc(productId, tenantId, pageable)
                 .map(this::toResponse);
     }
 

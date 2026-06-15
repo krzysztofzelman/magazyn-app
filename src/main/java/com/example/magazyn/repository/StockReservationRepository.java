@@ -19,27 +19,31 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     Optional<StockReservation> findByIdAndTenantId(Long id, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM StockReservation r WHERE r.id = :id")
-    Optional<StockReservation> findByIdForUpdate(@Param("id") Long id);
+    @Query("SELECT r FROM StockReservation r WHERE r.id = :id AND r.tenantId = :tenantId")
+    Optional<StockReservation> findByIdForUpdate(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM StockReservation r WHERE r.product.id = :productId AND r.status = :status")
-    List<StockReservation> findByProductIdAndStatusForUpdate(@Param("productId") Long productId, @Param("status") ReservationStatus status);
+    @Query("SELECT r FROM StockReservation r WHERE r.product.id = :productId AND r.status = :status AND r.tenantId = :tenantId")
+    List<StockReservation> findByProductIdAndStatusForUpdate(@Param("productId") Long productId, @Param("status") ReservationStatus status, @Param("tenantId") Long tenantId);
 
-    List<StockReservation> findByProductIdAndStatus(Long productId, ReservationStatus status);
+    List<StockReservation> findByProductIdAndStatusAndTenantId(Long productId, ReservationStatus status, Long tenantId);
 
-    List<StockReservation> findByProductId(Long productId);
+    List<StockReservation> findByProductIdAndTenantId(Long productId, Long tenantId);
 
-    List<StockReservation> findByStatus(ReservationStatus status);
+    List<StockReservation> findByStatusAndTenantId(ReservationStatus status, Long tenantId);
+
+    List<StockReservation> findAllByTenantId(Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM StockReservation r WHERE r.status = :status AND r.expiresAt IS NOT NULL AND r.expiresAt < :now")
+    @Query("SELECT r FROM StockReservation r WHERE r.status = :status AND r.expiresAt IS NOT NULL AND r.expiresAt < :now AND r.tenantId = :tenantId")
     List<StockReservation> findByStatusAndExpiresAtBeforeForUpdate(
             @Param("status") ReservationStatus status,
-            @Param("now") LocalDateTime now);
+            @Param("now") LocalDateTime now,
+            @Param("tenantId") Long tenantId);
 
-    @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM StockReservation r WHERE r.product.id = :productId AND r.status = :status")
+    @Query("SELECT COALESCE(SUM(r.quantity), 0) FROM StockReservation r WHERE r.product.id = :productId AND r.status = :status AND r.tenantId = :tenantId")
     Integer sumQuantityByProductIdAndStatus(
             @Param("productId") Long productId,
-            @Param("status") ReservationStatus status);
+            @Param("status") ReservationStatus status,
+            @Param("tenantId") Long tenantId);
 }

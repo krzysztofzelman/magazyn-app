@@ -85,7 +85,8 @@ public class InvoiceService {
      * Generate an invoice from a confirmed WZ document.
      */
     public InvoiceResponse generateFromDocument(Long documentId, String username) {
-        WarehouseDocument doc = documentRepository.findByIdWithItems(documentId)
+        Long tenantId = TenantContext.getTenantId();
+        WarehouseDocument doc = documentRepository.findByIdWithItems(documentId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("WarehouseDocument", documentId));
 
         if (doc.getType() != DocumentType.WZ) {
@@ -96,11 +97,9 @@ public class InvoiceService {
         }
 
         // Check if invoice already exists for this document
-        if (invoiceRepository.findByDocumentId(documentId).isPresent()) {
+        if (invoiceRepository.findByDocumentIdAndTenantId(documentId, tenantId).isPresent()) {
             throw new InvalidOperationException("Faktura dla tego dokumentu już istnieje");
         }
-
-        Long tenantId = TenantContext.getTenantId();
 
         // Get company settings (seller)
         CompanySettings seller = companySettingsRepository.findByTenantId(tenantId)
@@ -110,7 +109,7 @@ public class InvoiceService {
         Contractor buyer = doc.getContractor();
 
         // Generate invoice number
-        String number = generateInvoiceNumber();
+        String number = generateInvoiceNumber(tenantId);
 
         // Build invoice
         Invoice invoice = Invoice.builder()
@@ -189,7 +188,7 @@ public class InvoiceService {
         CompanySettings seller = companySettingsRepository.findByTenantId(tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Brak danych firmy. Skonfiguruj ustawienia firmy."));
 
-        String draftNumber = generateDraftNumber();
+        String draftNumber = generateDraftNumber(tenantId);
 
         Invoice invoice = Invoice.builder()
                 .number(draftNumber)
@@ -343,7 +342,7 @@ public class InvoiceService {
             throw new InvalidOperationException("Tylko faktury w statusie DRAFT można wystawić");
         }
 
-        String fvNumber = generateInvoiceNumber();
+        String fvNumber = generateInvoiceNumber(TenantContext.getTenantId());
         invoice.setNumber(fvNumber);
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssueDate(LocalDate.now());
@@ -785,9 +784,9 @@ public class InvoiceService {
         }
     }
 
-    private String generateInvoiceNumber() {
+    private String generateInvoiceNumber(Long tenantId) {
         String prefix = "FV/" + Year.now().getValue() + "/";
-        String maxNumber = invoiceRepository.findMaxNumberByPrefix(prefix).orElse(null);
+        String maxNumber = invoiceRepository.findMaxNumberByPrefixAndTenantId(prefix, tenantId).orElse(null);
 
         int nextSeq = 1;
         if (maxNumber != null) {
@@ -800,9 +799,9 @@ public class InvoiceService {
         return prefix + String.format("%03d", nextSeq);
     }
 
-    private String generateDraftNumber() {
+    private String generateDraftNumber(Long tenantId) {
         String prefix = "SZKIC/" + Year.now().getValue() + "/";
-        String maxNumber = invoiceRepository.findMaxNumberByPrefix(prefix).orElse(null);
+        String maxNumber = invoiceRepository.findMaxNumberByPrefixAndTenantId(prefix, tenantId).orElse(null);
 
         int nextSeq = 1;
         if (maxNumber != null) {
@@ -818,7 +817,7 @@ public class InvoiceService {
     private InvoiceResponse toResponse(Invoice invoice) {
         String documentNumber = null;
         if (invoice.getDocumentId() != null) {
-            documentNumber = documentRepository.findById(invoice.getDocumentId())
+            documentNumber = documentRepository.findByIdAndTenantId(invoice.getDocumentId(), TenantContext.getTenantId())
                     .map(WarehouseDocument::getNumber)
                     .orElse(null);
         }

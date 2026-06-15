@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.ScannerResultResponse;
 import com.example.magazyn.dto.ScannerResultResponse.BatchInfo;
 import com.example.magazyn.dto.ScannerResultResponse.LastMovementInfo;
@@ -61,10 +62,11 @@ public class ScannerService {
 
     @Transactional(readOnly = true)
     public ScannerResultResponse lookupByCode(String code, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("lookupByCode: code={}, user={}", code, username);
 
-        Product product = productRepository.findBySku(code)
-                .orElseGet(() -> productRepository.findByBarcode(code)
+        Product product = productRepository.findBySkuAndTenantId(code, tenantId)
+                .orElseGet(() -> productRepository.findByBarcodeAndTenantId(code, tenantId)
                         .orElseThrow(() -> {
                             log.warn("lookupByCode: no product found for code={}", code);
                             return new ResourceNotFoundException("Product with code: " + code);
@@ -82,9 +84,10 @@ public class ScannerService {
                                                String lotNumber, LocalDate expiryDate,
                                                LocalDate manufacturingDate, Long locationId,
                                                String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("quickReceive: productId={}, qty={}, lot={}, user={}", productId, quantity, lotNumber, username);
 
-        Product product = productRepository.findByIdForUpdate(productId)
+        Product product = productRepository.findByIdForUpdate(productId, tenantId)
                 .orElseThrow(() -> {
                     log.warn("quickReceive: product not found id={}", productId);
                     return new ResourceNotFoundException("Product", productId);
@@ -128,9 +131,10 @@ public class ScannerService {
 
     public ScannerResultResponse quickIssue(Long productId, Integer quantity,
                                              Long batchId, String note, String username) {
+        Long tenantId = TenantContext.getTenantId();
         log.info("quickIssue: productId={}, qty={}, batchId={}, user={}", productId, quantity, batchId, username);
 
-        Product product = productRepository.findByIdForUpdate(productId)
+        Product product = productRepository.findByIdForUpdate(productId, tenantId)
                 .orElseThrow(() -> {
                     log.warn("quickIssue: product not found id={}", productId);
                     return new ResourceNotFoundException("Product", productId);
@@ -164,11 +168,12 @@ public class ScannerService {
     }
 
     private ScannerResultResponse buildResult(Product product) {
+        Long tenantId = TenantContext.getTenantId();
         int reservedQuantity = reservationService.getActiveReservedQuantity(product.getId());
         int availableQuantity = Math.max(product.getQuantity() - reservedQuantity, 0);
 
         // Batches
-        List<Batch> batches = batchRepository.findByProductIdOrderByExpiryDateAsc(product.getId());
+        List<Batch> batches = batchRepository.findByProductIdAndTenantIdOrderByExpiryDateAsc(product.getId(), tenantId);
         List<BatchInfo> batchInfos = batches.stream()
                 .filter(b -> b.getQuantity() > 0)
                 .map(b -> {
@@ -182,13 +187,13 @@ public class ScannerService {
 
         // Location
         LocationInfo locationInfo = Optional.ofNullable(product.getLocationId())
-                .flatMap(locId -> locationRepository.findById(locId))
+                .flatMap(locId -> locationRepository.findByIdAndTenantId(locId, tenantId))
                 .map(loc -> new LocationInfo(loc.getId(), loc.getName()))
                 .orElse(null);
 
         // Last movement
         LastMovementInfo lastMovementInfo = stockMovementRepository
-                .findByProductIdOrderByCreatedAtDesc(product.getId(), PageRequest.of(0, 1))
+                .findByProductIdAndTenantIdOrderByCreatedAtDesc(product.getId(), tenantId, PageRequest.of(0, 1))
                 .stream()
                 .findFirst()
                 .map(m -> {

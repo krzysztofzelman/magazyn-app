@@ -83,7 +83,7 @@ public class NotificationService {
         LocalDate today = LocalDate.now();
         LocalDate threshold = today.plusDays(expiryWarningDays);
 
-        List<Batch> expiringBatches = batchRepository.findExpiringBatches(today, threshold);
+        List<Batch> expiringBatches = batchRepository.findExpiringBatches(today, threshold, tenantId);
         if (expiringBatches.isEmpty()) {
             log.debug("No expiring batches for tenant id={}", tenantId);
             return;

@@ -57,6 +57,7 @@ public class InventoryService {
     }
 
     public InventorySessionResponse createSession(InventorySessionRequest request, String username) {
+        Long tenantId = TenantContext.getTenantId();
         InventorySession session = InventorySession.builder()
                 .name(request.getName())
                 .createdBy(username)
@@ -68,13 +69,13 @@ public class InventoryService {
         // Auto-populate expected_quantity from location_stock for all locations under warehouse
         List<Long> locationIds = new ArrayList<>();
         if (request.getWarehouseId() != null) {
-            collectDescendantLocationIds(request.getWarehouseId(), locationIds);
+            collectDescendantLocationIds(request.getWarehouseId(), locationIds, tenantId);
         }
 
         List<InventoryItem> items = new ArrayList<>();
         if (!locationIds.isEmpty()) {
             for (Long locId : locationIds) {
-                List<LocationStock> stocks = locationStockRepository.findByLocationId(locId);
+                List<LocationStock> stocks = locationStockRepository.findByLocationIdAndTenantId(locId, tenantId);
                 for (LocationStock stock : stocks) {
                     items.add(InventoryItem.builder()
                             .sessionId(session.getId())
@@ -89,7 +90,7 @@ public class InventoryService {
         // Also add location_stock entries for locations not in the warehouse tree
         // when no warehouseId is provided, add all location_stock
         if (request.getWarehouseId() == null) {
-            List<LocationStock> allStocks = locationStockRepository.findAll();
+            List<LocationStock> allStocks = locationStockRepository.findByTenantId(tenantId);
             for (LocationStock stock : allStocks) {
                 items.add(InventoryItem.builder()
                         .sessionId(session.getId())
@@ -111,20 +112,21 @@ public class InventoryService {
         return toSessionResponse(session, items.size());
     }
 
-    private void collectDescendantLocationIds(Long parentId, List<Long> result) {
-        List<Location> children = locationRepository.findByParentId(parentId);
+    private void collectDescendantLocationIds(Long parentId, List<Long> result, Long tenantId) {
+        List<Location> children = locationRepository.findByParentIdAndTenantId(parentId, tenantId);
         for (Location child : children) {
             result.add(child.getId());
-            collectDescendantLocationIds(child.getId(), result);
+            collectDescendantLocationIds(child.getId(), result, tenantId);
         }
     }
 
     @Transactional(readOnly = true)
     public List<InventorySessionResponse> getAllSessions() {
-        List<InventorySession> sessions = sessionRepository.findAll();
+        Long tenantId = TenantContext.getTenantId();
+        List<InventorySession> sessions = sessionRepository.findAllByTenantId(tenantId);
         return sessions.stream()
                 .map(session -> {
-                    List<InventoryItem> items = itemRepository.findBySessionId(session.getId());
+                    List<InventoryItem> items = itemRepository.findBySessionIdAndTenantId(session.getId(), tenantId);
                     return toSessionResponse(session, items.size());
                 })
                 .collect(Collectors.toList());
@@ -132,14 +134,16 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventorySessionResponse getSession(Long id) {
-        InventorySession session = sessionRepository.findByIdAndTenantId(id, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        InventorySession session = sessionRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", id));
-        List<InventoryItem> items = itemRepository.findBySessionId(id);
+        List<InventoryItem> items = itemRepository.findBySessionIdAndTenantId(id, tenantId);
         return toSessionResponse(session, items.size());
     }
 
     public InventoryItemResponse scan(Long sessionId, InventoryScanRequest request, String username) {
-        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
         if (!"OPEN".equals(session.getStatus())) {
@@ -147,24 +151,24 @@ public class InventoryService {
         }
 
         // Find location by barcode
-        Location location = locationRepository.findByBarcode(request.getLocationBarcode())
+        Location location = locationRepository.findByBarcodeAndTenantId(request.getLocationBarcode(), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Location with barcode " + request.getLocationBarcode()));
 
         // Find product by barcode or SKU
-        Product product = findProductByBarcodeOrSku(request.getProductBarcode());
+        Product product = findProductByBarcodeOrSku(request.getProductBarcode(), tenantId);
         if (product == null) {
             throw new ResourceNotFoundException("Product with barcode/SKU " + request.getProductBarcode());
         }
 
         // Look up expected quantity from existing inventory item
         BigDecimal expectedQuantity = itemRepository
-                .findBySessionIdAndLocationIdAndProductId(sessionId, location.getId(), product.getId())
+                .findBySessionIdAndLocationIdAndProductIdAndTenantId(sessionId, location.getId(), product.getId(), tenantId)
                 .map(InventoryItem::getExpectedQuantity)
                 .orElse(BigDecimal.ZERO);
 
         // Create or update inventory item
         InventoryItem item = itemRepository
-                .findBySessionIdAndLocationIdAndProductId(sessionId, location.getId(), product.getId())
+                .findBySessionIdAndLocationIdAndProductIdAndTenantId(sessionId, location.getId(), product.getId(), tenantId)
                 .orElse(InventoryItem.builder()
                         .sessionId(sessionId)
                         .locationId(location.getId())
@@ -185,28 +189,29 @@ public class InventoryService {
         return toItemResponse(item, location.getCode(), product);
     }
 
-    private Product findProductByBarcodeOrSku(String barcodeOrSku) {
+    private Product findProductByBarcodeOrSku(String barcodeOrSku, Long tenantId) {
         // Try to parse as "PROD-{id}"
         if (barcodeOrSku != null && barcodeOrSku.startsWith("PROD-")) {
             try {
                 Long id = Long.parseLong(barcodeOrSku.substring(5));
-                return productRepository.findByIdAndTenantId(id, TenantContext.getTenantId()).orElse(null);
+                return productRepository.findByIdAndTenantId(id, tenantId).orElse(null);
             } catch (NumberFormatException ignored) {
                 // fall through
             }
         }
 
         // Try by barcode
-        return productRepository.findByBarcode(barcodeOrSku)
-                .orElseGet(() -> productRepository.findBySku(barcodeOrSku).orElse(null));
+        return productRepository.findByBarcodeAndTenantId(barcodeOrSku, tenantId)
+                .orElseGet(() -> productRepository.findBySkuAndTenantId(barcodeOrSku, tenantId).orElse(null));
     }
 
     @Transactional(readOnly = true)
     public InventoryReportResponse getReport(Long sessionId) {
-        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
-        List<InventoryItem> items = itemRepository.findBySessionId(sessionId);
+        List<InventoryItem> items = itemRepository.findBySessionIdAndTenantId(sessionId, tenantId);
 
         // Batch-load locations and products to avoid N+1 in toItemResponseWithLookup
         Map<Long, String> locationCodeMap = new HashMap<>();
@@ -247,14 +252,15 @@ public class InventoryService {
     }
 
     public InventorySessionResponse closeSession(Long sessionId, String username) {
-        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, TenantContext.getTenantId())
+        Long tenantId = TenantContext.getTenantId();
+        InventorySession session = sessionRepository.findByIdAndTenantId(sessionId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("InventorySession", sessionId));
 
         if (!"OPEN".equals(session.getStatus())) {
             throw new InvalidOperationException("Session is already " + session.getStatus());
         }
 
-        List<InventoryItem> items = itemRepository.findBySessionId(sessionId);
+        List<InventoryItem> items = itemRepository.findBySessionIdAndTenantId(sessionId, tenantId);
 
         // Update location_stock and location.occupied for each counted item
         for (InventoryItem item : items) {
@@ -263,7 +269,7 @@ public class InventoryService {
             }
 
             LocationStock stock = locationStockRepository
-                    .findByLocationIdAndProductId(item.getLocationId(), item.getProductId())
+                    .findByLocationIdAndProductIdAndTenantId(item.getLocationId(), item.getProductId(), tenantId)
                     .orElse(null);
 
             if (stock != null) {
@@ -286,7 +292,7 @@ public class InventoryService {
             }
 
             // Update location.occupied
-            updateLocationOccupied(item.getLocationId());
+            updateLocationOccupied(item.getLocationId(), tenantId);
         }
 
         session.setStatus("CLOSED");
@@ -298,22 +304,23 @@ public class InventoryService {
         return toSessionResponse(session, items.size());
     }
 
-    private void updateLocationOccupied(Long locationId) {
-        List<LocationStock> stocks = locationStockRepository.findByLocationId(locationId);
+    private void updateLocationOccupied(Long locationId, Long tenantId) {
+        List<LocationStock> stocks = locationStockRepository.findByLocationIdAndTenantId(locationId, tenantId);
         int totalOccupied = stocks.stream()
                 .map(s -> s.getQuantity().setScale(0, RoundingMode.UP).intValue())
                 .reduce(0, Integer::sum);
 
-        locationRepository.findById(locationId).ifPresent(location -> {
+        locationRepository.findByIdAndTenantId(locationId, tenantId).ifPresent(location -> {
             location.setOccupied(totalOccupied);
             locationRepository.save(location);
         });
     }
 
     private InventorySessionResponse toSessionResponse(InventorySession session, int itemCount) {
+        Long tenantId = TenantContext.getTenantId();
         String warehouseName = null;
         if (session.getWarehouseId() != null) {
-            warehouseName = locationRepository.findById(session.getWarehouseId())
+            warehouseName = locationRepository.findByIdAndTenantId(session.getWarehouseId(), tenantId)
                     .map(Location::getName)
                     .orElse(null);
         }

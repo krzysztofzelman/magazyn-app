@@ -23,25 +23,24 @@ public interface WarehouseDocumentRepository extends JpaRepository<WarehouseDocu
     Optional<WarehouseDocument> findByIdAndTenantId(Long id, Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT d FROM WarehouseDocument d LEFT JOIN FETCH d.items i LEFT JOIN FETCH i.product WHERE d.id = :id")
-    Optional<WarehouseDocument> findByIdWithItemsLocked(@Param("id") Long id);
+    @Query("SELECT d FROM WarehouseDocument d LEFT JOIN FETCH d.items i LEFT JOIN FETCH i.product WHERE d.id = :id AND d.tenantId = :tenantId")
+    Optional<WarehouseDocument> findByIdWithItemsLocked(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT d FROM WarehouseDocument d LEFT JOIN FETCH d.items i LEFT JOIN FETCH i.product WHERE d.id = :id")
-    Optional<WarehouseDocument> findByIdWithItems(@Param("id") Long id);
+    @Query("SELECT d FROM WarehouseDocument d LEFT JOIN FETCH d.items i LEFT JOIN FETCH i.product WHERE d.id = :id AND d.tenantId = :tenantId")
+    Optional<WarehouseDocument> findByIdWithItems(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT MAX(d.number) FROM WarehouseDocument d WHERE d.type = :type AND d.number LIKE :prefix%")
-    Optional<String> findMaxNumberByTypeAndYear(@Param("type") DocumentType type, @Param("prefix") String prefix);
-
-    @EntityGraph(attributePaths = {"contractor", "items"})
-    Page<WarehouseDocument> findByType(DocumentType type, Pageable pageable);
+    @Query("SELECT MAX(d.number) FROM WarehouseDocument d WHERE d.type = :type AND d.number LIKE :prefix% AND d.tenantId = :tenantId")
+    Optional<String> findMaxNumberByTypeAndYearAndTenantId(@Param("type") DocumentType type, @Param("prefix") String prefix, @Param("tenantId") Long tenantId);
 
     @EntityGraph(attributePaths = {"contractor", "items"})
-    Page<WarehouseDocument> findByStatus(DocumentStatus status, Pageable pageable);
+    Page<WarehouseDocument> findByTypeAndTenantId(DocumentType type, Long tenantId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"contractor", "items"})
-    Page<WarehouseDocument> findByTypeAndStatus(DocumentType type, DocumentStatus status, Pageable pageable);
+    Page<WarehouseDocument> findByStatusAndTenantId(DocumentStatus status, Long tenantId, Pageable pageable);
 
-    @Override
     @EntityGraph(attributePaths = {"contractor", "items"})
-    Page<WarehouseDocument> findAll(Pageable pageable);
+    Page<WarehouseDocument> findByTypeAndStatusAndTenantId(DocumentType type, DocumentStatus status, Long tenantId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"contractor", "items"})
+    Page<WarehouseDocument> findAllByTenantId(Long tenantId, Pageable pageable);
 }

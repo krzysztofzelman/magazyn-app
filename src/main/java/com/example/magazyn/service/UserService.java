@@ -56,7 +56,8 @@ public class UserService {
     }
 
     public List<UserResponse> getAllUsers() {
-        return userRepository.findAll().stream()
+        Long tenantId = TenantContext.getTenantId();
+        return userRepository.findAllByTenantId(tenantId).stream()
                 .map(this::toResponse)
                 .toList();
     }

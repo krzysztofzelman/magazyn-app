@@ -12,5 +12,7 @@ public interface InventorySessionRepository extends JpaRepository<InventorySessi
 
     Optional<InventorySession> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<InventorySession> findByStatus(String status);
+    List<InventorySession> findByStatusAndTenantId(String status, Long tenantId);
+
+    List<InventorySession> findAllByTenantId(Long tenantId);
 }

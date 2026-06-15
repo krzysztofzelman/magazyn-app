@@ -14,11 +14,13 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
 
     boolean existsByIdAndTenantId(Long id, Long tenantId);
 
-    List<Location> findByParentId(Long parentId);
+    List<Location> findByParentIdAndTenantId(Long parentId, Long tenantId);
 
-    List<Location> findByParentIdIsNull();
+    List<Location> findByParentIdIsNullAndTenantId(Long tenantId);
 
-    boolean existsByParentId(Long parentId);
+    boolean existsByParentIdAndTenantId(Long parentId, Long tenantId);
 
-    java.util.Optional<Location> findByBarcode(String barcode);
+    Optional<Location> findByBarcodeAndTenantId(String barcode, Long tenantId);
+
+    List<Location> findAllByTenantId(Long tenantId);
 }

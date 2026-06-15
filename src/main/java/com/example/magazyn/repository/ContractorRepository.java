@@ -14,7 +14,9 @@ public interface ContractorRepository extends JpaRepository<Contractor, Long> {
 
     boolean existsByIdAndTenantId(Long id, Long tenantId);
 
-    List<Contractor> findByNameContainingIgnoreCase(String name);
+    List<Contractor> findAllByTenantId(Long tenantId);
 
-    List<Contractor> findByTaxIdContaining(String taxId);
+    List<Contractor> findByNameContainingIgnoreCaseAndTenantId(String name, Long tenantId);
+
+    List<Contractor> findByTaxIdContainingAndTenantId(String taxId, Long tenantId);
 }
