@@ -38,13 +38,12 @@ public class AssistantService {
             @Value("${assistant.api-key:}") String apiKey,
             @Value("${assistant.model:deepseek-chat}") String model,
             @Value("${assistant.api-url:https://api.deepseek.com}") String apiUrl,
-            @Value("classpath:assistant/system-prompt.md") Resource systemPromptResource,
-            ObjectMapper mapper) throws IOException {
+            @Value("classpath:assistant/system-prompt.md") Resource systemPromptResource) throws IOException {
         this.apiKey = apiKey;
         this.model = model;
         this.apiUrl = apiUrl;
         this.systemPrompt = systemPromptResource.getContentAsString(StandardCharsets.UTF_8);
-        this.mapper = mapper;
+        this.mapper = new ObjectMapper();
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
