@@ -6,6 +6,8 @@ import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.util.CsvUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -15,6 +17,8 @@ import java.util.Set;
 
 @Service
 public class ExportService {
+
+    private static final Logger log = LoggerFactory.getLogger(ExportService.class);
 
     private final ProductRepository productRepository;
 
@@ -43,6 +47,7 @@ public class ExportService {
     public byte[] exportProductsExcel(Set<String> fields) {
         List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveProductHeaders(fields);
+        log.debug("exportProductsExcel: exporting {} products with headers {}", products.size(), headers);
 
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Products");
@@ -71,6 +76,10 @@ public class ExportService {
                 for (int i = 0; i < values.size(); i++) {
                     Cell cell = row.createCell(i);
                     String val = values.get(i);
+                    if (val == null || val.isEmpty()) {
+                        cell.setCellValue(val);
+                        continue;
+                    }
                     // Try numeric
                     try {
                         cell.setCellValue(Double.parseDouble(val.replace(",", ".")));
@@ -87,9 +96,11 @@ public class ExportService {
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             workbook.write(baos);
+            log.debug("exportProductsExcel: generated {} bytes", baos.size());
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate Excel file", e);
+            log.error("exportProductsExcel: failed for tenant {}", TenantContext.getTenantId(), e);
+            throw new RuntimeException("Failed to generate Products Excel file: " + e.getMessage(), e);
         }
     }
 
@@ -112,6 +123,7 @@ public class ExportService {
     public byte[] exportStockExcel(Set<String> fields) {
         List<Product> products = productRepository.findByTenantId(TenantContext.getTenantId());
         List<String> headers = resolveStockHeaders(fields);
+        log.debug("exportStockExcel: exporting {} products with headers {}", products.size(), headers);
 
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Stock");
@@ -137,6 +149,10 @@ public class ExportService {
                 for (int i = 0; i < values.size(); i++) {
                     Cell cell = row.createCell(i);
                     String val = values.get(i);
+                    if (val == null || val.isEmpty()) {
+                        cell.setCellValue(val);
+                        continue;
+                    }
                     try {
                         cell.setCellValue(Double.parseDouble(val.replace(",", ".")));
                     } catch (NumberFormatException e) {
@@ -151,9 +167,11 @@ public class ExportService {
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             workbook.write(baos);
+            log.debug("exportStockExcel: generated {} bytes", baos.size());
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate Excel file", e);
+            log.error("exportStockExcel: failed for tenant {}", TenantContext.getTenantId(), e);
+            throw new RuntimeException("Failed to generate Stock Excel file: " + e.getMessage(), e);
         }
     }
 
