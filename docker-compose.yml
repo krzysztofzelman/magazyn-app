@@ -46,6 +46,9 @@ services:
       MAIL_FROM: ${MAIL_FROM:-}
       MANAGEMENT_HEALTH_MAIL_ENABLED: false
       NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-deepseek-chat}
+      ASSISTANT_API_URL: ${ASSISTANT_API_URL:-https://api.deepseek.com}
     networks:
       - magazyn-net
     depends_on:

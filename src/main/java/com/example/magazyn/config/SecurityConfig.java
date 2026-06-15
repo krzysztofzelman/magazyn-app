@@ -117,6 +117,9 @@ public class SecurityConfig {
                 // Warehouses — all roles
                 .requestMatchers("/api/warehouses/**").hasAnyRole("ADMIN", "MANAGER", "WAREHOUSE", "VIEWER")
 
+                // AI Assistant — all authenticated users
+                .requestMatchers("/api/assistant/**").authenticated()
+
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/icons.svg", "/assets/**").permitAll()
                 .anyRequest().authenticated()
             )
