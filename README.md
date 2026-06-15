@@ -829,6 +829,82 @@ magazyn-app/
 
 ---
 
+## Asystent AI (DeepSeek)
+
+Aplikacja posiada zintegrowanego asystenta AI opartego na modelu **DeepSeek**.
+Asystent odpowiada na pytania dotyczące funkcji systemu, pomaga w nawigacji
+i wyjaśnia procesy magazynowe. Znajduje się w prawym dolnym rogu interfejsu — pływający przycisk z panelem czatu.
+
+**Endpoint:** `POST /api/assistant/chat`
+
+**Przykład zapytania:**
+```json
+{
+  "message": "Jak przyjąć towar od dostawcy?",
+  "contextTab": "documents"
+}
+```
+
+**Wymagana autoryzacja:** JWT token w nagłówku `Authorization: Bearer <token>`
+
+**Konfiguracja:**
+- Klucz API DeepSeek przechowywany w zmiennej środowiskowej `DEEPSEEK_API_KEY`
+- Model: `deepseek-chat` (zmienna `ASSISTANT_MODEL`)
+- System prompt (~200 linii) opisujący wszystkie moduły aplikacji
+
+---
+
+## Wdrożenie (VPS)
+
+Aplikacja działa pod adresem: [https://magazyn.kzelman.pl](https://magazyn.kzelman.pl)
+
+**Kontenery Docker:**
+| Kontener | Rola | Port |
+|---|---|---|
+| `magazyn-app` | Spring Boot | 8080 |
+| `magazyn-postgres` | PostgreSQL 18 | 5432 (localhost) |
+| `magazyn-backup` | Codzienne kopie zapasowe | — |
+
+**Wdrożenie ręczne:**
+```bash
+ssh -p 2022 root@magazyn.kzelman.pl
+cd /root/magazyn-app
+git pull origin main
+docker compose build --no-cache app   # wymusza przebudowę JAR z frontendem
+docker compose up -d app
+```
+
+**Swagger UI:** [https://magazyn.kzelman.pl/swagger-ui/index.html](https://magazyn.kzelman.pl/swagger-ui/index.html) (wymaga roli ADMIN)
+
+**Monitorowanie logów:**
+```bash
+docker compose logs -f app
+```
+
+---
+
+## Status projektu ✅
+
+| Komponent | Status | Uwagi |
+|-----------|--------|-------|
+| Backend (Spring Boot 4.0.6) | ✅ Działa | Java 25, Tomcat 8080 |
+| Frontend (React 19 + TS 6) | ✅ Działa | Vite 8 build, SPA |
+| Asystent AI (DeepSeek) | ✅ Działa | Odpowiada po polsku |
+| PostgreSQL 18 | ✅ Działa | Kontener healthy, daily backup |
+| Nginx + SSL (Let's Encrypt) | ✅ Działa | CSP, HSTS, COOP/COEP |
+| GitHub Actions | ✅ Działa | Auto-deploy na push do `main` |
+| Multi-tenant SaaS | ✅ Działa | Izolacja przez `tenant_id` |
+| Wielomagazynowość | ✅ Działa | Przełącznik magazynu w headerze |
+| Inwentaryzacja | ✅ Działa | Sesje z raportem różnic |
+| Skaner kodów / QR | ✅ Działa | Quick receive/issue, lokalizacje |
+| Dokumenty PZ/WZ | ✅ Działa | Cykl życia: Szkic → Potwierdzony → Anulowany |
+| Rezerwacje stanów | ✅ Działa | FIFO, auto-zwalnianie co 1h |
+| Partie (Batch/Lot) | ✅ Działa | Śledzenie dat ważności |
+| Eksport CSV/XLSX/PDF | ✅ Działa | Produkty, stany, dokumenty |
+| Powiadomienia e-mail | ✅ Działa | Cron 6:00, HTML template |
+
+---
+
 ## Licencja
 
 Projekt prywatny — wszystkie prawa zastrzeżone.
