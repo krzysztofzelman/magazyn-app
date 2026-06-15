@@ -207,6 +207,18 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 - Zarządzanie magazynami: CRUD z nazwą, kodem, adresem i statusem aktywnym
 - Podział lokalizacji, stanów magazynowych, dokumentów i sesji inwentaryzacyjnych według magazynu
 
+### Asystent AI (AI Assistant)
+- Czatbot w prawym dolnym rogu aplikacji — pływający przycisk z animacją wysuwania panelu
+- Obsługa DeepSeek API (OpenAI-compatible) przez backend Spring Boot (`POST /api/assistant/chat`)
+- System prompt (~200 linii) opisujący wszystkie moduły aplikacji — asystent zna pełną funkcjonalność
+- Przekazywanie kontekstu — asystent wie, na której zakładce jest użytkownik
+- Historia rozmowy przesyłana w każdym żądaniu, wyświetlana w panelu czatu
+- Wskaźnik pisania (typing indicator), obsługa błędów, przycisk czyszczenia rozmowy
+- Wymaga JWT (dostęp dla wszystkich zalogowanych użytkowników)
+- Klucz API przechowywany w zmiennej środowiskowej VPS (`DEEPSEEK_API_KEY`), nigdy w kodzie źródłowym
+- Łatwa zmiana modelu przez zmienną `ASSISTANT_MODEL` (domyślnie `deepseek-chat`)
+- Możliwość przejścia na lokalny model Ollama w przyszłości
+
 ---
 
 ## Stack technologiczny
