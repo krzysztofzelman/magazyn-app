@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -196,7 +197,7 @@ class InvoiceServiceTest {
     void createBlankInvoice_success() {
         when(companySettingsRepository.findByTenantId(TENANT_ID))
                 .thenReturn(Optional.of(defaultSeller));
-        when(invoiceRepository.findMaxNumberByPrefix("SZKIC/2026/"))
+        when(invoiceRepository.findMaxNumberByPrefixAndTenantId("SZKIC/2026/", TENANT_ID))
                 .thenReturn(Optional.empty());
         when(invoiceRepository.save(any(Invoice.class)))
                 .thenAnswer(i -> {
@@ -219,7 +220,7 @@ class InvoiceServiceTest {
         assertEquals(2, response.items().size());
 
         verify(companySettingsRepository).findByTenantId(TENANT_ID);
-        verify(invoiceRepository).findMaxNumberByPrefix("SZKIC/2026/");
+        verify(invoiceRepository).findMaxNumberByPrefixAndTenantId("SZKIC/2026/", TENANT_ID);
         verify(invoiceRepository).save(any(Invoice.class));
         verify(auditLogService).log(eq(USERNAME), eq("INVOICE_DRAFT_CREATE"), eq("Invoice"), eq(INVOICE_ID), anyString());
     }
@@ -347,7 +348,7 @@ class InvoiceServiceTest {
     void issueInvoice_success() {
         when(invoiceRepository.findByIdAndTenantId(INVOICE_ID, TENANT_ID))
                 .thenReturn(Optional.of(draftInvoice));
-        when(invoiceRepository.findMaxNumberByPrefix("FV/2026/"))
+        when(invoiceRepository.findMaxNumberByPrefixAndTenantId("FV/2026/", TENANT_ID))
                 .thenReturn(Optional.empty());
         when(invoiceRepository.save(any(Invoice.class)))
                 .thenAnswer(i -> i.getArgument(0));
@@ -359,7 +360,7 @@ class InvoiceServiceTest {
         assertEquals("FV/2026/001", response.number());
 
         verify(invoiceRepository).findByIdAndTenantId(INVOICE_ID, TENANT_ID);
-        verify(invoiceRepository).findMaxNumberByPrefix("FV/2026/");
+        verify(invoiceRepository).findMaxNumberByPrefixAndTenantId("FV/2026/", TENANT_ID);
         verify(invoiceRepository).save(any(Invoice.class));
         verify(auditLogService).log(eq(USERNAME), eq("INVOICE_ISSUE"), eq("Invoice"), eq(INVOICE_ID), anyString());
     }
@@ -644,13 +645,13 @@ class InvoiceServiceTest {
                 .items(List.of(docItem))
                 .build();
 
-        when(documentRepository.findByIdWithItems(docId))
+        when(documentRepository.findByIdWithItems(docId, anyLong()))
                 .thenReturn(Optional.of(doc));
-        when(invoiceRepository.findByDocumentId(docId))
+        when(invoiceRepository.findByDocumentIdAndTenantId(docId, TENANT_ID))
                 .thenReturn(Optional.empty());
         when(companySettingsRepository.findByTenantId(TENANT_ID))
                 .thenReturn(Optional.of(defaultSeller));
-        when(invoiceRepository.findMaxNumberByPrefix("FV/2026/"))
+        when(invoiceRepository.findMaxNumberByPrefixAndTenantId("FV/2026/", TENANT_ID))
                 .thenReturn(Optional.empty());
         when(invoiceRepository.save(any(Invoice.class)))
                 .thenAnswer(i -> {
@@ -673,7 +674,7 @@ class InvoiceServiceTest {
         assertEquals(new BigDecimal("115.00"), response.totalVat());
         assertEquals(new BigDecimal("615.00"), response.totalGross());
 
-        verify(documentRepository).findByIdWithItems(docId);
+        verify(documentRepository).findByIdWithItems(docId, anyLong());
         verify(companySettingsRepository).findByTenantId(TENANT_ID);
         verify(invoiceRepository).save(any(Invoice.class));
         verify(auditLogService).log(eq(USERNAME), eq("INVOICE_CREATE"), eq("Invoice"), eq(INVOICE_ID), anyString());

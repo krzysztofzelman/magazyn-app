@@ -372,8 +372,8 @@ class LocationServiceTest {
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
         when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.of(fromStock));
         when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L, anyLong())).thenReturn(Optional.empty());
-        when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
-        when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
+        when(locationStockRepository.findByLocationIdAndTenantId(1L, anyLong())).thenReturn(List.of());
+        when(locationStockRepository.findByLocationIdAndTenantId(2L, anyLong())).thenReturn(List.of());
 
         TransferResponse response = locationService.transferStock(request, "testuser");
 
@@ -467,8 +467,8 @@ class LocationServiceTest {
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
         when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.of(fromStock));
         when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L, anyLong())).thenReturn(Optional.empty());
-        when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
-        when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
+        when(locationStockRepository.findByLocationIdAndTenantId(1L, anyLong())).thenReturn(List.of());
+        when(locationStockRepository.findByLocationIdAndTenantId(2L, anyLong())).thenReturn(List.of());
 
         TransferResponse response = locationService.transferStock(request, "testuser");
 
