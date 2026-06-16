@@ -207,7 +207,7 @@ class ApiIntegrationTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.name").isEqualTo("Updated Product")
-                .jsonPath("$.quantity").isEqualTo(20);
+                .jsonPath("$.quantity").isEqualTo(0); // quantity managed via warehouse documents, not update endpoint
     }
 
     @Test
@@ -260,10 +260,27 @@ class ApiIntegrationTest {
         Long productId = extractJsonLong(prodBody, "id");
         assertNotNull(productId);
 
+        // Create a contractor for the document
+        String contractorJson = """
+                {"name": "Test Supplier", "taxId": "1234567890", "type": "SUPPLIER", "active": true}
+                """;
+
+        byte[] contractorBody = webTestClient.post().uri("/api/contractors")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(contractorJson)
+                .exchange()
+                .expectStatus().isCreated()
+                .returnResult()
+                .getResponseBodyContent();
+
+        Long contractorId = extractJsonLong(contractorBody, "id");
+        assertNotNull(contractorId);
+
         // Create PZ document
         String docJson = String.format("""
-                {"type": "PZ", "items": [{"productId": %d, "quantity": 10}]}
-                """, productId);
+                {"type": "PZ", "contractorId": %d, "items": [{"productId": %d, "quantity": 10, "unitPrice": 10.00}]}
+                """, contractorId, productId);
 
         byte[] docBody = webTestClient.post().uri("/api/documents")
                 .header("Authorization", "Bearer " + adminToken)
