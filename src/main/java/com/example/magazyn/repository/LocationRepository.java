@@ -23,4 +23,6 @@ public interface LocationRepository extends JpaRepository<Location, Long> {
     Optional<Location> findByBarcodeAndTenantId(String barcode, Long tenantId);
 
     List<Location> findAllByTenantId(Long tenantId);
+
+    List<Location> findAllByIdInAndTenantId(List<Long> ids, Long tenantId);
 }

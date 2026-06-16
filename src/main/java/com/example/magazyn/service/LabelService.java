@@ -63,7 +63,7 @@ public class LabelService {
     }
 
     public byte[] generateLocationLabels(List<Long> locationIds) {
-        List<Location> locations = locationRepository.findAllById(locationIds);
+        List<Location> locations = locationRepository.findAllByIdInAndTenantId(locationIds, TenantContext.getTenantId());
         if (locations.isEmpty()) {
             throw new ResourceNotFoundException("No locations found for given IDs");
         }

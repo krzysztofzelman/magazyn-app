@@ -1,5 +1,6 @@
 package com.example.magazyn.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -23,6 +24,7 @@ public class RegisterTenantRequest {
     @Size(min = 6, max = 100, message = "Has\u0142o musi mie\u0107 co najmniej 6 znak\u00F3w")
     private String adminPassword;
 
+    @Email(message = "Nieprawidłowy format adresu email")
     private String adminEmail;
 
     public RegisterTenantRequest() {}
