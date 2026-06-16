@@ -2,6 +2,7 @@ package com.example.magazyn.service;
 
 import com.example.magazyn.entity.AuditLog;
 import com.example.magazyn.repository.AuditLogRepository;
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.util.AuditContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,11 +41,13 @@ class AuditLogServiceTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setTenantId(1L);
         AuditContext.setIp("192.168.1.1");
     }
 
     @AfterEach
     void tearDown() {
+        TenantContext.clear();
         AuditContext.clear();
     }
 

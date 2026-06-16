@@ -1,5 +1,6 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.AssignLocationRequest;
 import com.example.magazyn.dto.CreateProductRequest;
 import com.example.magazyn.dto.ProductResponse;
@@ -9,6 +10,7 @@ import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.service.BatchService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,9 +60,15 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setTenantId(1L);
         lenient().when(meterRegistry.counter(anyString())).thenReturn(counter);
         lenient().when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
         lenient().when(batchService.getNearestExpiryDateByProduct()).thenReturn(java.util.Map.of());
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     private Product createProductEntity(Long id, String name, String sku, int quantity) {
@@ -149,7 +157,7 @@ class ProductServiceTest {
         CreateProductRequest request = createRequest("Test Product", "TST-001");
         Product savedProduct = createProductEntity(1L, "Test Product", "TST-001", 0);
 
-        when(productRepository.findBySkuAndTenantId("TST-001", anyLong())).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId(eq("TST-001"), anyLong())).thenReturn(Optional.empty());
         savedProduct.setPrice(BigDecimal.valueOf(100.00));
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
@@ -164,7 +172,7 @@ class ProductServiceTest {
         assertEquals(BigDecimal.valueOf(100.00), response.getPrice());
         assertEquals(Integer.valueOf(5), response.getMinQuantity());
 
-        verify(productRepository).findBySkuAndTenantId("TST-001", anyLong());
+        verify(productRepository).findBySkuAndTenantId(eq("TST-001"), anyLong());
         verify(productRepository).save(any(Product.class));
     }
 
@@ -173,13 +181,13 @@ class ProductServiceTest {
         CreateProductRequest request = createRequest("Test Product", "TST-001");
         Product existing = createProductEntity(1L, "Existing", "TST-001", 0);
 
-        when(productRepository.findBySkuAndTenantId("TST-001", anyLong())).thenReturn(Optional.of(existing));
+        when(productRepository.findBySkuAndTenantId(eq("TST-001"), anyLong())).thenReturn(Optional.of(existing));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.createProduct(request));
         assertTrue(exception.getMessage().contains("already exists"));
 
-        verify(productRepository).findBySkuAndTenantId("TST-001", anyLong());
+        verify(productRepository).findBySkuAndTenantId(eq("TST-001"), anyLong());
         verify(productRepository, never()).save(any());
     }
 
@@ -201,7 +209,7 @@ class ProductServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(productRepository.findBySkuAndTenantId("PRD-001", anyLong())).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId(eq("PRD-001"), anyLong())).thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
         ProductResponse response = productService.createProduct(request);
@@ -227,7 +235,7 @@ class ProductServiceTest {
         request.setMinQuantity(3);
 
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
-        when(productRepository.findBySkuAndTenantId("NEW-SKU", anyLong())).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId(eq("NEW-SKU"), anyLong())).thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
         ProductResponse response = productService.updateProduct(1L, request);
@@ -262,7 +270,7 @@ class ProductServiceTest {
         request.setSku("SKU-B");
 
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
-        when(productRepository.findBySkuAndTenantId("SKU-B", anyLong())).thenReturn(Optional.of(otherProduct));
+        when(productRepository.findBySkuAndTenantId(eq("SKU-B"), anyLong())).thenReturn(Optional.of(otherProduct));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.updateProduct(1L, request));
@@ -387,7 +395,7 @@ class ProductServiceTest {
     @Test
     void getProductBySku_found() {
         Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        when(productRepository.findBySkuAndTenantId("PRD-001", anyLong())).thenReturn(Optional.of(product));
+        when(productRepository.findBySkuAndTenantId(eq("PRD-001"), anyLong())).thenReturn(Optional.of(product));
 
         Optional<ProductResponse> result = productService.getProductBySku("PRD-001");
 
@@ -403,7 +411,7 @@ class ProductServiceTest {
     void getProductByBarcode_found() {
         Product product = createProductEntity(1L, "Product", "PRD-001", 10);
         product.setBarcode("5901234567890");
-        when(productRepository.findByBarcodeAndTenantId("5901234567890", anyLong())).thenReturn(Optional.of(product));
+        when(productRepository.findByBarcodeAndTenantId(eq("5901234567890"), anyLong())).thenReturn(Optional.of(product));
 
         Optional<ProductResponse> result = productService.getProductByBarcode("5901234567890");
 
@@ -414,7 +422,7 @@ class ProductServiceTest {
 
     @Test
     void getProductByBarcode_notFound() {
-        when(productRepository.findByBarcodeAndTenantId("INVALID-BARCODE", anyLong())).thenReturn(Optional.empty());
+        when(productRepository.findByBarcodeAndTenantId(eq("INVALID-BARCODE"), anyLong())).thenReturn(Optional.empty());
 
         Optional<ProductResponse> result = productService.getProductByBarcode("INVALID-BARCODE");
 
@@ -429,7 +437,7 @@ class ProductServiceTest {
     void getProductsByLocation_returnsList() {
         Product p1 = createProductEntity(1L, "Product A", "A-001", 5);
         Product p2 = createProductEntity(2L, "Product B", "B-001", 10);
-        when(productRepository.findByLocationIdAndTenantId(10L, anyLong())).thenReturn(List.of(p1, p2));
+        when(productRepository.findByLocationIdAndTenantId(eq(10L), anyLong())).thenReturn(List.of(p1, p2));
 
         List<ProductResponse> result = productService.getProductsByLocation(10L);
 
@@ -440,7 +448,7 @@ class ProductServiceTest {
 
     @Test
     void getProductsByLocation_emptyList() {
-        when(productRepository.findByLocationIdAndTenantId(999L, anyLong())).thenReturn(List.of());
+        when(productRepository.findByLocationIdAndTenantId(eq(999L), anyLong())).thenReturn(List.of());
 
         List<ProductResponse> result = productService.getProductsByLocation(999L);
 

@@ -645,7 +645,7 @@ class InvoiceServiceTest {
                 .items(List.of(docItem))
                 .build();
 
-        when(documentRepository.findByIdWithItems(docId, anyLong()))
+        when(documentRepository.findByIdWithItems(eq(docId), anyLong()))
                 .thenReturn(Optional.of(doc));
         when(invoiceRepository.findByDocumentIdAndTenantId(docId, TENANT_ID))
                 .thenReturn(Optional.empty());

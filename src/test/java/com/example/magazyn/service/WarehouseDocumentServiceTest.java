@@ -1,11 +1,13 @@
 package com.example.magazyn.service;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.dto.WarehouseDocumentItemRequest;
 import com.example.magazyn.dto.WarehouseDocumentRequest;
 import com.example.magazyn.dto.WarehouseDocumentResponse;
 import com.example.magazyn.dto.WzScanResponse;
 import com.example.magazyn.entity.*;
 import com.example.magazyn.repository.*;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,6 +76,7 @@ class WarehouseDocumentServiceTest {
 
     @BeforeEach
     void setUp() {
+        TenantContext.setTenantId(1L);
         contractor = Contractor.builder()
                 .id(1L)
                 .name("Test Contractor")
@@ -100,6 +103,11 @@ class WarehouseDocumentServiceTest {
                 .quantity(50)
                 .price(BigDecimal.valueOf(30))
                 .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
     }
 
     private WarehouseDocumentItem createItem(Long id, WarehouseDocument doc, Product product, int qty) {
@@ -213,9 +221,9 @@ class WarehouseDocumentServiceTest {
         );
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.DRAFT, items);
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(eq(1L), anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(eq(2L), anyLong())).thenReturn(Optional.of(productB));
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
@@ -241,9 +249,9 @@ class WarehouseDocumentServiceTest {
         );
         WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, items);
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(eq(1L), anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(eq(2L), anyLong())).thenReturn(Optional.of(productB));
         when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
@@ -270,9 +278,9 @@ class WarehouseDocumentServiceTest {
         );
         WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, items);
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(eq(1L), anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(eq(2L), anyLong())).thenReturn(Optional.of(productB));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> documentService.confirmDocument(1L, USERNAME));
@@ -291,7 +299,7 @@ class WarehouseDocumentServiceTest {
     void confirmDocument_alreadyConfirmed_throwsException() {
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.CONFIRMED, List.of());
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> documentService.confirmDocument(1L, USERNAME));
@@ -306,7 +314,7 @@ class WarehouseDocumentServiceTest {
     @Test
     void cancelDocument_DRAFT_setsCancelledStatus() {
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.DRAFT, List.of());
-        when(documentRepository.findByIdWithItems(1L, anyLong())).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdWithItems(eq(1L), anyLong())).thenReturn(Optional.of(doc));
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.cancelDocument(1L, USERNAME);
@@ -319,7 +327,7 @@ class WarehouseDocumentServiceTest {
     @Test
     void cancelDocument_alreadyConfirmed_throwsException() {
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.CONFIRMED, List.of());
-        when(documentRepository.findByIdWithItems(1L, anyLong())).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdWithItems(eq(1L), anyLong())).thenReturn(Optional.of(doc));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> documentService.cancelDocument(1L, USERNAME));
@@ -337,7 +345,7 @@ class WarehouseDocumentServiceTest {
         List<WarehouseDocumentItem> items = List.of(createItem(10L, null, productA, 5));
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.DRAFT, items);
 
-        when(documentRepository.findByIdWithItems(1L, anyLong())).thenReturn(Optional.of(doc));
+        when(documentRepository.findByIdWithItems(eq(1L), anyLong())).thenReturn(Optional.of(doc));
 
         WarehouseDocumentResponse response = documentService.getDocumentById(1L);
 
@@ -350,7 +358,7 @@ class WarehouseDocumentServiceTest {
 
     @Test
     void getDocumentById_notFound_throwsException() {
-        when(documentRepository.findByIdWithItems(99L, anyLong())).thenReturn(Optional.empty());
+        when(documentRepository.findByIdWithItems(eq(99L), anyLong())).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () -> documentService.getDocumentById(99L));
     }
@@ -380,8 +388,8 @@ class WarehouseDocumentServiceTest {
                 .build();
 
         when(documentRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(doc));
-        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01-S1", anyLong())).thenReturn(Optional.of(location));
-        when(locationStockRepository.findByLocationIdAndProductIdAndTenantId(10L, 3L, anyLong())).thenReturn(Optional.of(lStock));
+        when(locationRepository.findByBarcodeAndTenantId(eq("LOC-MG01-R01-S1"), anyLong())).thenReturn(Optional.of(location));
+        when(locationStockRepository.findByLocationIdAndProductIdAndTenantId(eq(10L), eq(3L), anyLong())).thenReturn(Optional.of(lStock));
         when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
 
         WzScanResponse response = documentService.scanLocationForWzItem(5L, 20L, "LOC-MG01-R01-S1", USERNAME);
@@ -409,8 +417,8 @@ class WarehouseDocumentServiceTest {
                 .barcode("LOC-MG01-R01-S1").build();
 
         when(documentRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(doc));
-        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01-S1", anyLong())).thenReturn(Optional.of(location));
-        when(locationStockRepository.findByLocationIdAndProductIdAndTenantId(10L, 1L, anyLong())).thenReturn(Optional.empty());
+        when(locationRepository.findByBarcodeAndTenantId(eq("LOC-MG01-R01-S1"), anyLong())).thenReturn(Optional.of(location));
+        when(locationStockRepository.findByLocationIdAndProductIdAndTenantId(eq(10L), eq(1L), anyLong())).thenReturn(Optional.empty());
         when(itemRepository.save(any(WarehouseDocumentItem.class))).thenReturn(item);
 
         WzScanResponse response = documentService.scanLocationForWzItem(5L, 20L, "LOC-MG01-R01-S1", USERNAME);
@@ -456,14 +464,14 @@ class WarehouseDocumentServiceTest {
                 .quantity(BigDecimal.valueOf(5)).reservedQuantity(BigDecimal.ZERO)
                 .updatedAt(LocalDateTime.now()).build();
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(eq(1L), anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(eq(2L), anyLong())).thenReturn(Optional.of(productB));
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.getActiveReservedQuantity(2L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 1L, anyLong())).thenReturn(Optional.of(stockA));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 2L, anyLong())).thenReturn(Optional.of(stockB));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(eq(10L), eq(1L), anyLong())).thenReturn(Optional.of(stockA));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(eq(10L), eq(2L), anyLong())).thenReturn(Optional.of(stockB));
         when(batchRepository.findByProductIdAndTenantIdOrderByCreatedAtAsc(anyLong(), anyLong())).thenReturn(List.of());
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
@@ -480,7 +488,7 @@ class WarehouseDocumentServiceTest {
         verify(locationStockRepository).save(stockB);
 
         verify(locationStockRepository, never()).delete(any());
-        verify(locationRepository, atLeastOnce()).findById(10L);
+        verify(locationRepository, atLeastOnce()).findByIdAndTenantId(10L, 1L);
     }
 
     @Test
@@ -495,11 +503,11 @@ class WarehouseDocumentServiceTest {
                 .quantity(BigDecimal.valueOf(10)).reservedQuantity(BigDecimal.ZERO)
                 .updatedAt(LocalDateTime.now()).build();
 
-        when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
+        when(documentRepository.findByIdWithItemsLocked(eq(1L), anyLong())).thenReturn(Optional.of(doc));
+        when(productRepository.findByIdForUpdate(eq(1L), anyLong())).thenReturn(Optional.of(productA));
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 1L, anyLong())).thenReturn(Optional.of(stockA));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(eq(10L), eq(1L), anyLong())).thenReturn(Optional.of(stockA));
         when(batchRepository.findByProductIdAndTenantIdOrderByCreatedAtAsc(anyLong(), anyLong())).thenReturn(List.of());
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
@@ -510,6 +518,6 @@ class WarehouseDocumentServiceTest {
         // 10 - 10 = 0 → should delete
         verify(locationStockRepository).delete(stockA);
         verify(locationStockRepository, never()).save(stockA);
-        verify(locationRepository, atLeastOnce()).findById(10L);
+        verify(locationRepository, atLeastOnce()).findByIdAndTenantId(10L, 1L);
     }
 }
