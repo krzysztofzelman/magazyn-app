@@ -64,11 +64,18 @@ public class AssistantService {
                     .put("role", "system")
                     .put("content", systemPrompt));
 
-            // Conversation history
+            // Conversation history — validate roles to prevent system prompt injection
             if (request.getHistory() != null) {
                 for (AssistantRequest.ChatMessage msg : request.getHistory()) {
+                    String role = msg.getRole();
+                    // Only accept 'user' or 'assistant' roles from clients
+                    // Reject 'system' role to prevent system prompt injection attacks
+                    if (!"user".equals(role) && !"assistant".equals(role)) {
+                        log.warn("Rejected invalid role '{}' in conversation history", role);
+                        continue;
+                    }
                     messages.add(mapper.createObjectNode()
-                            .put("role", msg.getRole())
+                            .put("role", role)
                             .put("content", msg.getContent()));
                 }
             }
