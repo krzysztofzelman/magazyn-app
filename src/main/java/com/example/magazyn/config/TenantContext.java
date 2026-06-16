@@ -2,7 +2,8 @@ package com.example.magazyn.config;
 
 /**
  * ThreadLocal holder for the current tenant ID throughout a request.
- * Set by TenantFilter at the start of each request, cleared at the end.
+ * Set by JwtAuthenticationFilter from JWT claims at the start of each request,
+ * cleared at the end by TenantCleanupFilter.
  */
 public final class TenantContext {
 
