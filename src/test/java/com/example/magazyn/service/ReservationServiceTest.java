@@ -86,8 +86,8 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 50);
         CreateReservationRequest request = createRequest(1L, 10, ReservationReferenceType.ORDER);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(0);
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(0);
         when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> {
             StockReservation r = i.getArgument(0);
             return StockReservation.builder()
@@ -115,8 +115,8 @@ class ReservationServiceTest {
         assertEquals(USERNAME, response.getCreatedBy());
         assertEquals(1L, response.getProductId());
 
-        verify(productRepository).findByIdForUpdate(1L);
-        verify(reservationRepository).sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
+        verify(reservationRepository).sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong());
         verify(reservationRepository).save(any(StockReservation.class));
         verify(auditLogService).log(eq(USERNAME), eq("RESERVATION_CREATE"), eq("StockReservation"), eq(100L), anyString());
     }
@@ -126,8 +126,8 @@ class ReservationServiceTest {
         // 20 total, 5 reserved = 15 available, requesting 10 should succeed
         Product product = createProduct(1L, "Product A", 20);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(5);
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(5);
         when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> {
             StockReservation r = i.getArgument(0);
             return StockReservation.builder()
@@ -148,8 +148,8 @@ class ReservationServiceTest {
         assertEquals(101L, response.getId());
         assertEquals(10, response.getQuantity());
 
-        verify(productRepository).findByIdForUpdate(1L);
-        verify(reservationRepository).sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
+        verify(reservationRepository).sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong());
         verify(reservationRepository).save(any(StockReservation.class));
     }
 
@@ -162,8 +162,8 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 10);
         CreateReservationRequest request = createRequest(1L, 20, ReservationReferenceType.ORDER);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(0);
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(0);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.reserve(request, USERNAME));
@@ -172,8 +172,8 @@ class ReservationServiceTest {
         assertTrue(ex.getMessage().contains("10"));
         assertTrue(ex.getMessage().contains("20"));
 
-        verify(productRepository).findByIdForUpdate(1L);
-        verify(reservationRepository).sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
+        verify(reservationRepository).sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong());
         verify(reservationRepository, never()).save(any());
     }
 
@@ -182,8 +182,8 @@ class ReservationServiceTest {
         // 10 total, 8 already reserved = 2 available, requesting 5 should fail
         Product product = createProduct(1L, "Product A", 10);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(8);
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(8);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.reserve(createRequest(1L, 5, ReservationReferenceType.ORDER), USERNAME));
@@ -198,14 +198,14 @@ class ReservationServiceTest {
 
     @Test
     void reserve_productNotFound_throws() {
-        when(productRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdForUpdate(999L, anyLong())).thenReturn(Optional.empty());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.reserve(createRequest(999L, 5, ReservationReferenceType.ORDER), USERNAME));
 
         assertTrue(ex.getMessage().contains("not found"));
 
-        verify(productRepository).findByIdForUpdate(999L);
+        verify(productRepository).findByIdForUpdate(999L, anyLong());
         verify(reservationRepository, never()).save(any());
     }
 
@@ -213,7 +213,7 @@ class ReservationServiceTest {
     void reserve_quantityNonPositive_throws() {
         Product product = createProduct(1L, "Product A", 50);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
 
         CreateReservationRequest badRequest = createRequest(1L, 0, ReservationReferenceType.ORDER);
         RuntimeException ex = assertThrows(RuntimeException.class,
@@ -233,7 +233,7 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 50);
         StockReservation reservation = createReservation(1L, product, 10, ReservationStatus.ACTIVE);
 
-        when(reservationRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(reservation));
         when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> i.getArgument(0));
 
         ReservationResponse response = reservationService.release(1L, USERNAME);
@@ -242,7 +242,7 @@ class ReservationServiceTest {
         assertEquals(1L, response.getId());
         assertEquals(ReservationStatus.RELEASED, response.getStatus());
 
-        verify(reservationRepository).findByIdForUpdate(1L);
+        verify(reservationRepository).findByIdForUpdate(1L, anyLong());
         verify(reservationRepository).save(reservation);
         verify(auditLogService).log(eq(USERNAME), eq("RESERVATION_RELEASE"), eq("StockReservation"), eq(1L), anyString());
     }
@@ -251,20 +251,20 @@ class ReservationServiceTest {
     void release_nonActiveReservation_throws() {
         StockReservation reservation = createReservation(1L, createProduct(1L, "Product A", 50), 10, ReservationStatus.FULFILLED);
 
-        when(reservationRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(reservation));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.release(1L, USERNAME));
 
         assertTrue(ex.getMessage().contains("ACTIVE"));
 
-        verify(reservationRepository).findByIdForUpdate(1L);
+        verify(reservationRepository).findByIdForUpdate(1L, anyLong());
         verify(reservationRepository, never()).save(any());
     }
 
     @Test
     void release_notFound_throws() {
-        when(reservationRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
+        when(reservationRepository.findByIdForUpdate(999L, anyLong())).thenReturn(Optional.empty());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.release(999L, USERNAME));
@@ -281,7 +281,7 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 50);
         StockReservation reservation = createReservation(1L, product, 10, ReservationStatus.ACTIVE);
 
-        when(reservationRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(reservation));
         when(reservationRepository.save(any(StockReservation.class))).thenAnswer(i -> i.getArgument(0));
 
         ReservationResponse response = reservationService.fulfill(1L, USERNAME);
@@ -289,7 +289,7 @@ class ReservationServiceTest {
         assertNotNull(response);
         assertEquals(ReservationStatus.FULFILLED, response.getStatus());
 
-        verify(reservationRepository).findByIdForUpdate(1L);
+        verify(reservationRepository).findByIdForUpdate(1L, anyLong());
         verify(reservationRepository).save(reservation);
         verify(auditLogService).log(eq(USERNAME), eq("RESERVATION_FULFILL"), eq("StockReservation"), eq(1L), anyString());
     }
@@ -298,7 +298,7 @@ class ReservationServiceTest {
     void fulfill_nonActiveReservation_throws() {
         StockReservation reservation = createReservation(1L, createProduct(1L, "Product A", 50), 10, ReservationStatus.RELEASED);
 
-        when(reservationRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservation));
+        when(reservationRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(reservation));
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> reservationService.fulfill(1L, USERNAME));
 
@@ -317,7 +317,7 @@ class ReservationServiceTest {
         StockReservation r2 = createReservation(2L, product, 10, ReservationStatus.ACTIVE);
         StockReservation r3 = createReservation(3L, product, 15, ReservationStatus.ACTIVE);
 
-        when(reservationRepository.findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE))
+        when(reservationRepository.findByProductIdAndStatusForUpdate(eq(1L), eq(ReservationStatus.ACTIVE), anyLong()))
                 .thenReturn(List.of(r1, r2, r3));
 
         int fulfilled = reservationService.fulfillActiveReservations(1L, 18, USERNAME);
@@ -333,18 +333,18 @@ class ReservationServiceTest {
         assertEquals(ReservationStatus.ACTIVE, r3.getStatus());
         assertEquals(12, r3.getQuantity());
 
-        verify(reservationRepository).findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE);
+        verify(reservationRepository).findByProductIdAndStatusForUpdate(eq(1L), eq(ReservationStatus.ACTIVE), anyLong());
     }
 
     @Test
     void fulfillActiveReservations_noReservations_returnsZero() {
-        when(reservationRepository.findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE))
+        when(reservationRepository.findByProductIdAndStatusForUpdate(eq(1L), eq(ReservationStatus.ACTIVE), anyLong()))
                 .thenReturn(List.of());
 
         int fulfilled = reservationService.fulfillActiveReservations(1L, 10, USERNAME);
 
         assertEquals(0, fulfilled);
-        verify(reservationRepository).findByProductIdAndStatusForUpdate(1L, ReservationStatus.ACTIVE);
+        verify(reservationRepository).findByProductIdAndStatusForUpdate(eq(1L), eq(ReservationStatus.ACTIVE), anyLong());
         verify(reservationRepository, never()).save(any());
     }
 
@@ -358,7 +358,7 @@ class ReservationServiceTest {
         StockReservation expired1 = createReservation(1L, product, 5, ReservationStatus.ACTIVE);
         expired1.setExpiresAt(LocalDateTime.of(2025, 1, 1, 12, 0));
 
-        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
+        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong()))
                 .thenReturn(List.of(expired1));
 
         reservationService.releaseExpired();
@@ -366,17 +366,17 @@ class ReservationServiceTest {
         assertEquals(ReservationStatus.RELEASED, expired1.getStatus());
         assertTrue(expired1.getNotes().contains("auto-released"));
 
-        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
+        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong());
     }
 
     @Test
     void releaseExpired_noExpiredReservations_doesNothing() {
-        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class)))
+        when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong()))
                 .thenReturn(List.of());
 
         reservationService.releaseExpired();
 
-        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class));
+        verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong());
         verify(reservationRepository, never()).save(any());
     }
 
@@ -386,7 +386,7 @@ class ReservationServiceTest {
 
     @Test
     void getActiveReservedQuantity_returnsSum() {
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(25);
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(25);
 
         int result = reservationService.getActiveReservedQuantity(1L);
 
@@ -395,7 +395,7 @@ class ReservationServiceTest {
 
     @Test
     void getActiveReservedQuantity_noReservations_returnsZero() {
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(null);
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(null);
 
         int result = reservationService.getActiveReservedQuantity(1L);
 
@@ -411,7 +411,7 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 100);
 
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(product));
-        when(reservationRepository.sumQuantityByProductIdAndStatus(1L, ReservationStatus.ACTIVE)).thenReturn(30);
+        when(reservationRepository.sumQuantityByProductIdAndStatus(eq(1L), eq(ReservationStatus.ACTIVE), anyLong())).thenReturn(30);
 
         ProductAvailabilityResponse response = reservationService.getProductAvailability(1L);
 
@@ -442,7 +442,7 @@ class ReservationServiceTest {
         Product product = createProduct(1L, "Product A", 50);
         StockReservation r1 = createReservation(1L, product, 10, ReservationStatus.ACTIVE);
 
-        when(reservationRepository.findByProductIdAndStatus(1L, ReservationStatus.ACTIVE))
+        when(reservationRepository.findByProductIdAndStatusAndTenantId(eq(1L), eq(ReservationStatus.ACTIVE), anyLong()))
                 .thenReturn(List.of(r1));
 
         List<ReservationResponse> result = reservationService.getReservations(1L, ReservationStatus.ACTIVE);
@@ -458,7 +458,7 @@ class ReservationServiceTest {
         StockReservation r1 = createReservation(1L, product, 10, ReservationStatus.ACTIVE);
         StockReservation r2 = createReservation(2L, product, 5, ReservationStatus.FULFILLED);
 
-        when(reservationRepository.findAll()).thenReturn(List.of(r1, r2));
+        when(reservationRepository.findAllByTenantId(anyLong())).thenReturn(List.of(r1, r2));
 
         List<ReservationResponse> result = reservationService.getReservations(null, null);
 

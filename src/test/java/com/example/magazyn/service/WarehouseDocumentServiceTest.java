@@ -214,8 +214,8 @@ class WarehouseDocumentServiceTest {
         WarehouseDocument doc = createDocument(1L, DocumentType.PZ, DocumentStatus.DRAFT, items);
 
         when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
 
         WarehouseDocumentResponse response = documentService.confirmDocument(1L, USERNAME);
@@ -242,8 +242,8 @@ class WarehouseDocumentServiceTest {
         WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, items);
 
         when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
         when(reservationService.getActiveReservedQuantity(anyLong())).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(documentRepository.save(any(WarehouseDocument.class))).thenReturn(doc);
@@ -271,8 +271,8 @@ class WarehouseDocumentServiceTest {
         WarehouseDocument doc = createDocument(1L, DocumentType.WZ, DocumentStatus.DRAFT, items);
 
         when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> documentService.confirmDocument(1L, USERNAME));
@@ -457,8 +457,8 @@ class WarehouseDocumentServiceTest {
                 .updatedAt(LocalDateTime.now()).build();
 
         when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
-        when(productRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(productB));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(2L, anyLong())).thenReturn(Optional.of(productB));
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.getActiveReservedQuantity(2L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
@@ -496,7 +496,7 @@ class WarehouseDocumentServiceTest {
                 .updatedAt(LocalDateTime.now()).build();
 
         when(documentRepository.findByIdWithItemsLocked(1L, anyLong())).thenReturn(Optional.of(doc));
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(productA));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(productA));
         when(reservationService.getActiveReservedQuantity(1L)).thenReturn(0);
         when(reservationService.fulfillActiveReservations(anyLong(), anyInt(), anyString())).thenReturn(0);
         when(locationStockRepository.findByLocationIdAndProductIdWithLock(10L, 1L, anyLong())).thenReturn(Optional.of(stockA));
