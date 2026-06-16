@@ -19,6 +19,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
+    // Per-endpoint rate limit configuration: {method:path:rps/burst}
+    // Login: 20 requests per minute per IP
+    // Tenant registration: 5 requests per hour per IP (prevents mass registration)
+    // AI Assistant: 30 requests per minute per IP (controls API costs)
+    private static final RateLimitConfig[] RATE_LIMITS = {
+        new RateLimitConfig("POST", "/api/auth/login", 20, Duration.ofMinutes(1)),
+        new RateLimitConfig("POST", "/api/tenants/register", 5, Duration.ofHours(1)),
+        new RateLimitConfig("POST", "/api/assistant/chat", 30, Duration.ofMinutes(1)),
+    };
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws IOException, ServletException {
@@ -26,19 +36,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         String path = request.getRequestURI();
 
-        // Only rate-limit POST /api/auth/login
-        if (!("POST".equalsIgnoreCase(method) && "/api/auth/login".equals(path))) {
+        // Check if this path matches any rate-limited endpoint
+        RateLimitConfig matched = null;
+        for (RateLimitConfig config : RATE_LIMITS) {
+            if (config.method.equalsIgnoreCase(method) && config.path.equals(path)) {
+                matched = config;
+                break;
+            }
+        }
+
+        if (matched == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String clientIp = request.getHeader("X-Forwarded-For");
-        if (clientIp == null || clientIp.isBlank()) {
-            clientIp = request.getRemoteAddr();
-        } else {
-            clientIp = clientIp.split(",")[0].trim();
-        }
-        Bucket bucket = buckets.computeIfAbsent(clientIp, this::createBucket);
+        // Use the LAST address in X-Forwarded-For (closest to nginx, most trustworthy)
+        // to prevent IP spoofing via the client-controlled first address.
+        String clientIp = resolveClientIp(request);
+        String bucketKey = matched.path + ":" + clientIp;
+        Bucket bucket = buckets.computeIfAbsent(bucketKey, k -> createBucket(matched.limit, matched.duration));
 
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
@@ -53,8 +69,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private Bucket createBucket(String ip) {
-        Bandwidth limit = Bandwidth.classic(20, Refill.greedy(20, Duration.ofMinutes(1)));
-        return Bucket.builder().addLimit(limit).build();
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            // Take the LAST address in the chain — closest to nginx/proxy,
+            // not the first which is attacker-controlled.
+            String[] parts = forwardedFor.split(",");
+            String lastIp = parts[parts.length - 1].trim();
+            if (!lastIp.isEmpty()) {
+                return lastIp;
+            }
+        }
+        return request.getRemoteAddr();
     }
+
+    private static Bucket createBucket(long limit, Duration duration) {
+        Bandwidth bandwidth = Bandwidth.classic(limit, Refill.greedy(limit, duration));
+        return Bucket.builder().addLimit(bandwidth).build();
+    }
+
+    private record RateLimitConfig(String method, String path, long limit, Duration duration) {}
 }
