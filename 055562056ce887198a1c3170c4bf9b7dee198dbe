@@ -1,0 +1,1 @@
+{"version":1,"generator":"deepseek-reasoner","files":{"src/test/resources/application-test.properties":{"aiChars":38,"humanChars":82,"percent":32,"surface":"cli"}},"summary":{"aiPercent":32,"aiChars":38,"humanChars":82,"totalFilesTouched":1,"surfaces":["cli"]},"surfaceBreakdown":{"cli":{"aiChars":38,"percent":32}},"excludedGenerated":[],"excludedGeneratedCount":0,"promptCount":1}
