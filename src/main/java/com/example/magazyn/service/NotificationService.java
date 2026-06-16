@@ -74,6 +74,8 @@ public class NotificationService {
                 sendExpiryNotifications(tenant.getId());
                 sendLowStockNotifications(tenant.getId());
             } finally {
+                Session session = entityManager.unwrap(Session.class);
+                session.disableFilter("tenantFilter");
                 TenantContext.clear();
             }
         }

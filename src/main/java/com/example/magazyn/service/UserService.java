@@ -69,7 +69,7 @@ public class UserService {
     }
 
     public UserResponse getUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsernameAndTenantId(username, TenantContext.getTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", username));
         return toResponse(user);
     }

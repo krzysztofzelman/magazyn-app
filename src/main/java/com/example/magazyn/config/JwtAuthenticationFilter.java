@@ -1,10 +1,13 @@
 package com.example.magazyn.config;
 
+import com.example.magazyn.repository.UserRepository;
 import com.example.magazyn.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -15,10 +18,14 @@ import java.util.List;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtUtil jwtUtil;
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, UserRepository userRepository) {
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -49,6 +56,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Set tenant context from JWT
                 TenantContext.setTenantId(tenantId);
+
+                // Verify user is still active
+                try {
+                    boolean active = userRepository.findByUsernameAndTenantId(username, tenantId)
+                            .map(User -> User.getIsActive())
+                            .orElse(false);
+                    if (!active) {
+                        log.warn("Rejecting request for inactive/missing user {} in tenant {}", username, tenantId);
+                        TenantContext.clear();
+                        WarehouseContext.clear();
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Konto u\u017Cytkownika jest nieaktywne");
+                        return;
+                    }
+                } catch (Exception e) {
+                    log.error("Error checking user active status for {}", username, e);
+                    TenantContext.clear();
+                    WarehouseContext.clear();
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User verification failed");
+                    return;
+                }
 
                 // Set warehouse context from header (optional)
                 String warehouseHeader = request.getHeader("X-Warehouse-Id");

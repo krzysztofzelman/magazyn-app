@@ -444,7 +444,7 @@ public class InvoiceService {
 
         // Load items explicitly
         if (invoice.getItems().isEmpty()) {
-            List<InvoiceItem> items = invoiceItemRepository.findByInvoiceId(id);
+            List<InvoiceItem> items = invoiceItemRepository.findByInvoiceIdAndTenantId(id, TenantContext.getTenantId());
             invoice.setItems(items);
         }
 

@@ -1,5 +1,6 @@
 package com.example.magazyn.config;
 
+import com.example.magazyn.repository.UserRepository;
 import com.example.magazyn.service.CustomUserDetailsService;
 import com.example.magazyn.util.JwtUtil;
 import org.springframework.context.annotation.Bean;
@@ -23,10 +24,12 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtUtil jwtUtil, UserRepository userRepository) {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @Bean
@@ -41,7 +44,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtUtil);
+        return new JwtAuthenticationFilter(jwtUtil, userRepository);
     }
 
     @Bean
