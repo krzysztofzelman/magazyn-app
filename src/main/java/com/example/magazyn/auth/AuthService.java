@@ -69,11 +69,11 @@ public class AuthService {
         TenantContext.setTenantId(user.getTenantId());
         try {
             String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-            RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+            RefreshTokenService.RefreshTokenResult refreshResult = refreshTokenService.generateRefreshToken(user);
 
             auditLogService.log(currentUsername(), "REGISTER", "User", user.getId(),
                     "Registered user: " + user.getUsername());
-            return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+            return new AuthResponse(token, refreshResult.rawToken(), user.getUsername(), user.getRole());
         } finally {
             TenantContext.clear();
         }
@@ -94,11 +94,11 @@ public class AuthService {
             TenantContext.setTenantId(user.getTenantId());
             try {
                 String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-                RefreshToken refreshToken = refreshTokenService.generateRefreshToken(user);
+                RefreshTokenService.RefreshTokenResult refreshResult = refreshTokenService.generateRefreshToken(user);
 
                 auditLogService.log(user.getUsername(), "LOGIN_SUCCESS", "User", user.getId(),
                         "Login successful for user: " + user.getUsername());
-                return new AuthResponse(token, refreshToken.getToken().toString(), user.getUsername(), user.getRole());
+                return new AuthResponse(token, refreshResult.rawToken(), user.getUsername(), user.getRole());
             } finally {
                 TenantContext.clear();
             }
@@ -117,8 +117,8 @@ public class AuthService {
         TenantContext.setTenantId(user.getTenantId());
         try {
             String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-            RefreshToken newRefreshToken = refreshTokenService.generateRefreshToken(user);
-            return new AuthResponse(token, newRefreshToken.getToken().toString(), user.getUsername(), user.getRole());
+            RefreshTokenService.RefreshTokenResult refreshResult = refreshTokenService.generateRefreshToken(user);
+            return new AuthResponse(token, refreshResult.rawToken(), user.getUsername(), user.getRole());
         } finally {
             TenantContext.clear();
         }

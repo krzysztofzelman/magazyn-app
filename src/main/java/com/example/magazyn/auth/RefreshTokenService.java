@@ -7,7 +7,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
@@ -22,28 +26,35 @@ public class RefreshTokenService {
         this.refreshTokenDurationMs = refreshTokenDurationMs;
     }
 
+    /**
+     * Generates a random UUID refresh token, stores only its SHA-256 hash,
+     * and returns the raw token string to be sent to the client.
+     */
     @Transactional
-    public RefreshToken generateRefreshToken(User user) {
+    public RefreshTokenResult generateRefreshToken(User user) {
+        String rawToken = UUID.randomUUID().toString();
+        String tokenHash = sha256Hex(rawToken);
+
         RefreshToken refreshToken = RefreshToken.builder()
-                .token(UUID.randomUUID())
+                .tokenHash(tokenHash)
                 .user(user)
                 .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000))
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        return refreshTokenRepository.save(refreshToken);
+        RefreshToken saved = refreshTokenRepository.save(refreshToken);
+        return new RefreshTokenResult(rawToken, saved);
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * Validates a refresh token by hashing it and looking up the hash in the DB.
+     * Must NOT be readOnly because expired tokens are deleted.
+     */
+    @Transactional
     public User validateRefreshToken(String tokenStr) {
-        UUID tokenUuid;
-        try {
-            tokenUuid = UUID.fromString(tokenStr);
-        } catch (IllegalArgumentException e) {
-            throw new RefreshTokenException("Nieprawidłowy format tokena");
-        }
+        String tokenHash = sha256Hex(tokenStr);
 
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(tokenUuid)
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new RefreshTokenException("Token odświeżania nie istnieje"));
 
         if (refreshToken.isExpired()) {
@@ -58,4 +69,19 @@ public class RefreshTokenService {
     public void deleteByUser(User user) {
         refreshTokenRepository.deleteByUser(user);
     }
+
+    private static String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
+    }
+
+    /**
+     * Result containing the raw token (to send to client) and the saved entity.
+     */
+    public record RefreshTokenResult(String rawToken, RefreshToken entity) {}
 }
