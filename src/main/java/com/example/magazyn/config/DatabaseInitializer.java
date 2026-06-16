@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
-@Profile("!test")
+@Profile("dev")
 @Component
 public class DatabaseInitializer implements CommandLineRunner {
 
@@ -43,7 +43,8 @@ public class DatabaseInitializer implements CommandLineRunner {
         // Set tenant context so TenantAware @PrePersist picks it up
         TenantContext.setTenantId(defaultTenant.getId());
         try {
-            log.info("No users found — creating default users under tenant '{}'", defaultTenant.getName());
+            log.warn("Creating default USERS WITH KNOWN PASSWORDS (dev profile only) under tenant '{}'", defaultTenant.getName());
+            log.warn("DEFAULT PASSWORDS: admin=REMOVED, manager=manager123, warehouse=warehouse123, viewer=viewer123");
 
             userRepository.save(User.builder()
                     .username("admin")
