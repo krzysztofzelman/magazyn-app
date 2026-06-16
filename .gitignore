@@ -32,5 +32,9 @@ gen_env.py
 # backups
 /backups/
 
+# artifacts
+build.log
+vps-bundle.js
+
 # other projects
 /magazyn-frontend/
