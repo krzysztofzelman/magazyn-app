@@ -452,3 +452,52 @@ logging:
 | 8 | **Docker resource limits + log rotation** | Deployment | Łatwe | 10 min |
 | 9 | **Docker bypass UFW — ograniczyć expose do 127.0.0.1** | Deployment | Łatwe | 10 min |
 | 10 | **Ujednolicić backupy + dodać off-site** | Deployment | Średnie | 30 min |
+
+---
+
+## Stan po audycie 2026-06-16
+
+**Data poprawek:** 2026-06-16
+**Zakres:** Backend (Spring Boot 4.0.6), Frontend (React 19), Nginx, CI/CD, Docker
+**Autor:** Qwen Code Agent
+
+### Wykonane poprawki bezpieczeństwa
+
+| # | Opis | Pliki | Status |
+|---|------|-------|--------|
+| 1 | **KRYTYCZNE: X-Tenant-Id spoofing** — TenantFilter zmieniony na no-op (JWT jest jedynym źródłem tenantId). Nginx strips X-Tenant-Id z requestów klienckich. | `TenantFilter.java`, `nginx-kzelman.conf`, `nginx-kzelman-deploy.conf` | ✅ |
+| 2 | **KRYTYCZNE: DatabaseInitializer aktywny na produkcji** — zmieniono @Profile z "!test" na "dev". Seed danych tylko w środowisku deweloperskim. | `DatabaseInitializer.java` | ✅ |
+| 3 | **WAŻNE: RateLimitFilter IP spoofing** — używana jest OSTATNIA wartość X-Forwarded-For (najbliższa nginx), nie pierwsza. Dodano rate limiting dla /api/tenants/register (5 req/h) i /api/assistant/chat (30 req/min). | `RateLimitFilter.java` | ✅ |
+| 4 | **WAŻNE: Refresh token plaintext w DB** — tokeny są haszowane SHA-256 przed zapisem. @Transactional(readOnly=true) zmienione na @Transactional przy walidacji (delete w read-only silently failował). Flyway V14 migracja backfilluje istniejące tokeny. | `RefreshToken.java`, `RefreshTokenRepository.java`, `RefreshTokenService.java`, `AuthService.java`, `V14__hash_refresh_tokens.sql` | ✅ |
+| 5 | **WAŻNE: Refresh token w localStorage (XSS)** — przeniesiony do httpOnly cookie (Secure; SameSite=Strict). Frontend: removed safeSetItem('refreshToken'), auto-refresh interceptor wysyła withCredentials:true. Backend: AuthController set/clear cookie. | `AuthController.java`, `LoginPage.tsx`, `api.ts` | ✅ |
+| 6 | **WAŻNE: Assistant system prompt injection** — walidacja ról w historii konwersacji: akceptowane tylko "user" i "assistant", "system" jest odrzucany. Rate limiting 30 req/min już istnieje. | `AssistantService.java` | ✅ |
+| 7 | **ŚREDNIE: CI pomija testy** — dodano job `test` przed `deploy` w GitHub Actions (mvn test z PostgreSQL service container). Dockerfile: usunięto `-Dmaven.test.skip=true`. | `Dockerfile`, `.github/workflows/deploy.yml` | ✅ |
+| 8 | **PORZĄDKI: Martwy kod** — usunięto CorsFilter.java (pusty), TenantSessionFilter.java, WarehouseSessionFilter.java, `_archive/` (7 nieużywanych komponentów frontend), build.log, vps-bundle.js, dist.tar.gz. .gitignore zaktualizowany. | `CorsFilter.java`, `TenantSessionFilter.java`, `WarehouseSessionFilter.java`, `_archive/*`, `build.log`, `vps-bundle.js`, `dist.tar.gz`, `.gitignore` | ✅ |
+
+### Nienaprawione z poprzedniego audytu
+
+Następujące błędy krytyczne/ważne z audytu 2026-06-13 pozostają do naprawy:
+- B1: App w Dockerze jako root — wymaga dodania USER w Dockerfile
+- B2/B8: warehouseFilter na Invoice/InvoiceItem/CompanySettings — wymaga dodania pola warehouseId
+- B3: findProductsBelowMinStock/getTotalStockValue — brak tenant guard
+- B4: exportProductsCsv/Excel — brak filtra tenanta
+- B5: SSH — hasło i root login włączone
+- B6: Brak automatycznego odświeżania tokena JWT (✅ NAPRAWIONE — fix #5)
+- B7/B9: Silent catch + martwy kod (✅ NAPRAWIONE — fix #8)
+- B11: @Positive vs @PositiveOrZero na StockMovementRequest
+- B12: RateLimitFilter ustawia CORS (przestarzałe po refactorze RateLimitFilter — do weryfikacji)
+- B13: JwtUtil.isTokenValid() połyka wyjątki
+- S3: Brak ochrony przed enumeracją ID
+
+### Commity
+
+```
+dc8349a fix: remove trust of X-Tenant-Id header from TenantFilter
+db2bba6 fix: restrict DatabaseInitializer to 'dev' profile only
+1c01f6e fix: RateLimitFilter - use last X-Forwarded-For IP, add more endpoints
+7722189 fix: hash refresh tokens with SHA-256, fix @Transactional readOnly
+51770ee fix: move refresh token to httpOnly cookie, remove from localStorage
+7773737 fix: validate assistant chat roles, prevent system prompt injection
+bbce9b9 fix: add test job to CI pipeline, remove test skip from Dockerfile
+58aa33c chore: remove dead code and cleanup project artifacts
+```
