@@ -37,14 +37,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Check if this path matches any rate-limited endpoint
-        RateLimitConfig matched = null;
-        for (RateLimitConfig config : RATE_LIMITS) {
-            if (config.method.equalsIgnoreCase(method) && config.path.equals(path)) {
-                matched = config;
-                break;
-            }
-        }
-
+        RateLimitConfig matched = findMatchingConfig(method, path);
         if (matched == null) {
             filterChain.doFilter(request, response);
             return;
@@ -81,6 +74,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
         }
         return request.getRemoteAddr();
+    }
+
+    private static RateLimitConfig findMatchingConfig(String method, String path) {
+        for (RateLimitConfig config : RATE_LIMITS) {
+            if (config.method.equalsIgnoreCase(method) && config.path.equals(path)) {
+                return config;
+            }
+        }
+        return null;
     }
 
     private static Bucket createBucket(long limit, Duration duration) {
