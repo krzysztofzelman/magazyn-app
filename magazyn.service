@@ -1,0 +1,13 @@
+[Unit]
+Description=Magazyn Spring Boot App
+After=network.target
+
+[Service]
+WorkingDirectory=/var/www/magazyn-app
+EnvironmentFile=/etc/magazyn/magazyn.env
+ExecStart=/usr/bin/java -jar /var/www/magazyn-app/target/magazyn-0.0.1-SNAPSHOT.jar
+Restart=always
+User=magazyn
+
+[Install]
+WantedBy=multi-user.target

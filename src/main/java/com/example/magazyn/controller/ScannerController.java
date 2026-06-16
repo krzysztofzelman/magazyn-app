@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,7 +51,7 @@ public class ScannerController {
     @Operation(summary = "Szybkie przyj\u0119cie towaru przez skaner")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ScannerResultResponse> quickReceive(
-            @RequestBody QuickReceiveRequest request,
+            @Valid @RequestBody QuickReceiveRequest request,
             Authentication authentication) {
         log.info("POST /api/scanner/quick-receive productId={}, qty={} by user={}",
                 request.getProductId(), request.getQuantity(), authentication.getName());
@@ -65,7 +66,7 @@ public class ScannerController {
     @Operation(summary = "Szybkie wydanie towaru przez skaner")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'WAREHOUSE')")
     public ResponseEntity<ScannerResultResponse> quickIssue(
-            @RequestBody QuickIssueRequest request,
+            @Valid @RequestBody QuickIssueRequest request,
             Authentication authentication) {
         log.info("POST /api/scanner/quick-issue productId={}, qty={} by user={}",
                 request.getProductId(), request.getQuantity(), authentication.getName());

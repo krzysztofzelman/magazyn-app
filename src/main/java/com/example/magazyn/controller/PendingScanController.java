@@ -3,6 +3,7 @@ package com.example.magazyn.controller;
 import com.example.magazyn.dto.PendingScanRequest;
 import com.example.magazyn.dto.PendingScanResponse;
 import com.example.magazyn.service.PendingScanService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -43,7 +44,7 @@ public class PendingScanController {
     @Operation(summary = "Dodaj zeskanowany kod do koszyka")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PendingScanResponse> addScan(
-            @RequestBody PendingScanRequest request,
+            @Valid @RequestBody PendingScanRequest request,
             Authentication authentication) {
         log.info("POST /api/pending-scans mode={}, barcode={}", request.getMode(), request.getBarcode());
         PendingScanResponse result = pendingScanService.addScan(request, authentication.getName());
