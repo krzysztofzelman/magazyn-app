@@ -11,13 +11,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Resolves tenant from request and sets TenantContext.
- * For subdomain-based routing (e.g. customer.magazyn.kzelman.pl),
- * the tenant is determined by the X-Tenant-Id header (set by nginx).
- * For JWT-authenticated requests, the JWT filter overrides this.
+ * Deprecated: tenant ID is now extracted exclusively from the JWT token
+ * by JwtAuthenticationFilter. This filter is kept as a no-op pass-through
+ * to maintain filter ordering without changes.
+ * <p>
+ * The X-Tenant-Id header is STRIPPED by nginx (proxy_set_header X-Tenant-Id "")
+ * and must NOT be trusted from client requests to prevent tenant spoofing.
  */
 @Component
 @Order(1)
+@Deprecated
 public class TenantFilter extends OncePerRequestFilter {
 
     @Override
@@ -25,13 +28,8 @@ public class TenantFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws IOException, ServletException {
 
-        // Resolve tenant from header (set by nginx based on subdomain)
-        // For JWT-authenticated requests, JwtAuthenticationFilter will override this
-        String tenantHeader = request.getHeader("X-Tenant-Id");
-        if (tenantHeader != null && !tenantHeader.isEmpty()) {
-            TenantContext.setTenantId(Long.valueOf(tenantHeader));
-        }
-
+        // Tenant ID is now set exclusively by JwtAuthenticationFilter from JWT claims.
+        // X-Tenant-Id header from clients is stripped by nginx and never trusted.
         filterChain.doFilter(request, response);
     }
 }
