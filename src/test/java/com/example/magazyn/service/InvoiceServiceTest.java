@@ -674,7 +674,7 @@ class InvoiceServiceTest {
         assertEquals(new BigDecimal("115.00"), response.totalVat());
         assertEquals(new BigDecimal("615.00"), response.totalGross());
 
-        verify(documentRepository).findByIdWithItems(docId, anyLong());
+        verify(documentRepository).findByIdWithItems(eq(docId), anyLong());
         verify(companySettingsRepository).findByTenantId(TENANT_ID);
         verify(invoiceRepository).save(any(Invoice.class));
         verify(auditLogService).log(eq(USERNAME), eq("INVOICE_CREATE"), eq("Invoice"), eq(INVOICE_ID), anyString());

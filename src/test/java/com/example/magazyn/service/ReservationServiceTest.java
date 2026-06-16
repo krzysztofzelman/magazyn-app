@@ -7,9 +7,11 @@ import com.example.magazyn.entity.Product;
 import com.example.magazyn.entity.ReservationReferenceType;
 import com.example.magazyn.entity.ReservationStatus;
 import com.example.magazyn.entity.StockReservation;
+import com.example.magazyn.entity.Tenant;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.repository.StockReservationRepository;
+import com.example.magazyn.repository.TenantRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,9 @@ class ReservationServiceTest {
 
     @Mock
     private AuditLogService auditLogService;
+
+    @Mock
+    private TenantRepository tenantRepository;
 
     @InjectMocks
     private ReservationService reservationService;
@@ -371,6 +376,8 @@ class ReservationServiceTest {
         StockReservation expired1 = createReservation(1L, product, 5, ReservationStatus.ACTIVE);
         expired1.setExpiresAt(LocalDateTime.of(2025, 1, 1, 12, 0));
 
+        Tenant activeTenant = Tenant.builder().id(1L).isActive(true).build();
+        when(tenantRepository.findAll()).thenReturn(List.of(activeTenant));
         when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong()))
                 .thenReturn(List.of(expired1));
 
@@ -379,16 +386,20 @@ class ReservationServiceTest {
         assertEquals(ReservationStatus.RELEASED, expired1.getStatus());
         assertTrue(expired1.getNotes().contains("auto-released"));
 
+        verify(tenantRepository).findAll();
         verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong());
     }
 
     @Test
     void releaseExpired_noExpiredReservations_doesNothing() {
+        Tenant activeTenant = Tenant.builder().id(1L).isActive(true).build();
+        when(tenantRepository.findAll()).thenReturn(List.of(activeTenant));
         when(reservationRepository.findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong()))
                 .thenReturn(List.of());
 
         reservationService.releaseExpired();
 
+        verify(tenantRepository).findAll();
         verify(reservationRepository).findByStatusAndExpiresAtBeforeForUpdate(eq(ReservationStatus.ACTIVE), any(LocalDateTime.class), anyLong());
         verify(reservationRepository, never()).save(any());
     }
