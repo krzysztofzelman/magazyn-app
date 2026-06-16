@@ -148,7 +148,7 @@ class LocationServiceTest {
         Location rack = createLocation(2L, "RACK-01", "Rack 1", LocationType.RACK, 1L);
         Location shelf = createLocation(3L, "SH-01", "Shelf 1", LocationType.SHELF, 2L);
 
-        when(locationRepository.findAll()).thenReturn(List.of(warehouse, rack, shelf));
+        when(locationRepository.findAllByTenantId(anyLong())).thenReturn(List.of(warehouse, rack, shelf));
 
         List<LocationTreeNode> tree = locationService.getLocationTree();
 
@@ -171,7 +171,7 @@ class LocationServiceTest {
     void getLocationTree_withNoRoots_returnsEmpty() {
         Location child = createLocation(2L, "RACK-01", "Rack", LocationType.RACK, 1L);
 
-        when(locationRepository.findAll()).thenReturn(List.of(child));
+        when(locationRepository.findAllByTenantId(anyLong())).thenReturn(List.of(child));
 
         List<LocationTreeNode> tree = locationService.getLocationTree();
 
@@ -182,7 +182,7 @@ class LocationServiceTest {
     void getLocationTree_withOrphanChildren_ignoresThem() {
         Location orphan = createLocation(2L, "ORPHAN", "Orphan", LocationType.RACK, 999L);
 
-        when(locationRepository.findAll()).thenReturn(List.of(orphan));
+        when(locationRepository.findAllByTenantId(anyLong())).thenReturn(List.of(orphan));
 
         List<LocationTreeNode> tree = locationService.getLocationTree();
 
@@ -198,7 +198,7 @@ class LocationServiceTest {
         Location location = createLocation(1L, "WH-01", "Warehouse", LocationType.WAREHOUSE, null);
 
         when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(location));
-        when(locationRepository.existsByParentId(1L)).thenReturn(false);
+        when(locationRepository.existsByParentIdAndTenantId(1L, anyLong())).thenReturn(false);
 
         locationService.deleteLocation(1L);
 
@@ -210,7 +210,7 @@ class LocationServiceTest {
         Location location = createLocation(1L, "WH-01", "Warehouse", LocationType.WAREHOUSE, null);
 
         when(locationRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(location));
-        when(locationRepository.existsByParentId(1L)).thenReturn(true);
+        when(locationRepository.existsByParentIdAndTenantId(1L, anyLong())).thenReturn(true);
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> locationService.deleteLocation(1L));
@@ -239,7 +239,7 @@ class LocationServiceTest {
         Location loc2 = createLocation(2L, "B", "Location B", LocationType.WAREHOUSE, null);
         Location loc1 = createLocation(1L, "A", "Location A", LocationType.WAREHOUSE, null);
 
-        when(locationRepository.findAll()).thenReturn(List.of(loc2, loc1));
+        when(locationRepository.findAllByTenantId(anyLong())).thenReturn(List.of(loc2, loc1));
 
         List<LocationResponse> result = locationService.getAllLocations();
 
@@ -273,7 +273,7 @@ class LocationServiceTest {
         Location child1 = createLocation(2L, "CH-01", "Child 1", LocationType.RACK, 1L);
         Location child2 = createLocation(3L, "CH-02", "Child 2", LocationType.SHELF, 1L);
 
-        when(locationRepository.findByParentId(1L)).thenReturn(List.of(child2, child1));
+        when(locationRepository.findByParentIdAndTenantId(1L, anyLong())).thenReturn(List.of(child2, child1));
 
         List<LocationResponse> children = locationService.getChildren(1L);
 
@@ -367,11 +367,11 @@ class LocationServiceTest {
         request.setProductId(5L);
         request.setQuantity(20.0);
 
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R02", anyLong())).thenReturn(Optional.of(toLoc));
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L)).thenReturn(Optional.empty());
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L, anyLong())).thenReturn(Optional.empty());
         when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
         when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
 
@@ -408,10 +408,10 @@ class LocationServiceTest {
         request.setProductId(5L);
         request.setQuantity(20.0);
 
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R02", anyLong())).thenReturn(Optional.of(toLoc));
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.of(fromStock));
 
         assertThrows(RuntimeException.class,
                 () -> locationService.transferStock(request, "testuser"));
@@ -432,10 +432,10 @@ class LocationServiceTest {
         request.setProductId(5L);
         request.setQuantity(5.0);
 
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R02", anyLong())).thenReturn(Optional.of(toLoc));
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.empty());
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,
                 () -> locationService.transferStock(request, "testuser"));
@@ -462,11 +462,11 @@ class LocationServiceTest {
         request.setProductId(5L);
         request.setQuantity(20.0);
 
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(fromLoc));
-        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(toLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(fromLoc));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R02", anyLong())).thenReturn(Optional.of(toLoc));
         when(productRepository.findByIdAndTenantId(eq(5L), any())).thenReturn(Optional.of(product));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L)).thenReturn(Optional.of(fromStock));
-        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L)).thenReturn(Optional.empty());
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(1L, 5L, anyLong())).thenReturn(Optional.of(fromStock));
+        when(locationStockRepository.findByLocationIdAndProductIdWithLock(2L, 5L, anyLong())).thenReturn(Optional.empty());
         when(locationStockRepository.findByLocationId(1L)).thenReturn(List.of());
         when(locationStockRepository.findByLocationId(2L)).thenReturn(List.of());
 

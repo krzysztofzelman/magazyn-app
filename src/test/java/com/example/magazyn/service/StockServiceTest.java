@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,7 +75,7 @@ class StockServiceTest {
         Product product = createProduct(1L, "Produkt A", "A-001", 10);
         StockMovementRequest request = createRequest(MovementType.PRZYJECIE, 5, "Dostawa");
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
             StockMovement m = i.getArgument(0);
@@ -98,7 +99,7 @@ class StockServiceTest {
         assertEquals(USERNAME, response.getCreatedBy());
         assertEquals(15, product.getQuantity()); // 10 + 5
 
-        verify(productRepository).findByIdForUpdate(1L);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
         verify(productRepository).save(product);
         verify(stockMovementRepository).save(any(StockMovement.class));
     }
@@ -108,7 +109,7 @@ class StockServiceTest {
         Product product = createProduct(1L, "Produkt A", "A-001", 20);
         StockMovementRequest request = createRequest(MovementType.WYDANIE, 8, "Wydanie do klienta");
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
             StockMovement m = i.getArgument(0);
@@ -130,7 +131,7 @@ class StockServiceTest {
         assertEquals(8, response.getQuantity());
         assertEquals(12, product.getQuantity()); // 20 - 8
 
-        verify(productRepository).findByIdForUpdate(1L);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
         verify(productRepository).save(product);
         verify(stockMovementRepository).save(any(StockMovement.class));
     }
@@ -140,7 +141,7 @@ class StockServiceTest {
         Product product = createProduct(1L, "Produkt A", "A-001", 100);
         StockMovementRequest request = createRequest(MovementType.KOREKTA, 50, "Korekta stanu");
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(i -> {
             StockMovement m = i.getArgument(0);
@@ -160,7 +161,7 @@ class StockServiceTest {
         assertEquals(50, product.getQuantity()); // korekta sets absolute value
         assertEquals(50, response.getQuantity());
 
-        verify(productRepository).findByIdForUpdate(1L);
+        verify(productRepository).findByIdForUpdate(1L, anyLong());
         verify(productRepository).save(product);
         verify(stockMovementRepository).save(any(StockMovement.class));
     }
@@ -171,13 +172,13 @@ class StockServiceTest {
 
     @Test
     void addMovement_productNotFound_throws() {
-        when(productRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
+        when(productRepository.findByIdForUpdate(999L, anyLong())).thenReturn(Optional.empty());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(999L, createRequest(MovementType.PRZYJECIE, 5, null), USERNAME));
 
         assertTrue(ex.getMessage().contains("not found"));
-        verify(productRepository).findByIdForUpdate(999L);
+        verify(productRepository).findByIdForUpdate(999L, anyLong());
         verifyNoInteractions(stockMovementRepository);
     }
 
@@ -188,7 +189,7 @@ class StockServiceTest {
         request.setType(MovementType.PRZYJECIE);
         request.setQuantity(null);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));
@@ -202,7 +203,7 @@ class StockServiceTest {
         Product product = createProduct(1L, "Produkt A", "A-001", 10);
         StockMovementRequest request = createRequest(MovementType.PRZYJECIE, 0, null);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));
@@ -218,7 +219,7 @@ class StockServiceTest {
         request.setType(null);
         request.setQuantity(5);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));
@@ -232,7 +233,7 @@ class StockServiceTest {
         Product product = createProduct(1L, "Produkt A", "A-001", 3);
         StockMovementRequest request = createRequest(MovementType.WYDANIE, 10, null);
 
-        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L, anyLong())).thenReturn(Optional.of(product));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> stockService.addMovement(1L, request, USERNAME));
@@ -261,7 +262,7 @@ class StockServiceTest {
                 .build();
 
         when(productRepository.existsByIdAndTenantId(eq(1L), any())).thenReturn(true);
-        when(stockMovementRepository.findByProductIdOrderByCreatedAtDesc(eq(1L), any(Pageable.class)))
+        when(stockMovementRepository.findByProductIdAndTenantIdOrderByCreatedAtDesc(eq(1L), anyLong(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(movement)));
 
         List<StockMovementResponse> result = stockService.getMovements(1L);
@@ -273,7 +274,7 @@ class StockServiceTest {
         assertEquals(10, result.get(0).getQuantity());
 
         verify(productRepository).existsByIdAndTenantId(eq(1L), any());
-        verify(stockMovementRepository).findByProductIdOrderByCreatedAtDesc(eq(1L), any());
+        verify(stockMovementRepository).findByProductIdAndTenantIdOrderByCreatedAtDesc(eq(1L), anyLong(), any());
     }
 
     @Test

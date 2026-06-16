@@ -22,6 +22,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -126,13 +128,13 @@ class AuditLogServiceTest {
         AuditLog log2 = createAuditLog(2L, "user1", "LOGIN_SUCCESS", "User", 2L, "login", "10.0.0.2");
         Page<AuditLog> page = new PageImpl<>(List.of(log1, log2), pageable, 2);
 
-        when(auditLogRepository.findAll(pageable)).thenReturn(page);
+        when(auditLogRepository.findAllByTenantId(anyLong(), eq(pageable))).thenReturn(page);
 
         Page<AuditLog> result = auditLogService.getAuditLogs(null, null, pageable);
 
         assertNotNull(result);
         assertEquals(2, result.getTotalElements());
-        verify(auditLogRepository).findAll(pageable);
+        verify(auditLogRepository).findAllByTenantId(anyLong(), eq(pageable));
     }
 
     @Test
@@ -141,12 +143,12 @@ class AuditLogServiceTest {
         AuditLog log = createAuditLog(1L, "admin", "CREATE_PRODUCT", "Product", 1L, "test", "10.0.0.1");
         Page<AuditLog> page = new PageImpl<>(List.of(log), pageable, 1);
 
-        when(auditLogRepository.findByUsernameContainingIgnoreCase("admin", pageable)).thenReturn(page);
+        when(auditLogRepository.findByTenantIdAndUsernameContainingIgnoreCase(anyLong(), eq("admin"), eq(pageable))).thenReturn(page);
 
         Page<AuditLog> result = auditLogService.getAuditLogs("admin", null, pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(auditLogRepository).findByUsernameContainingIgnoreCase("admin", pageable);
+        verify(auditLogRepository).findByTenantIdAndUsernameContainingIgnoreCase(anyLong(), eq("admin"), eq(pageable));
     }
 
     @Test
@@ -155,13 +157,13 @@ class AuditLogServiceTest {
         AuditLog log = createAuditLog(1L, "admin", "DELETE_PRODUCT", "Product", 1L, "deleted", "10.0.0.1");
         Page<AuditLog> page = new PageImpl<>(List.of(log), pageable, 1);
 
-        when(auditLogRepository.findByAction("DELETE_PRODUCT", pageable)).thenReturn(page);
+        when(auditLogRepository.findByTenantIdAndAction(anyLong(), eq("DELETE_PRODUCT"), eq(pageable))).thenReturn(page);
 
         Page<AuditLog> result = auditLogService.getAuditLogs(null, "DELETE_PRODUCT", pageable);
 
         assertEquals(1, result.getTotalElements());
         assertEquals("DELETE_PRODUCT", result.getContent().get(0).getAction());
-        verify(auditLogRepository).findByAction("DELETE_PRODUCT", pageable);
+        verify(auditLogRepository).findByTenantIdAndAction(anyLong(), eq("DELETE_PRODUCT"), eq(pageable));
     }
 
     @Test
@@ -170,34 +172,34 @@ class AuditLogServiceTest {
         AuditLog log = createAuditLog(1L, "admin", "CREATE_PRODUCT", "Product", 1L, "test", "10.0.0.1");
         Page<AuditLog> page = new PageImpl<>(List.of(log), pageable, 1);
 
-        when(auditLogRepository.findByUsernameContainingIgnoreCaseAndAction("admin", "CREATE_PRODUCT", pageable))
+        when(auditLogRepository.findByTenantIdAndUsernameContainingIgnoreCaseAndAction(anyLong(), eq("admin"), eq("CREATE_PRODUCT"), eq(pageable)))
                 .thenReturn(page);
 
         Page<AuditLog> result = auditLogService.getAuditLogs("admin", "CREATE_PRODUCT", pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(auditLogRepository).findByUsernameContainingIgnoreCaseAndAction("admin", "CREATE_PRODUCT", pageable);
+        verify(auditLogRepository).findByTenantIdAndUsernameContainingIgnoreCaseAndAction(anyLong(), eq("admin"), eq("CREATE_PRODUCT"), eq(pageable));
     }
 
     @Test
     void getAuditLogs_blankUsername_ignoresFilter() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(auditLogRepository.findAll(pageable)).thenReturn(Page.empty());
+        when(auditLogRepository.findAllByTenantId(anyLong(), eq(pageable))).thenReturn(Page.empty());
 
         Page<AuditLog> result = auditLogService.getAuditLogs("   ", null, pageable);
 
         assertNotNull(result);
-        verify(auditLogRepository).findAll(pageable);
+        verify(auditLogRepository).findAllByTenantId(anyLong(), eq(pageable));
     }
 
     @Test
     void getAuditLogs_blankAction_ignoresFilter() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(auditLogRepository.findAll(pageable)).thenReturn(Page.empty());
+        when(auditLogRepository.findAllByTenantId(anyLong(), eq(pageable))).thenReturn(Page.empty());
 
         Page<AuditLog> result = auditLogService.getAuditLogs(null, "   ", pageable);
 
         assertNotNull(result);
-        verify(auditLogRepository).findAll(pageable);
+        verify(auditLogRepository).findAllByTenantId(anyLong(), eq(pageable));
     }
 }

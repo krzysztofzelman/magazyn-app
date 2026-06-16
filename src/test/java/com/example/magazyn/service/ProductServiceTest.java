@@ -29,6 +29,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,7 +99,7 @@ class ProductServiceTest {
         Product p2 = createProductEntity(2L, "Product B", "SKU-B", 5);
         Page<Product> productPage = new PageImpl<>(List.of(p1, p2), pageable, 2);
 
-        when(productRepository.findAll(pageable)).thenReturn(productPage);
+        when(productRepository.findAllByTenantId(anyLong(), eq(pageable))).thenReturn(productPage);
 
         Page<ProductResponse> result = productService.getAllProducts(pageable, null);
 
@@ -106,7 +107,7 @@ class ProductServiceTest {
         assertEquals(2, result.getTotalElements());
         assertEquals("Product A", result.getContent().get(0).getName());
         assertEquals("Product B", result.getContent().get(1).getName());
-        verify(productRepository).findAll(pageable);
+        verify(productRepository).findAllByTenantId(anyLong(), eq(pageable));
         verify(counter).increment();
     }
 
@@ -116,7 +117,7 @@ class ProductServiceTest {
         Product p1 = createProductEntity(1L, "Widget", "WDG-001", 10);
         Page<Product> productPage = new PageImpl<>(List.of(p1), pageable, 1);
 
-        when(productRepository.findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase("widget", "widget", pageable))
+        when(productRepository.searchByNameOrSku(anyLong(), eq("widget"), eq(pageable)))
                 .thenReturn(productPage);
 
         Page<ProductResponse> result = productService.getAllProducts(pageable, "widget");
@@ -124,19 +125,19 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
         assertEquals("Widget", result.getContent().get(0).getName());
-        verify(productRepository).findByNameContainingIgnoreCaseOrSkuContainingIgnoreCase("widget", "widget", pageable);
+        verify(productRepository).searchByNameOrSku(anyLong(), eq("widget"), eq(pageable));
     }
 
     @Test
     void getAllProducts_withBlankSearch_returnsAll() {
         Pageable pageable = PageRequest.of(0, 10);
-        when(productRepository.findAll(pageable)).thenReturn(Page.empty());
+        when(productRepository.findAllByTenantId(anyLong(), eq(pageable))).thenReturn(Page.empty());
 
         Page<ProductResponse> result = productService.getAllProducts(pageable, "   ");
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(productRepository).findAll(pageable);
+        verify(productRepository).findAllByTenantId(anyLong(), eq(pageable));
     }
 
     // ──────────────────────────────────────────────
@@ -148,7 +149,7 @@ class ProductServiceTest {
         CreateProductRequest request = createRequest("Test Product", "TST-001");
         Product savedProduct = createProductEntity(1L, "Test Product", "TST-001", 0);
 
-        when(productRepository.findBySku("TST-001")).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId("TST-001", anyLong())).thenReturn(Optional.empty());
         savedProduct.setPrice(BigDecimal.valueOf(100.00));
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
@@ -163,7 +164,7 @@ class ProductServiceTest {
         assertEquals(BigDecimal.valueOf(100.00), response.getPrice());
         assertEquals(Integer.valueOf(5), response.getMinQuantity());
 
-        verify(productRepository).findBySku("TST-001");
+        verify(productRepository).findBySkuAndTenantId("TST-001", anyLong());
         verify(productRepository).save(any(Product.class));
     }
 
@@ -172,13 +173,13 @@ class ProductServiceTest {
         CreateProductRequest request = createRequest("Test Product", "TST-001");
         Product existing = createProductEntity(1L, "Existing", "TST-001", 0);
 
-        when(productRepository.findBySku("TST-001")).thenReturn(Optional.of(existing));
+        when(productRepository.findBySkuAndTenantId("TST-001", anyLong())).thenReturn(Optional.of(existing));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.createProduct(request));
         assertTrue(exception.getMessage().contains("already exists"));
 
-        verify(productRepository).findBySku("TST-001");
+        verify(productRepository).findBySkuAndTenantId("TST-001", anyLong());
         verify(productRepository, never()).save(any());
     }
 
@@ -200,7 +201,7 @@ class ProductServiceTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(productRepository.findBySku("PRD-001")).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId("PRD-001", anyLong())).thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class))).thenReturn(savedProduct);
 
         ProductResponse response = productService.createProduct(request);
@@ -226,7 +227,7 @@ class ProductServiceTest {
         request.setMinQuantity(3);
 
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
-        when(productRepository.findBySku("NEW-SKU")).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId("NEW-SKU", anyLong())).thenReturn(Optional.empty());
         when(productRepository.save(any(Product.class))).thenAnswer(i -> i.getArgument(0));
 
         ProductResponse response = productService.updateProduct(1L, request);
@@ -261,7 +262,7 @@ class ProductServiceTest {
         request.setSku("SKU-B");
 
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(existing));
-        when(productRepository.findBySku("SKU-B")).thenReturn(Optional.of(otherProduct));
+        when(productRepository.findBySkuAndTenantId("SKU-B", anyLong())).thenReturn(Optional.of(otherProduct));
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> productService.updateProduct(1L, request));
@@ -386,7 +387,7 @@ class ProductServiceTest {
     @Test
     void getProductBySku_found() {
         Product product = createProductEntity(1L, "Product", "PRD-001", 10);
-        when(productRepository.findBySku("PRD-001")).thenReturn(Optional.of(product));
+        when(productRepository.findBySkuAndTenantId("PRD-001", anyLong())).thenReturn(Optional.of(product));
 
         Optional<ProductResponse> result = productService.getProductBySku("PRD-001");
 
@@ -402,7 +403,7 @@ class ProductServiceTest {
     void getProductByBarcode_found() {
         Product product = createProductEntity(1L, "Product", "PRD-001", 10);
         product.setBarcode("5901234567890");
-        when(productRepository.findByBarcode("5901234567890")).thenReturn(Optional.of(product));
+        when(productRepository.findByBarcodeAndTenantId("5901234567890", anyLong())).thenReturn(Optional.of(product));
 
         Optional<ProductResponse> result = productService.getProductByBarcode("5901234567890");
 
@@ -413,7 +414,7 @@ class ProductServiceTest {
 
     @Test
     void getProductByBarcode_notFound() {
-        when(productRepository.findByBarcode("INVALID-BARCODE")).thenReturn(Optional.empty());
+        when(productRepository.findByBarcodeAndTenantId("INVALID-BARCODE", anyLong())).thenReturn(Optional.empty());
 
         Optional<ProductResponse> result = productService.getProductByBarcode("INVALID-BARCODE");
 
@@ -428,7 +429,7 @@ class ProductServiceTest {
     void getProductsByLocation_returnsList() {
         Product p1 = createProductEntity(1L, "Product A", "A-001", 5);
         Product p2 = createProductEntity(2L, "Product B", "B-001", 10);
-        when(productRepository.findByLocationId(10L)).thenReturn(List.of(p1, p2));
+        when(productRepository.findByLocationIdAndTenantId(10L, anyLong())).thenReturn(List.of(p1, p2));
 
         List<ProductResponse> result = productService.getProductsByLocation(10L);
 
@@ -439,7 +440,7 @@ class ProductServiceTest {
 
     @Test
     void getProductsByLocation_emptyList() {
-        when(productRepository.findByLocationId(999L)).thenReturn(List.of());
+        when(productRepository.findByLocationIdAndTenantId(999L, anyLong())).thenReturn(List.of());
 
         List<ProductResponse> result = productService.getProductsByLocation(999L);
 

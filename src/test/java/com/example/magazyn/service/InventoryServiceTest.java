@@ -119,9 +119,9 @@ class InventoryServiceTest {
                 .build();
 
         when(sessionRepository.save(any(InventorySession.class))).thenReturn(savedSession);
-        when(locationRepository.findByParentId(1L)).thenReturn(Arrays.asList(shelfA, shelfB));
-        when(locationRepository.findByParentId(10L)).thenReturn(List.of());
-        when(locationRepository.findByParentId(11L)).thenReturn(List.of());
+        when(locationRepository.findByParentIdAndTenantId(1L, anyLong())).thenReturn(Arrays.asList(shelfA, shelfB));
+        when(locationRepository.findByParentIdAndTenantId(10L, anyLong())).thenReturn(List.of());
+        when(locationRepository.findByParentIdAndTenantId(11L, anyLong())).thenReturn(List.of());
         when(locationStockRepository.findByLocationId(10L)).thenReturn(List.of(stockA1));
         when(locationStockRepository.findByLocationId(11L)).thenReturn(List.of(stockB1));
         when(itemRepository.saveAll(anyList())).thenReturn(List.of(
@@ -179,7 +179,7 @@ class InventoryServiceTest {
                 .build();
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(itemRepository.findBySessionId(100L)).thenReturn(List.of(
+        when(itemRepository.findBySessionIdAndTenantId(100L, anyLong())).thenReturn(List.of(
                 InventoryItem.builder().id(1L).build(),
                 InventoryItem.builder().id(2L).build()
         ));
@@ -209,9 +209,9 @@ class InventoryServiceTest {
         request.setQuantity(25.0);
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(shelfA));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(shelfA));
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
-        when(itemRepository.findBySessionIdAndLocationIdAndProductId(100L, 10L, 1L))
+        when(itemRepository.findBySessionIdAndLocationIdAndProductIdAndTenantId(100L, 10L, 1L, anyLong()))
                 .thenReturn(Optional.empty());
         when(itemRepository.save(any(InventoryItem.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
@@ -244,9 +244,9 @@ class InventoryServiceTest {
                 .build();
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(locationRepository.findByBarcode("LOC-MG01-R01")).thenReturn(Optional.of(shelfA));
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R01", anyLong())).thenReturn(Optional.of(shelfA));
         when(productRepository.findByIdAndTenantId(eq(1L), any())).thenReturn(Optional.of(productA));
-        when(itemRepository.findBySessionIdAndLocationIdAndProductId(100L, 10L, 1L))
+        when(itemRepository.findBySessionIdAndLocationIdAndProductIdAndTenantId(100L, 10L, 1L, anyLong()))
                 .thenReturn(Optional.of(existing));
         when(itemRepository.save(any(InventoryItem.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
@@ -268,10 +268,10 @@ class InventoryServiceTest {
         request.setQuantity(10.0);
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(locationRepository.findByBarcode("LOC-MG01-R02")).thenReturn(Optional.of(shelfB));
-        when(productRepository.findByBarcode("SKU-B")).thenReturn(Optional.empty());
-        when(productRepository.findBySku("SKU-B")).thenReturn(Optional.of(productB));
-        when(itemRepository.findBySessionIdAndLocationIdAndProductId(100L, 11L, 2L))
+        when(locationRepository.findByBarcodeAndTenantId("LOC-MG01-R02", anyLong())).thenReturn(Optional.of(shelfB));
+        when(productRepository.findByBarcodeAndTenantId("SKU-B", anyLong())).thenReturn(Optional.empty());
+        when(productRepository.findBySkuAndTenantId("SKU-B", anyLong())).thenReturn(Optional.of(productB));
+        when(itemRepository.findBySessionIdAndLocationIdAndProductIdAndTenantId(100L, 11L, 2L, anyLong()))
                 .thenReturn(Optional.empty());
         when(itemRepository.save(any(InventoryItem.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
@@ -315,7 +315,7 @@ class InventoryServiceTest {
                 .build();
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(itemRepository.findBySessionId(100L)).thenReturn(Arrays.asList(item1, item2));
+        when(itemRepository.findBySessionIdAndTenantId(100L, anyLong())).thenReturn(Arrays.asList(item1, item2));
         when(locationRepository.findAllById(List.of(10L, 11L))).thenReturn(List.of(shelfA, shelfB));
         when(productRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(productA, productB));
 
@@ -345,8 +345,8 @@ class InventoryServiceTest {
                 .build();
 
         when(sessionRepository.findByIdAndTenantId(eq(100L), any())).thenReturn(Optional.of(session));
-        when(itemRepository.findBySessionId(100L)).thenReturn(List.of(item));
-        when(locationStockRepository.findByLocationIdAndProductId(10L, 1L))
+        when(itemRepository.findBySessionIdAndTenantId(100L, anyLong())).thenReturn(List.of(item));
+        when(locationStockRepository.findByLocationIdAndProductIdAndTenantId(10L, 1L, anyLong()))
                 .thenReturn(Optional.of(stockA1));
         when(locationStockRepository.findByLocationId(10L))
                 .thenReturn(List.of(stockA1));
