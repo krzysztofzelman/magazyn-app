@@ -57,9 +57,9 @@ CREATE TABLE IF NOT EXISTS invoices (
     version INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_invoices_tenant ON invoices(tenant_id);
-CREATE INDEX idx_invoices_status ON invoices(status);
-CREATE INDEX idx_invoices_document ON invoices(document_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON invoices(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_document ON invoices(document_id);
 
 -- Invoice line items
 CREATE TABLE IF NOT EXISTS invoice_items (
@@ -84,8 +84,8 @@ CREATE TABLE IF NOT EXISTS invoice_items (
     version INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_invoice_items_invoice ON invoice_items(invoice_id);
-CREATE INDEX idx_invoice_items_tenant ON invoice_items(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_tenant ON invoice_items(tenant_id);
 
 -- Add invoicing fields to contractors
 ALTER TABLE contractors ADD COLUMN IF NOT EXISTS bank_account VARCHAR(50);

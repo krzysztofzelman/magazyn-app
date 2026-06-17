@@ -1,4 +1,4 @@
-CREATE TABLE pending_scans (
+CREATE TABLE IF NOT EXISTS pending_scans (
     id          BIGSERIAL    PRIMARY KEY,
     mode        VARCHAR(20)  NOT NULL,
     barcode     VARCHAR(255) NOT NULL,
@@ -11,5 +11,5 @@ CREATE TABLE pending_scans (
     created_at  TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_pending_scans_mode ON pending_scans(mode);
-CREATE INDEX idx_pending_scans_scanned_by ON pending_scans(scanned_by);
+CREATE INDEX IF NOT EXISTS idx_pending_scans_mode ON pending_scans(mode);
+CREATE INDEX IF NOT EXISTS idx_pending_scans_scanned_by ON pending_scans(scanned_by);
