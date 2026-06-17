@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:18
+    image: postgres:16
     container_name: magazyn-postgres
     environment:
       POSTGRES_DB: magazyn_db
@@ -11,7 +11,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - ./pgdata:/var/lib/postgresql/data
     networks:
       - magazyn-net
     healthcheck:
@@ -61,7 +61,7 @@ services:
         max-file: "3"
 
   backup:
-    image: postgres:18
+    image: postgres:16
     container_name: magazyn-backup
     environment:
       PGUSER: ${DB_USERNAME}
@@ -94,6 +94,3 @@ services:
 networks:
   magazyn-net:
     driver: bridge
-
-volumes:
-  postgres_data:
