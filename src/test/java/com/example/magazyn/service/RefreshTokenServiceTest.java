@@ -107,39 +107,42 @@ class RefreshTokenServiceTest {
     }
 
     // ──────────────────────────────────────────────
-    // validateRefreshToken — success
+    // rotate — success
     // ──────────────────────────────────────────────
 
     @Test
-    void validateRefreshToken_validToken_returnsUser() {
+    void rotate_validToken_returnsRotateResult() {
         User user = createUser(1L, "testuser");
         RefreshToken refreshToken = createToken(1L, "some-hash", user, false);
 
         when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(refreshToken));
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
 
-        User result = refreshTokenService.validateRefreshToken("any-raw-token");
+        RefreshTokenService.RotateResult result = refreshTokenService.rotate("any-raw-token");
 
         assertNotNull(result);
-        assertEquals(user.getId(), result.getId());
-        assertEquals(user.getUsername(), result.getUsername());
+        assertNotNull(result.rawToken());
+        assertNotNull(result.entity());
+        assertTrue(result.entity().getExpiresAt().isAfter(LocalDateTime.now()));
 
-        verify(refreshTokenRepository).findByTokenHash(anyString());
-        verify(refreshTokenRepository, never()).delete(any());
+        // Old token should be marked as used
+        verify(refreshTokenRepository, times(2)).save(any(RefreshToken.class));
+        assertTrue(refreshToken.isUsed());
     }
 
     // ──────────────────────────────────────────────
-    // validateRefreshToken — errors
+    // rotate — errors
     // ──────────────────────────────────────────────
 
     @Test
-    void validateRefreshToken_expiredToken_throwsAndDeletes() {
+    void rotate_expiredToken_throwsAndDeletes() {
         User user = createUser(1L, "testuser");
         RefreshToken expiredToken = createToken(1L, "some-hash", user, true);
 
         when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(expiredToken));
 
         RefreshTokenException ex = assertThrows(RefreshTokenException.class,
-                () -> refreshTokenService.validateRefreshToken("any-raw-token"));
+                () -> refreshTokenService.rotate("any-raw-token"));
 
         assertTrue(ex.getMessage().contains("wygasł"));
         verify(refreshTokenRepository).findByTokenHash(anyString());
@@ -147,14 +150,30 @@ class RefreshTokenServiceTest {
     }
 
     @Test
-    void validateRefreshToken_nonexistentToken_throws() {
+    void rotate_nonexistentToken_throws() {
         when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.empty());
 
         RefreshTokenException ex = assertThrows(RefreshTokenException.class,
-                () -> refreshTokenService.validateRefreshToken("any-raw-token"));
+                () -> refreshTokenService.rotate("any-raw-token"));
 
         assertTrue(ex.getMessage().contains("nie istnieje"));
         verify(refreshTokenRepository).findByTokenHash(anyString());
+    }
+
+    @Test
+    void rotate_reusedToken_throwsAndDeletesAllForUser() {
+        User user = createUser(1L, "testuser");
+        RefreshToken usedToken = createToken(1L, "some-hash", user, false);
+        usedToken.setUsed(true);
+
+        when(refreshTokenRepository.findByTokenHash(anyString())).thenReturn(Optional.of(usedToken));
+
+        RefreshTokenException ex = assertThrows(RefreshTokenException.class,
+                () -> refreshTokenService.rotate("any-raw-token"));
+
+        assertTrue(ex.getMessage().contains("już użyty"));
+        verify(refreshTokenRepository).findByTokenHash(anyString());
+        verify(refreshTokenRepository).deleteByUser(user);
     }
 
     // ──────────────────────────────────────────────
