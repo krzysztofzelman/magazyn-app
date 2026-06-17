@@ -11,5 +11,7 @@ CREATE TABLE tenants (
 );
 
 -- Default tenant for existing single-tenant deployment
+-- Guard against re-insertion when V1 has already created the tenant
 INSERT INTO tenants (subdomain, name, api_key, plan, max_users)
-VALUES ('default', 'Default Warehouse', gen_random_uuid()::text, 'self-hosted', 100);
+SELECT 'default', 'Default Warehouse', gen_random_uuid()::text, 'self-hosted', 100
+WHERE NOT EXISTS (SELECT 1 FROM tenants WHERE subdomain = 'default');
