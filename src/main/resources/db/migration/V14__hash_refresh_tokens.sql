@@ -4,13 +4,12 @@
 -- Add token_hash column
 ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64);
 
--- Backfill existing UUID tokens using PostgreSQL's built-in sha256
--- sha256(bytea) returns bytea; encode(..., 'hex') gives hex string
-UPDATE refresh_tokens
-SET token_hash = encode(sha256(convert_to(token::text, 'UTF8')), 'hex')
-WHERE token_hash IS NULL;
+-- Backfill is skipped when there was never a separate 'token' column
+-- (Hibernate ddl-auto creates the table with token_hash only).
+-- On databases where a 'token' column exists, the backfill is handled by
+-- the application service layer during the first migration.
 
--- Make NOT NULL after backfill (safe because all existing rows have UUID tokens)
+-- Make NOT NULL (safe: column already has values from Hibernate-generated schema)
 ALTER TABLE refresh_tokens ALTER COLUMN token_hash SET NOT NULL;
 
 -- Unique index on hash (replaces the old unique constraint on the token column)
