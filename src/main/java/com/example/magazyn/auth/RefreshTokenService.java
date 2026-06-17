@@ -1,5 +1,6 @@
 package com.example.magazyn.auth;
 
+import com.example.magazyn.config.TenantContext;
 import com.example.magazyn.entity.RefreshToken;
 import com.example.magazyn.entity.User;
 import com.example.magazyn.repository.RefreshTokenRepository;
@@ -42,6 +43,7 @@ public class RefreshTokenService {
                 .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000))
                 .createdAt(LocalDateTime.now())
                 .build();
+        refreshToken.setTenantId(user.getTenantId());
 
         RefreshToken saved = refreshTokenRepository.save(refreshToken);
         return new RefreshTokenResult(rawToken, saved);
@@ -85,19 +87,26 @@ public class RefreshTokenService {
 
         User user = oldToken.getUser();
 
-        // Generate new token
-        String rawToken = UUID.randomUUID().toString();
-        String newTokenHash = sha256Hex(rawToken);
+        // Set tenant context so TenantAware @PrePersist and Hibernate @Filter work correctly
+        TenantContext.setTenantId(user.getTenantId());
+        try {
+            // Generate new token
+            String rawToken = UUID.randomUUID().toString();
+            String newTokenHash = sha256Hex(rawToken);
 
-        RefreshToken newToken = RefreshToken.builder()
-                .tokenHash(newTokenHash)
-                .user(user)
-                .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000))
-                .createdAt(LocalDateTime.now())
-                .build();
+            RefreshToken newToken = RefreshToken.builder()
+                    .tokenHash(newTokenHash)
+                    .user(user)
+                    .expiresAt(LocalDateTime.now().plusSeconds(refreshTokenDurationMs / 1000))
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            newToken.setTenantId(user.getTenantId());
 
-        RefreshToken saved = refreshTokenRepository.save(newToken);
-        return new RotateResult(rawToken, saved);
+            RefreshToken saved = refreshTokenRepository.save(newToken);
+            return new RotateResult(rawToken, saved);
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     /**
