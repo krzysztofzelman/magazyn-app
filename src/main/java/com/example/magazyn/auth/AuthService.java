@@ -1,6 +1,5 @@
 package com.example.magazyn.auth;
 
-import com.example.magazyn.entity.RefreshToken;
 import com.example.magazyn.entity.User;
 import com.example.magazyn.exception.DuplicateResourceException;
 import com.example.magazyn.exception.ResourceNotFoundException;
@@ -111,14 +110,13 @@ public class AuthService {
 
     @Transactional
     public AuthResponse refresh(String refreshTokenStr) {
-        User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
-        refreshTokenService.deleteByUser(user);
+        RefreshTokenService.RotateResult rotateResult = refreshTokenService.rotate(refreshTokenStr);
+        User user = rotateResult.entity().getUser();
 
         TenantContext.setTenantId(user.getTenantId());
         try {
             String token = jwtUtil.generateToken(user.getUsername(), user.getRole(), user.getTenantId());
-            RefreshTokenService.RefreshTokenResult refreshResult = refreshTokenService.generateRefreshToken(user);
-            return new AuthResponse(token, refreshResult.rawToken(), user.getUsername(), user.getRole());
+            return new AuthResponse(token, rotateResult.rawToken(), user.getUsername(), user.getRole());
         } finally {
             TenantContext.clear();
         }
@@ -126,8 +124,7 @@ public class AuthService {
 
     public void logout(String refreshTokenStr) {
         try {
-            User user = refreshTokenService.validateRefreshToken(refreshTokenStr);
-            refreshTokenService.deleteByUser(user);
+            refreshTokenService.logout(refreshTokenStr);
         } catch (RefreshTokenException e) {
             // If token is invalid/expired, still succeed — nothing to invalidate
         }

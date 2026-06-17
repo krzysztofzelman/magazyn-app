@@ -44,6 +44,11 @@ public class RefreshToken extends TenantAware {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    /** Whether this token has already been consumed by a rotation. */
+    @Column(name = "used", nullable = false)
+    @Builder.Default
+    private boolean used = false;
+
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(expiresAt);
     }
