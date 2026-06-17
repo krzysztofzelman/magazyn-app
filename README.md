@@ -1,7 +1,7 @@
 # Magazyn — Wielodzierżawczy System Zarządzania Magazynem (SaaS)
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk)](https://adoptium.net/)
+[![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://adoptium.net/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -18,7 +18,7 @@ Backend REST API + frontend React SPA do kompleksowego zarządzania magazynem. S
 
 **Swagger UI:** [`https://magazyn.kzelman.pl/swagger-ui/index.html`](https://magazyn.kzelman.pl/swagger-ui/index.html) (wymaga roli ADMIN)
 
-**Ostatni audyt i deploy:** 2026-06-15 — gruntowna naprawa izolacji wielodzierżawczej: zastąpiono `TenantSessionFilter` (działał przed otwarciem sesji Hibernate) interceptorem `HandlerInterceptor` z `@PersistenceContext`, dodano jawny parametr `tenantId` do wszystkich metod `@Query` w repozytoriach (15 repozytoriów), zaktualizowano 18 serwisów do przekazywania `TenantContext.getTenantId()`, naprawiono `@Scheduled releaseExpired()` aby iterował wszystkich aktywnych najemców, obniżono Java 25 → 17 (zgodność z Docker `eclipse-temurin:17`), zmieniono `flyway.baseline-version=1` → 0 (automatyczne zastosowanie migracji V13). Szczegóły w [`AUDIT.md`](./AUDIT.md).
+**Ostatni audyt i deploy:** 2026-06-17 — pełna naprawa izolacji wielodzierżawczej, aktualizacja do **Java 25 LTS**, rotacja refresh tokenów, bezpieczeństwo JWT w pamięci. Szczegóły w [`CHANGELOG.md`](./CHANGELOG.md) i [`AUDIT.md`](./AUDIT.md).
 
 ---
 

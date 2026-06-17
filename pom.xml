@@ -27,8 +27,10 @@
 		<url/>
 	</scm>
 	<properties>
-		<java.version>17</java.version>
-		<maven.compiler.release>17</maven.compiler.release>
+		<java.version>25</java.version>
+		<maven.compiler.release>25</maven.compiler.release>
+		<maven.compiler.source>25</maven.compiler.source>
+		<maven.compiler.target>25</maven.compiler.target>
 	</properties>
 
 	<dependencyManagement>
@@ -241,5 +243,20 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>docker-build</id>
+			<properties>
+				<skipTests>true</skipTests>
+			</properties>
+		</profile>
+		<profile>
+			<id>ci</id>
+			<properties>
+				<test.groups>unit</test.groups>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>
