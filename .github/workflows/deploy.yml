@@ -1,19 +1,22 @@
-name: Deploy to VPS
+name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: magazyn_test
           POSTGRES_USER: magazyn
-          POSTGRES_PASSWORD: magazyn_test
+          POSTGRES_PASSWORD: magazyn
+          POSTGRES_DB: magazyn_db
         ports:
           - 5432:5432
         options: >-
@@ -21,55 +24,60 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'temurin'
-          cache: maven
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
 
-      - name: Run tests
-        run: mvn test
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/magazyn_test
-          SPRING_DATASOURCE_USERNAME: magazyn
-          SPRING_DATASOURCE_PASSWORD: magazyn_test
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Run tests
+      run: ./mvnw test
+      env:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/magazyn_db
+        SPRING_DATASOURCE_USERNAME: magazyn
+        SPRING_DATASOURCE_PASSWORD: magazyn
+
+    - name: Build with Maven
+      run: ./mvnw package -DskipTests
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: REMOVED
-          username: root
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: 2022
-          script: |
-            cd /root/magazyn-app
+    - uses: actions/checkout@v4
 
-            # Ensure git is initialized
-            if [ ! -d .git ]; then
-              echo "Initializing git repository..."
-              git init
-              git remote add origin https://github.com/krzysztofzelman/magazyn-app.git
-              git fetch origin main
-            fi
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: REMOVED
+        username: root
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: 2022
+        script: |
+          cd /root/magazyn-app
 
-            # Fetch latest code (uses stored credentials or deploy key)
-            git stash --include-untracked 2>/dev/null || true
-            git pull origin main || echo "WARNING: git pull failed, using local sources"
+          # Pull latest code
+          git pull origin main || { echo "git pull failed"; exit 1; }
 
-            # Create backups before deploy
-            mkdir -p backups
-            docker compose exec postgres pg_dump -U "${DB_USERNAME:-magazyn}" magazyn_db > backups/pre-deploy.sql 2>/dev/null || echo "pre-deploy backup skipped (first deploy?)"
+          # Backup database
+          mkdir -p backups
+          docker compose exec -T postgres pg_dump -U "${DB_USERNAME:-magazyn}" magazyn_db > backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || echo "backup skipped"
 
-            # Rebuild and restart
-            docker compose down
-            docker compose up -d --build
-            docker image prune -f
+          # Rebuild and restart
+          docker compose down
+          docker compose up -d --build
+          docker image prune -f
