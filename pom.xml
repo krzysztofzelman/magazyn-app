@@ -130,6 +130,12 @@
 			<version>8.19.0</version>
 		</dependency>
 
+		<!-- Caffeine cache (for bounded, evictable in-memory caches) -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 		<!-- Excel export -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>

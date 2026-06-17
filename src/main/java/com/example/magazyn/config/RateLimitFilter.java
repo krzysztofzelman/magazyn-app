@@ -1,5 +1,7 @@
 package com.example.magazyn.config;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
@@ -12,12 +14,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    // Bounded Caffeine cache: max 10k entries, evict after 1h of inactivity
+    private final Cache<String, Bucket> buckets = Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterAccess(Duration.ofHours(1))
+            .build();
 
     // Per-endpoint rate limit configuration: {method:path:rps/burst}
     // Login: 20 requests per minute per IP
@@ -47,7 +51,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // to prevent IP spoofing via the client-controlled first address.
         String clientIp = resolveClientIp(request);
         String bucketKey = matched.path + ":" + clientIp;
-        Bucket bucket = buckets.computeIfAbsent(bucketKey, k -> createBucket(matched.limit, matched.duration));
+        Bucket bucket = buckets.get(bucketKey, k -> createBucket(matched.limit, matched.duration));
 
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
