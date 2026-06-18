@@ -92,7 +92,7 @@ else
 fi
 
 # Check Prometheus
-PROM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9090/-/healthy 2>/dev/null || echo "000")
+PROM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9091/-/healthy 2>/dev/null || echo "000")
 if [ "$PROM_CHECK" = "200" ]; then
     log_info "✅ Prometheus is healthy"
 else
@@ -105,7 +105,7 @@ log_info "  Deployment completed!"
 log_info ""
 log_info "  Application: https://magazyn.kzelman.pl"
 log_info "  Grafana:     http://localhost:3000"
-log_info "  Prometheus:  http://localhost:9090"
+log_info "  Prometheus:  http://localhost:9091"
 log_info ""
 log_info "  Run 'docker compose -f docker-compose.prod.yml logs -f' to watch logs"
 log_info "═══════════════════════════════════════════"
