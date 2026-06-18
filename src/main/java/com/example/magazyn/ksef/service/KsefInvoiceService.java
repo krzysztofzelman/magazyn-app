@@ -44,7 +44,6 @@ import java.util.Optional;
  * - Retry with exponential backoff
  */
 @Service
-@Transactional
 public class KsefInvoiceService {
 
     private static final Logger log = LoggerFactory.getLogger(KsefInvoiceService.class);
@@ -86,6 +85,7 @@ public class KsefInvoiceService {
      * Send an internal invoice to KSeF.
      * Validates the invoice, converts to KSeF format, and sends via API.
      */
+    @Transactional
     public KSeFSendInvoiceResponse sendInvoice(Long invoiceId, String username) {
         Long tenantId = TenantContext.getTenantId();
 
@@ -291,6 +291,7 @@ public class KsefInvoiceService {
     /**
      * Get the status of a KSeF invoice.
      */
+    @Transactional
     public KSeFStatusResponse getInvoiceStatus(Long ksefInvoiceId) {
         Long tenantId = TenantContext.getTenantId();
         KsefInvoice ksefInvoice = ksefInvoiceRepository.findByIdAndTenantId(ksefInvoiceId, tenantId)
