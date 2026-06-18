@@ -66,29 +66,75 @@ fi
 log_info "Deploying containers..."
 cd "$PROJECT_DIR"
 
+# Check if pre-built image was loaded from CI
+PREBUILT_LOADED=$(docker images magazyn-app:latest --format "{{.Repository}}" 2>/dev/null | head -1)
+
+if [ -n "$PREBUILT_LOADED" ]; then
+    log_info "Using pre-built image from CI (magazyn-app:latest)"
+    # Tag for docker-compose compatibility
+    docker tag magazyn-app:latest magazyn-app-app:latest 2>/dev/null || true
+else
+    log_info "No pre-built image found — building locally with Docker Compose"
+fi
+
 # Stop existing containers
 docker compose -f docker-compose.prod.yml down --remove-orphans 2>/dev/null || true
 
-# Build and start
-docker compose -f docker-compose.prod.yml up -d --build
+# Build (if needed) and start
+if [ -z "$PREBUILT_LOADED" ]; then
+    docker compose -f docker-compose.prod.yml up -d --build
+else
+    docker compose -f docker-compose.prod.yml up -d
+fi
 
-# ─── Step 6: Verify deployment ───
+# ─── Step 6: Verify deployment with retry ───
 log_info "Verifying deployment..."
-sleep 10
 
-# Check all containers are running
-log_info "Container status:"
-docker compose -f docker-compose.prod.yml ps
+# Wait for app to become healthy (up to 3 minutes)
+MAX_WAIT=180
+SLEEP_INTERVAL=10
+ELAPSED=0
 
-# Check backend health
-log_info "Checking backend health..."
+while [ $ELAPSED -lt $MAX_WAIT ]; do
+    # Check Docker health status
+    HEALTH=$(docker inspect magazyn-app --format='{{.State.Health.Status}}' 2>/dev/null || echo "created")
+    
+    case "$HEALTH" in
+        healthy)
+            log_info "✅ Container is healthy!"
+            break
+            ;;
+        unhealthy)
+            log_error "❌ Container is unhealthy!"
+            log_info "Checking logs..."
+            docker compose -f docker-compose.prod.yml logs --tail=50 app
+            exit 1
+            ;;
+        *)
+            log_info "  [${ELAPSED}s] Status: $HEALTH — waiting..."
+            ;;
+    esac
+    
+    sleep $SLEEP_INTERVAL
+    ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
+done
+
+if [ $ELAPSED -ge $MAX_WAIT ]; then
+    log_error "❌ Timed out waiting for healthy status after ${MAX_WAIT}s"
+    log_info "Container logs:"
+    docker compose -f docker-compose.prod.yml logs --tail=50 app
+    exit 1
+fi
+
+# Verify HTTP health endpoint
+log_info "Checking backend health endpoint..."
 HEALTH_CHECK=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health 2>/dev/null || echo "000")
 if [ "$HEALTH_CHECK" = "200" ]; then
     log_info "✅ Backend is healthy (HTTP 200)"
 else
     log_error "❌ Backend health check failed (HTTP $HEALTH_CHECK)"
-    log_info "Checking logs..."
     docker compose -f docker-compose.prod.yml logs --tail=50 app
+    exit 1
 fi
 
 # Check Prometheus

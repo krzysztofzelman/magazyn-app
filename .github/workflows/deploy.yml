@@ -5,8 +5,22 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+# ============================================================
+# Skip duplicate runs on the same branch
+# ============================================================
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY_IMAGE: magazyn-app
 
 jobs:
+  # ──────────────────────────────────────────────────────────
+  # Job 1: Test
+  # ──────────────────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
 
@@ -52,7 +66,10 @@ jobs:
     - name: Build with Maven
       run: ./mvnw package -DskipTests
 
-  deploy:
+  # ──────────────────────────────────────────────────────────
+  # Job 2: Build Docker image, test healthcheck, deploy
+  # ──────────────────────────────────────────────────────────
+  build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
@@ -60,24 +77,169 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Deploy to VPS via SSH
+    # ── Setup Docker Buildx ──
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # ── Build Docker image with caching ──
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: false
+        load: true
+        tags: ${{ env.REGISTRY_IMAGE }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    # ── Test healthcheck in CI ──
+    - name: Test container health
+      run: |
+        set -e
+        echo "=== Starting container for healthcheck test ==="
+        docker run -d \
+          --name test-app \
+          -p 8080:8080 \
+          -e DB_URL=jdbc:postgresql://postgres:5432/magazyn_db \
+          -e DB_USERNAME=magazyn \
+          -e DB_PASSWORD=magazyn \
+          -e JWT_SECRET=test-jwt-secret-for-ci \
+          -e JWT_EXPIRATION=900000 \
+          ${{ env.REGISTRY_IMAGE }}:latest
+
+        echo "=== Waiting for app to start (up to 3 min) ==="
+        MAX_WAIT=180
+        SLEEP_INTERVAL=10
+        ELAPSED=0
+
+        while [ $ELAPSED -lt $MAX_WAIT ]; do
+          HEALTH=$(docker inspect test-app --format='{{.State.Health.Status}}' 2>/dev/null || echo "created")
+          echo "  [${ELAPSED}s] Health status: $HEALTH"
+
+          if [ "$HEALTH" = "healthy" ]; then
+            echo "✅ Container is healthy!"
+            curl -sf http://localhost:8080/actuator/health && echo ""
+            echo "✅ Health endpoint responds!"
+            break
+          fi
+
+          if [ "$HEALTH" = "unhealthy" ]; then
+            echo "❌ Container is unhealthy!"
+            docker logs test-app --tail 50
+            exit 1
+          fi
+
+          sleep $SLEEP_INTERVAL
+          ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
+        done
+
+        if [ $ELAPSED -ge $MAX_WAIT ]; then
+          echo "❌ Timed out waiting for healthy status"
+          docker logs test-app --tail 50
+          exit 1
+        fi
+
+        # Verify prometheus metrics too
+        echo "=== Verifying Prometheus metrics ==="
+        METRICS=$(curl -sf http://localhost:8080/actuator/prometheus 2>/dev/null | wc -l || echo "0")
+        echo "  Prometheus metrics lines: $METRICS"
+
+        echo "=== Cleaning up test container ==="
+        docker stop test-app
+        docker rm test-app
+
+    # ── Save image for transfer ──
+    - name: Save Docker image
+      run: |
+        docker save ${{ env.REGISTRY_IMAGE }}:latest | gzip > magazyn-app.tar.gz
+        ls -lh magazyn-app.tar.gz
+
+    # ── Deploy to VPS ──
+    - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: REMOVED
-        username: root
+        host: ${{ secrets.VPS_HOST || 'REMOVED' }}
+        username: ${{ secrets.VPS_USER || 'root' }}
         key: ${{ secrets.VPS_SSH_KEY }}
-        port: 2022
+        port: ${{ secrets.VPS_PORT || '2022' }}
         script: |
+          set -e
           cd /root/magazyn-app
 
-          # Pull latest code
-          git pull origin main || { echo "git pull failed"; exit 1; }
+          # Pull latest code (for docker-compose.prod.yml and config files)
+          git pull origin main
 
           # Backup database
           mkdir -p backups
-          docker compose exec -T postgres pg_dump -U "${DB_USERNAME:-magazyn}" magazyn_db > backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || echo "backup skipped"
+          docker compose exec -T postgres pg_dump -U "${DB_USERNAME:-magazyn}" magazyn_db \
+            > backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || echo "backup skipped"
 
-          # Rebuild and restart
-          docker compose down
-          docker compose up -d --build
+          # Stop and clean
+          docker compose down --remove-orphans 2>/dev/null || true
+
+          # Load new image (will be uploaded via scp first)
+          # Note: image is loaded in the scp-deploy step below
+          echo "Ready for deployment"
+
+    # ── Transfer image to VPS ──
+    - name: Upload Docker image to VPS
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.VPS_HOST || 'REMOVED' }}
+        username: ${{ secrets.VPS_USER || 'root' }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: ${{ secrets.VPS_PORT || '2022' }}
+        source: "magazyn-app.tar.gz"
+        target: "/root/magazyn-app/"
+
+    # ── Load image and restart on VPS ──
+    - name: Load image and restart containers
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST || 'REMOVED' }}
+        username: ${{ secrets.VPS_USER || 'root' }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        port: ${{ secrets.VPS_PORT || '2022' }}
+        script: |
+          set -e
+          cd /root/magazyn-app
+
+          # Load new image
+          docker load < magazyn-app.tar.gz
+          rm -f magazyn-app.tar.gz
+
+          # Tag correctly for docker-compose
+          docker tag magazyn-app:latest magazyn-app-app:latest 2>/dev/null || true
+
+          # Start containers
+          docker compose -f docker-compose.prod.yml up -d
+
+          # Wait for healthcheck
+          echo "Waiting for app to become healthy..."
+          for i in $(seq 1 18); do
+            HEALTH=$(docker inspect magazyn-app --format='{{.State.Health.Status}}' 2>/dev/null || echo "created")
+            echo "  Attempt $i: $HEALTH"
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "✅ App is healthy!"
+              break
+            fi
+            if [ "$HEALTH" = "unhealthy" ]; then
+              echo "❌ App is unhealthy!"
+              docker compose -f docker-compose.prod.yml logs --tail=50 app
+              exit 1
+            fi
+            sleep 10
+          done
+
+          # Verify endpoint
+          echo "=== Verifying endpoint ==="
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health)
+          echo "  Health endpoint: HTTP $STATUS"
+
+          # Clean up old images
           docker image prune -f
+
+          # Show final status
+          echo "=== Container status ==="
+          docker compose -f docker-compose.prod.yml ps

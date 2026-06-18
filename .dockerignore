@@ -1,11 +1,49 @@
+# Git
 .git
 .gitignore
-.env
-.env.example
-*.md
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
 target/
+*.class
+*.jar
+!target/*.jar
+*.war
+
+# Maven wrapper
 .mvn/
 mvnw
 mvnw.cmd
-magazyn/
-.qwen/
+
+# Config
+.env
+.env.example
+.env.*
+
+# Docs
+*.md
+README*
+LICENSE
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI
+.github/
+.gitlab/
+.azure/
+
+# Node / frontend (not needed in backend image)
+node_modules/

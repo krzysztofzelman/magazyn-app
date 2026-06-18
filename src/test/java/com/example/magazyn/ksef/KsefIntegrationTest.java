@@ -10,12 +10,13 @@ import com.example.magazyn.ksef.service.KsefInvoiceService;
 import com.example.magazyn.ksef.service.KsefValidationService;
 import com.example.magazyn.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -23,11 +24,12 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -37,28 +39,34 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Integration tests for KSeF module with mocked service layer.
  * Tests controller endpoints, exception handling, and validation.
+ *
+ * <p>Uses manual MockMvc setup and {@link TestConfiguration} with mock beans
+ * instead of {@code @AutoConfigureMockMvc} / {@code @MockBean}, which were
+ * removed from Spring Boot 4.0.x.</p>
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@Import(KsefIntegrationTest.MockServiceConfig.class)
 @ActiveProfiles("test")
 class KsefIntegrationTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private WebApplicationContext context;
 
-    @MockBean
+    @Autowired
     private KsefInvoiceService ksefInvoiceService;
 
-    @MockBean
+    @Autowired
     private KsefAuthService ksefAuthService;
 
     @Autowired
     private JwtUtil jwtUtil;
 
+    private MockMvc mockMvc;
     private String adminToken;
 
     @BeforeEach
     void setUp() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).build();
         adminToken = jwtUtil.generateToken("admin", "ROLE_ADMIN", 1L);
     }
 
@@ -303,21 +311,12 @@ class KsefIntegrationTest {
         KsefValidationService validationService = new KsefValidationService();
 
         KSeFInvoiceRequest invalidRequest = new KSeFInvoiceRequest(
-                "", // blank invoice number
-                null, // no issue date
-                null, // no sale date
-                null, // no due date
-                BigDecimal.ZERO, // net = 0
-                BigDecimal.ZERO, // vat = 0
-                BigDecimal.ZERO, // gross = 0
-                "USD", // not PLN
-                "123", // invalid NIP
                 "",
-                "",
-                null, // no seller NIP
                 null, null, null,
-                null, null,
-                List.of(), // no items
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                "USD", "123", "", "",
+                null, null, null, null, null,
+                List.<KSeFInvoiceItemRequest>of(),
                 null);
 
         List<String> errors = validationService.validate(invalidRequest);
@@ -356,5 +355,25 @@ class KsefIntegrationTest {
 
         List<String> errors = validationService.validate(validRequest);
         assert errors.isEmpty() : "Expected no validation errors, got: " + errors;
+    }
+
+    // ──────────────────────────────────────────────
+    // Test configuration: mock service beans
+    // ──────────────────────────────────────────────
+
+    @TestConfiguration
+    static class MockServiceConfig {
+
+        @Bean
+        @Primary
+        KsefInvoiceService ksefInvoiceService() {
+            return mock(KsefInvoiceService.class);
+        }
+
+        @Bean
+        @Primary
+        KsefAuthService ksefAuthService() {
+            return mock(KsefAuthService.class);
+        }
     }
 }
