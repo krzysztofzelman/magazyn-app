@@ -121,6 +121,8 @@ jobs:
           -e DB_PASSWORD=magazyn \
           -e JWT_SECRET=test-jwt-secret-for-ci-at-least-32-chars \
           -e JWT_EXPIRATION=900000 \
+          -e MAIL_HOST= \
+          -e MANAGEMENT_HEALTH_MAIL_ENABLED=false \
           ${{ env.REGISTRY_IMAGE }}:latest
 
         echo "=== Container diagnostics ==="
