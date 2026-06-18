@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Validates invoice data before sending to KSeF API.
@@ -19,13 +21,8 @@ import java.util.List;
 public class KsefValidationService {
 
     private static final Logger log = LoggerFactory.getLogger(KsefValidationService.class);
-    private static final List<BigDecimal> VALID_VAT_RATES = List.of(
-            new BigDecimal("0"),
-            new BigDecimal("5"),
-            new BigDecimal("8"),
-            new BigDecimal("23"),
-            new BigDecimal("ZW"),
-            new BigDecimal("OO")
+    private static final Set<String> VALID_VAT_RATES = Set.of(
+            "0", "5", "8", "23", "ZW", "OO"
     );
 
     /**
@@ -124,6 +121,12 @@ public class KsefValidationService {
         // VAT rate validation
         if (item.vatRate() == null) {
             errors.add(prefix + "stawka VAT jest wymagana");
+        } else {
+            String rateStr = item.vatRate().stripTrailingZeros().toPlainString();
+            if (!VALID_VAT_RATES.contains(rateStr)) {
+                errors.add(prefix + "nieprawidłowa stawka VAT: " + rateStr
+                        + " (dozwolone: 0, 5, 8, 23, ZW, OO)");
+            }
         }
 
         return errors;
