@@ -9,10 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
-@Profile("dev")
 @Component
 public class DatabaseInitializer implements CommandLineRunner {
 
@@ -43,8 +41,9 @@ public class DatabaseInitializer implements CommandLineRunner {
         // Set tenant context so TenantAware @PrePersist picks it up
         TenantContext.setTenantId(defaultTenant.getId());
         try {
-            log.warn("Creating default USERS WITH KNOWN PASSWORDS (dev profile only) under tenant '{}'", defaultTenant.getName());
+            log.warn("Creating default users under tenant '{}'", defaultTenant.getName());
             log.warn("DEFAULT PASSWORDS: admin=REMOVED, manager=manager123, warehouse=warehouse123, viewer=viewer123");
+            log.warn("CHANGE DEFAULT PASSWORDS AFTER FIRST LOGIN for production use");
 
             userRepository.save(User.builder()
                     .username("admin")
