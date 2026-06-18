@@ -119,7 +119,7 @@ jobs:
           -e DB_URL=jdbc:postgresql://localhost:5432/magazyn_db \
           -e DB_USERNAME=magazyn \
           -e DB_PASSWORD=magazyn \
-          -e JWT_SECRET=test-jwt-secret-for-ci \
+          -e JWT_SECRET=test-jwt-secret-for-ci-at-least-32-chars \
           -e JWT_EXPIRATION=900000 \
           ${{ env.REGISTRY_IMAGE }}:latest
 
