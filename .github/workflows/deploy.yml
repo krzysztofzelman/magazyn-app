@@ -123,6 +123,12 @@ jobs:
           -e JWT_EXPIRATION=900000 \
           ${{ env.REGISTRY_IMAGE }}:latest
 
+        echo "=== Container diagnostics ==="
+        docker inspect test-app --format='NetworkMode={{.HostConfig.NetworkMode}} State={{.State.Status}} Ports={{range $p, $conf := .NetworkSettings.Ports}}{{$p}} {{end}}'
+        echo "=== Testing DB connectivity from container ==="
+        docker exec test-app bash -c 'apt-get update -qq && apt-get install -y -qq netcat-openbsd 2>/dev/null; nc -zv localhost 5432 2>&1 || echo "nc failed, trying curl..."; curl -sf http://localhost:5432 2>&1 || echo "curl also failed"'
+        echo "=== End container diagnostics ==="
+
         echo "=== Waiting for app to start (up to 3 min) ==="
         MAX_WAIT=180
         SLEEP_INTERVAL=10
@@ -141,7 +147,9 @@ jobs:
 
           if [ "$HEALTH" = "unhealthy" ]; then
             echo "❌ Container is unhealthy!"
-            docker logs test-app --tail 50
+            echo "=== START FULL APP LOGS ==="
+            docker logs test-app 2>&1
+            echo "=== END FULL APP LOGS ==="
             exit 1
           fi
 
@@ -151,7 +159,9 @@ jobs:
 
         if [ $ELAPSED -ge $MAX_WAIT ]; then
           echo "❌ Timed out waiting for healthy status"
-          docker logs test-app --tail 50
+          echo "=== START FULL APP LOGS ==="
+          docker logs test-app 2>&1
+          echo "=== END FULL APP LOGS ==="
           exit 1
         fi
 
