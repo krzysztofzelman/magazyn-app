@@ -46,9 +46,8 @@ log_info "Pulling latest code from GitHub..."
 git pull origin main
 
 # ─── Step 3: Build backend ───
-log_info "Building backend..."
-cd "$PROJECT_DIR"
-./mvnw clean package -DskipTests -q
+log_info "Backend build handled by Docker multi-stage build (Dockerfile)"
+log_info "Skipping local Maven build — Docker will use maven:3.9-eclipse-temurin-25"
 
 # ─── Step 4: Build frontend ───
 log_info "Building frontend..."
