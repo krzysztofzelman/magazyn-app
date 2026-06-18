@@ -16,7 +16,6 @@ public class KsefConfig {
 
     private String apiKey;
 
-    @NotBlank
     private String nip;
 
     @Positive

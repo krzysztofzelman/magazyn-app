@@ -114,13 +114,19 @@ public class KsefAuthService {
                     ? json.get("referenceNumber").asText() : null;
             LocalDateTime expiresAt = LocalDateTime.now().plus(SESSION_TTL);
 
+            String nip = config.getNip();
+            if (nip == null || nip.isBlank()) {
+                throw new KsefAuthenticationException(
+                        "KSeF not configured: COMPANY_NIP must be set in environment");
+            }
+
             KsefSession session = KsefSession.builder()
                     .sessionToken(sessionToken)
                     .referenceNumber(referenceNumber)
                     .initiatedBy(username)
                     .expiresAt(expiresAt)
                     .isActive(true)
-                    .nip(config.getNip())
+                    .nip(nip)
                     .build();
 
             session = sessionRepository.save(session);
