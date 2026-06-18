@@ -44,5 +44,10 @@ public record InvoiceResponse(
     LocalDateTime paidAt,
     LocalDateTime cancelledAt,
 
+    // KSeF fields
+    String ksefStatus,
+    String ksefReferenceNumber,
+    LocalDateTime ksefSentAt,
+
     List<InvoiceItemResponse> items
 ) {}

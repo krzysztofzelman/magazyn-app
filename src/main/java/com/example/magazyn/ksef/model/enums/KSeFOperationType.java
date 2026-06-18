@@ -1,0 +1,19 @@
+package com.example.magazyn.ksef.model.enums;
+
+public enum KSeFOperationType {
+    SESSION_INIT,
+    SESSION_REFRESH,
+    SESSION_CLOSE,
+    INVOICE_SEND,
+    INVOICE_STATUS,
+    INVOICE_GET,
+    INVOICE_CORRECT,
+    INVOICE_CANCEL,
+    API_ERROR,
+    VALIDATION_ERROR,
+    RETRY_SUCCESS,
+    RETRY_FAILURE,
+    RATE_LIMIT_HIT,
+    AUTH_ERROR,
+    CONFIG_CHANGE
+}

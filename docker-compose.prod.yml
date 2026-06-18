@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # ───── Database ─────
+  postgres:
+    image: postgres:16
+    container_name: magazyn-postgres
+    environment:
+      POSTGRES_DB: magazyn_db
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - magazyn-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d magazyn_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───── Backend ─────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: magazyn-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    mem_limit: 512m
+    mem_reservation: 256m
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/magazyn_db
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-900000}
+      KSEF_API_KEY: ${KSEF_API_KEY}
+      KSEF_API_URL: ${KSEF_API_URL:-https://ksef-test.mf.gov.pl/api/v1}
+      COMPANY_NIP: ${COMPANY_NIP}
+      KSEF_ENCRYPTION_KEY: ${KSEF_ENCRYPTION_KEY}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MANAGEMENT_HEALTH_MAIL_ENABLED: false
+      NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ASSISTANT_MODEL: ${ASSISTANT_MODEL:-deepseek-chat}
+      ASSISTANT_API_URL: ${ASSISTANT_API_URL:-https://api.deepseek.com}
+    networks:
+      - magazyn-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───── Frontend ─────
+  frontend:
+    image: nginx:alpine
+    container_name: magazyn-frontend
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../magazyn-frontend/dist:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - magazyn-net
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───── Monitoring: Prometheus ─────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: magazyn-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - magazyn-net
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───── Monitoring: Grafana ─────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: magazyn-grafana
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - magazyn-net
+    depends_on:
+      - prometheus
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ───── Database backups ─────
+  backup:
+    image: postgres:16
+    container_name: magazyn-backup
+    environment:
+      PGUSER: ${DB_USERNAME}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGHOST: postgres
+    volumes:
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh
+      - ./backups:/backups
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        chmod +x /usr/local/bin/backup.sh
+        while true; do
+          /usr/local/bin/backup.sh
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - magazyn-net
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pgdata:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  magazyn-net:
+    driver: bridge

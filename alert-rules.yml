@@ -1,0 +1,69 @@
+groups:
+  - name: ksef_alerts
+    interval: 30s
+    rules:
+      - alert: KSeFHighErrorRate
+        expr: rate(ksef_errors_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Wysoki wskaźnik błędów KSeF"
+          description: "Wskaźnik błędów KSeF przekroczył 5 na minutę w ciągu ostatnich 5 minut (aktualna wartość: {{ $value }})"
+
+      - alert: KSeFNoActiveSession
+        expr: ksef_active_sessions == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Brak aktywnej sesji KSeF"
+          description: "Nie ma aktywnej sesji KSeF od ponad 5 minut — wysyłka faktur może być niemożliwa"
+
+      - alert: KSeFHighResponseTime
+        expr: histogram_quantile(0.95, rate(ksef_request_duration_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Wysoki czas odpowiedzi KSeF"
+          description: "95. percentyl czasu odpowiedzi KSeF przekroczył 2 sekundy (aktualna wartość: {{ $value }}s)"
+
+      - alert: KSeFRetryRateHigh
+        expr: rate(ksef_retries_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Wysoki wskaźnik retransmisji KSeF"
+          description: "Ponad 10 retransmisji KSeF na minutę w ciągu ostatnich 5 minut"
+
+      - alert: KSeFInvoiceFailureRate
+        expr: rate(ksef_invoices_sent_total[5m]) > 0 and rate(ksef_errors_total[5m]) / rate(ksef_invoices_sent_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Wysoki wskaźnik niepowodzeń wysyłki faktur KSeF"
+          description: "Ponad 50% wysyłek faktur do KSeF kończy się błędem"
+
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      - alert: AppDown
+        expr: up{job="magazyn-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Aplikacja magazyn-app jest niedostępna"
+          description: "Instancja {{ $labels.instance }} jest niedostępna od ponad 1 minuty"
+
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_used_bytes / jvm_memory_max_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Wysokie użycie pamięci JVM"
+          description: "Użycie pamięci JVM przekroczyło 85% (aktualna wartość: {{ $value }}%)"

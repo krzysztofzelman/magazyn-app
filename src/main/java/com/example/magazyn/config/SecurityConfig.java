@@ -72,7 +72,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/tenants/register").permitAll()
                 .requestMatchers("/api/auth/logout").authenticated()
                 .requestMatchers("/api/auth/register").hasRole("ADMIN")
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus", "/actuator/metrics").permitAll()
                 .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/swagger-ui/**", "/api-docs/**").hasRole("ADMIN")
 
@@ -122,6 +122,11 @@ public class SecurityConfig {
 
                 // AI Assistant — all authenticated users
                 .requestMatchers("/api/assistant/**").authenticated()
+
+                // KSeF — ADMIN and MANAGER (sending invoices)
+                .requestMatchers("/api/ksef/invoices/send/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/ksef/invoices/**").authenticated()
+                .requestMatchers("/api/ksef/admin/**").hasRole("ADMIN")
 
                 .requestMatchers("/", "/index.html", "/favicon.svg", "/icons.svg", "/assets/**").permitAll()
                 .anyRequest().authenticated()

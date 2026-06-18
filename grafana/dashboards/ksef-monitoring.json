@@ -1,0 +1,134 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "KSeF Monitoring",
+  "version": 1,
+  "uid": "ksef-monitoring-001",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "tags": ["ksef", "magazyn"],
+  "panels": [
+    {
+      "title": "Invoices Sent / min",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(ksef_invoices_sent_total[1m])",
+          "legendFormat": "Wysłane/min",
+          "refId": "A"
+        }
+      ],
+      "description": "Liczba faktur wysyłanych do KSeF na minutę"
+    },
+    {
+      "title": "KSeF Error Rate",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(ksef_errors_total[5m])",
+          "legendFormat": "Błędy/min",
+          "refId": "A"
+        }
+      ],
+      "description": "Wskaźnik błędów KSeF na minutę (średnia 5-minutowa)"
+    },
+    {
+      "title": "KSeF Response Time (p95)",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(ksef_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(ksef_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50",
+          "refId": "B"
+        }
+      ],
+      "description": "95. i 50. percentyl czasu odpowiedzi KSeF API"
+    },
+    {
+      "title": "Active KSeF Sessions",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "ksef_active_sessions",
+          "legendFormat": "Aktywne sesje",
+          "refId": "A"
+        }
+      ],
+      "description": "Liczba aktywnych sesji KSeF",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        }
+      }
+    },
+    {
+      "title": "KSeF Retry Rate",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(ksef_retries_total[5m])",
+          "legendFormat": "Retransmisje/min",
+          "refId": "A"
+        }
+      ],
+      "description": "Wskaźnik retransmisji KSeF na minutę"
+    },
+    {
+      "title": "Session Init/Refresh Rate",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(ksef_session_initiated_total[5m])",
+          "legendFormat": "Inicjacje",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(ksef_session_refreshed_total[5m])",
+          "legendFormat": "Odświeżenia",
+          "refId": "B"
+        }
+      ],
+      "description": "Wskaźnik inicjacji i odświeżeń sesji KSeF"
+    },
+    {
+      "title": "JVM Memory Usage",
+      "type": "graph",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{area=\"heap\"} / 1048576",
+          "legendFormat": "Heap użyte (MB)",
+          "refId": "A"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{area=\"heap\"} / 1048576",
+          "legendFormat": "Heap max (MB)",
+          "refId": "B"
+        }
+      ],
+      "description": "Użycie pamięci JVM"
+    }
+  ],
+  "refresh": "30s"
+}

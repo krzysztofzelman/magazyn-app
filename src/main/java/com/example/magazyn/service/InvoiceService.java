@@ -834,6 +834,7 @@ public class InvoiceService {
                 invoice.getTotalNet(), invoice.getTotalVat(), invoice.getTotalGross(),
                 invoice.getNotes(), invoice.getCreatedBy(),
                 invoice.getCreatedAt(), invoice.getPaidAt(), invoice.getCancelledAt(),
+                invoice.getKsefStatus(), invoice.getKsefReferenceNumber(), invoice.getKsefSentAt(),
                 invoice.getItems().stream().map(this::toItemResponse).collect(Collectors.toList())
         );
     }

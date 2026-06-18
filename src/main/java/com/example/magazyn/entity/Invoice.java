@@ -110,6 +110,16 @@ public class Invoice extends TenantAware {
     @OrderBy("id ASC")
     private List<InvoiceItem> items = new ArrayList<>();
 
+    // KSeF fields
+    @Column(name = "ksef_status", length = 30)
+    private String ksefStatus;
+
+    @Column(name = "ksef_reference_number", length = 100)
+    private String ksefReferenceNumber;
+
+    @Column(name = "ksef_sent_at")
+    private LocalDateTime ksefSentAt;
+
     @Version
     private Integer version;
 }

@@ -1,6 +1,9 @@
 package com.example.magazyn.exception;
 
 import com.example.magazyn.auth.RefreshTokenException;
+import com.example.magazyn.ksef.exception.KsefAuthenticationException;
+import com.example.magazyn.ksef.exception.KsefCommunicationException;
+import com.example.magazyn.ksef.exception.KsefValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -165,6 +168,42 @@ public class GlobalExceptionHandler {
                 null
         );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    }
+
+    // ---- KSeF Exception Handlers ----
+
+    @ExceptionHandler(KsefValidationException.class)
+    public ResponseEntity<ErrorResponse> handleKsefValidation(KsefValidationException ex) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(KsefAuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleKsefAuth(KsefAuthenticationException ex) {
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    @ExceptionHandler(KsefCommunicationException.class)
+    public ResponseEntity<ErrorResponse> handleKsefCommunication(KsefCommunicationException ex) {
+        log.warn("KSeF API communication error (HTTP {}): {}", ex.getHttpStatus(), ex.getMessage());
+        ErrorResponse body = new ErrorResponse(
+                HttpStatus.BAD_GATEWAY.value(),
+                "B\u0142\u0105d komunikacji z KSeF: " + ex.getMessage(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
     }
 
     @ExceptionHandler(Exception.class)
