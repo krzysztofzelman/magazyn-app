@@ -380,7 +380,6 @@ public class KsefInvoiceService {
     /**
      * Get dashboard statistics.
      */
-    @Transactional(readOnly = true)
     public KSeFDashboardStats getDashboardStats() {
         Long tenantId = TenantContext.getTenantId();
         long total = ksefInvoiceRepository.countByTenantId(tenantId);
