@@ -33,7 +33,7 @@ public class KsefHealthIndicator implements HealthIndicator {
     public Health health() {
         // Check if KSeF is configured
         if (config.getNip() == null || config.getNip().isBlank()) {
-            return Health.down()
+            return Health.up()
                     .withDetail("ksefStatus", "NOT_CONFIGURED")
                     .withDetail("message", "KSeF nie jest skonfigurowany — brak NIP")
                     .build();
