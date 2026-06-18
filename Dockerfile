@@ -5,6 +5,7 @@ COPY src ./src
 RUN mvn clean package -Dmaven.test.skip=true
 
 FROM eclipse-temurin:25-jre
+RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
