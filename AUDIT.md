@@ -174,7 +174,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 ### B15. SeedService — hardcodowane dane demo
 
 - **Plik:** `service/SeedService.java`
-- **Problem:** `seedUsers()` tworzy użytkowników z hasłami: `REMOVED`, `manager123`, `warehouse123`, `viewer123`. Kod istnieje w repozytorium produkcyjnym.
+- **Problem:** `seedUsers()` tworzy użytkowników z hasłami: `admin123`, `manager123`, `warehouse123`, `viewer123`. Kod istnieje w repozytorium produkcyjnym.
 - **Skutek:** Ryzyko, że ktoś wywoła endpoint seed na produkcji lub że testowi użytkownicy zostaną w bazie.
 - **Naprawa:** Przenieść seed do `@Profile("dev")` lub skryptu CLI. Lub usunąć z kodu produkcyjnego.
 

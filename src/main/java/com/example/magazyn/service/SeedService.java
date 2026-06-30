@@ -74,7 +74,7 @@ public class SeedService {
         List<User> users = List.of(
                 User.builder()
                         .username("admin")
-                        .password(passwordEncoder.encode("REMOVED"))
+                        .password(passwordEncoder.encode("admin123"))
                         .role("ROLE_ADMIN")
                         .email("admin@magazyn.local")
                         .isActive(true)

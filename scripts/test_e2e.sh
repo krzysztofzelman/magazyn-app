@@ -1,10 +1,14 @@
 #!/bin/bash
 # End-to-end test: login + authenticated API call
+# Usage: TEST_USERNAME=admin TEST_PASSWORD=<haslo> ./scripts/test_e2e.sh
 set -e
+
+: "${TEST_USERNAME:?Must set TEST_USERNAME}"
+: "${TEST_PASSWORD:?Must set TEST_PASSWORD}"
 
 RESP=$(curl -sk -X POST 'https://magazyn.kzelman.pl/api/auth/login' \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"REMOVED"}' \
+  -d "{\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}" \
   --resolve magazyn.kzelman.pl:443:127.0.0.1)
 
 echo "Login response: $RESP" | head -c 100

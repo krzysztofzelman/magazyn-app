@@ -1,4 +1,10 @@
 #!/bin/bash
+# Login test script
+# Usage: TEST_USERNAME=admin TEST_PASSWORD=<haslo> ./scripts/test_login_details.sh
+
+: "${TEST_USERNAME:?Must set TEST_USERNAME}"
+: "${TEST_PASSWORD:?Must set TEST_PASSWORD}"
+
 echo "=== OPTIONS preflight ==="
 curl -sk -w '\nHTTP_CODE:%{http_code}' -X OPTIONS 'https://magazyn.kzelman.pl/api/auth/login' \
   -H 'Origin: https://magazyn.kzelman.pl' \
@@ -11,7 +17,7 @@ echo "=== POST with Origin + content-type (simulating browser) ==="
 curl -sk -w '\nHTTP_CODE:%{http_code}' -X POST 'https://magazyn.kzelman.pl/api/auth/login' \
   -H 'Origin: https://magazyn.kzelman.pl' \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"REMOVED"}' \
+  -d "{\"username\":\"$TEST_USERNAME\",\"password\":\"$TEST_PASSWORD\"}" \
   --resolve magazyn.kzelman.pl:443:127.0.0.1
 
 echo

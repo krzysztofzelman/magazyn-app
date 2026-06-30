@@ -42,12 +42,12 @@ public class DatabaseInitializer implements CommandLineRunner {
         TenantContext.setTenantId(defaultTenant.getId());
         try {
             log.warn("Creating default users under tenant '{}'", defaultTenant.getName());
-            log.warn("DEFAULT PASSWORDS: admin=REMOVED, manager=manager123, warehouse=warehouse123, viewer=viewer123");
+            log.warn("DEFAULT PASSWORDS: admin=admin123, manager=manager123, warehouse=warehouse123, viewer=viewer123");
             log.warn("CHANGE DEFAULT PASSWORDS AFTER FIRST LOGIN for production use");
 
             userRepository.save(User.builder()
                     .username("admin")
-                    .password(passwordEncoder.encode("REMOVED"))
+                    .password(passwordEncoder.encode("admin123"))
                     .role("ROLE_ADMIN")
                     .email("admin@magazyn.local")
                     .isActive(true)
