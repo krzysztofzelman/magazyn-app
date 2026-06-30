@@ -195,7 +195,9 @@ jobs:
           cd /root/magazyn-app
 
           # Pull latest code (for docker-compose.prod.yml and config files)
-          git pull origin main
+          # Use fetch+reset to handle forced updates (e.g., after history cleanup)
+          git fetch origin
+          git reset --hard origin/main
 
           # Backup database
           mkdir -p backups
