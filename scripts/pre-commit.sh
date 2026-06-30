@@ -42,7 +42,8 @@ FORBIDDEN_FILES=(
 # ─────────────────────────────────────────────────────────────────
 
 STAGED_FILES=$(git diff --cached --name-only)
-STAGED_DIFF=$(git diff --cached)
+# Only scan source/config files — skip hook scripts themselves
+STAGED_DIFF=$(git diff --cached -- . ':!scripts/pre-commit.sh' ':!scripts/install-hooks.sh')
 
 HAS_ERROR=false
 
