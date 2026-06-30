@@ -752,7 +752,7 @@ Wdrożenie produkcyjne odbywa się automatycznie przez GitHub Actions przy każd
 **Przebieg:**
 1. Trigger: push do `main`
 2. Runner: `ubuntu-latest`
-3. Połączenie SSH z VPS (`31.3.218.196`, port `2022`)
+3. Połączenie SSH z VPS (`<VPS_IP>`, port `2022`)
 4. Skrypt na VPS:
    ```bash
    docker compose exec postgres pg_dump -U magazyn_user magazyn_db | gzip > /backups/pre-deploy-$(date +%F-%H%M%S).sql.gz

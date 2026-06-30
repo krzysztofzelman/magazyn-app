@@ -15,6 +15,7 @@ import com.example.magazyn.repository.ContractorRepository;
 import com.example.magazyn.repository.LocationRepository;
 import com.example.magazyn.repository.ProductRepository;
 import com.example.magazyn.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class SeedService {
     private final WarehouseDocumentService warehouseDocumentService;
     private final ReservationService reservationService;
     private final PasswordEncoder passwordEncoder;
+    private final String defaultUserPassword;
 
     public SeedService(LocationRepository locationRepository,
                        ProductRepository productRepository,
@@ -48,7 +50,8 @@ public class SeedService {
                        ContractorRepository contractorRepository,
                        WarehouseDocumentService warehouseDocumentService,
                        ReservationService reservationService,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       @Value("${DEFAULT_USER_PASSWORD:change_me}") String defaultUserPassword) {
         this.locationRepository = locationRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
@@ -56,6 +59,7 @@ public class SeedService {
         this.warehouseDocumentService = warehouseDocumentService;
         this.reservationService = reservationService;
         this.passwordEncoder = passwordEncoder;
+        this.defaultUserPassword = defaultUserPassword;
     }
 
     // ============================================================
@@ -74,28 +78,28 @@ public class SeedService {
         List<User> users = List.of(
                 User.builder()
                         .username("admin")
-                        .password(passwordEncoder.encode("admin123"))
+                        .password(passwordEncoder.encode(defaultUserPassword))
                         .role("ROLE_ADMIN")
                         .email("admin@magazyn.local")
                         .isActive(true)
                         .build(),
                 User.builder()
                         .username("manager")
-                        .password(passwordEncoder.encode("manager123"))
+                        .password(passwordEncoder.encode(defaultUserPassword))
                         .role("ROLE_MANAGER")
                         .email("manager@magazyn.local")
                         .isActive(true)
                         .build(),
                 User.builder()
                         .username("warehouse")
-                        .password(passwordEncoder.encode("warehouse123"))
+                        .password(passwordEncoder.encode(defaultUserPassword))
                         .role("ROLE_WAREHOUSE")
                         .email("warehouse@magazyn.local")
                         .isActive(true)
                         .build(),
                 User.builder()
                         .username("viewer")
-                        .password(passwordEncoder.encode("viewer123"))
+                        .password(passwordEncoder.encode(defaultUserPassword))
                         .role("ROLE_VIEWER")
                         .email("viewer@magazyn.local")
                         .isActive(true)

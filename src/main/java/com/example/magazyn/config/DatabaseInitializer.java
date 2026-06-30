@@ -7,11 +7,14 @@ import com.example.magazyn.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Profile("dev")
 public class DatabaseInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseInitializer.class);
@@ -19,11 +22,14 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+    private final String defaultUserPassword;
 
-    public DatabaseInitializer(UserRepository userRepository, TenantRepository tenantRepository, PasswordEncoder passwordEncoder) {
+    public DatabaseInitializer(UserRepository userRepository, TenantRepository tenantRepository,
+                               PasswordEncoder passwordEncoder, Environment env) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.passwordEncoder = passwordEncoder;
+        this.defaultUserPassword = env.getProperty("DEFAULT_USER_PASSWORD", "change_me");
     }
 
     @Override
@@ -41,13 +47,11 @@ public class DatabaseInitializer implements CommandLineRunner {
         // Set tenant context so TenantAware @PrePersist picks it up
         TenantContext.setTenantId(defaultTenant.getId());
         try {
-            log.warn("Creating default users under tenant '{}'", defaultTenant.getName());
-            log.warn("DEFAULT PASSWORDS: admin=admin123, manager=manager123, warehouse=warehouse123, viewer=viewer123");
-            log.warn("CHANGE DEFAULT PASSWORDS AFTER FIRST LOGIN for production use");
+            log.info("Creating default users under tenant '{}'", defaultTenant.getName());
 
             userRepository.save(User.builder()
                     .username("admin")
-                    .password(passwordEncoder.encode("admin123"))
+                    .password(passwordEncoder.encode(defaultUserPassword))
                     .role("ROLE_ADMIN")
                     .email("admin@magazyn.local")
                     .isActive(true)
@@ -55,7 +59,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             userRepository.save(User.builder()
                     .username("manager")
-                    .password(passwordEncoder.encode("manager123"))
+                    .password(passwordEncoder.encode(defaultUserPassword))
                     .role("ROLE_MANAGER")
                     .email("manager@magazyn.local")
                     .isActive(true)
@@ -63,7 +67,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             userRepository.save(User.builder()
                     .username("warehouse")
-                    .password(passwordEncoder.encode("warehouse123"))
+                    .password(passwordEncoder.encode(defaultUserPassword))
                     .role("ROLE_WAREHOUSE")
                     .email("warehouse@magazyn.local")
                     .isActive(true)
@@ -71,7 +75,7 @@ public class DatabaseInitializer implements CommandLineRunner {
 
             userRepository.save(User.builder()
                     .username("viewer")
-                    .password(passwordEncoder.encode("viewer123"))
+                    .password(passwordEncoder.encode(defaultUserPassword))
                     .role("ROLE_VIEWER")
                     .email("viewer@magazyn.local")
                     .isActive(true)

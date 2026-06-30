@@ -186,10 +186,10 @@ jobs:
     - name: Deploy to VPS
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.VPS_HOST || '31.3.218.196' }}
-        username: ${{ secrets.VPS_USER || 'root' }}
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
         key: ${{ secrets.VPS_SSH_KEY }}
-        port: ${{ secrets.VPS_PORT || '2022' }}
+        port: ${{ secrets.VPS_PORT }}
         script: |
           set -e
           cd /root/magazyn-app
@@ -213,10 +213,10 @@ jobs:
     - name: Upload Docker image to VPS
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.VPS_HOST || '31.3.218.196' }}
-        username: ${{ secrets.VPS_USER || 'root' }}
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
         key: ${{ secrets.VPS_SSH_KEY }}
-        port: ${{ secrets.VPS_PORT || '2022' }}
+        port: ${{ secrets.VPS_PORT }}
         source: "magazyn-app.tar.gz"
         target: "/root/magazyn-app/"
 
@@ -224,10 +224,10 @@ jobs:
     - name: Load image and restart containers
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.VPS_HOST || '31.3.218.196' }}
-        username: ${{ secrets.VPS_USER || 'root' }}
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
         key: ${{ secrets.VPS_SSH_KEY }}
-        port: ${{ secrets.VPS_PORT || '2022' }}
+        port: ${{ secrets.VPS_PORT }}
         script: |
           set -e
           cd /root/magazyn-app
